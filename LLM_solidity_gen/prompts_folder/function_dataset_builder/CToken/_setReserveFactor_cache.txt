@@ -1,0 +1,10 @@
+Function: _setReserveFactor
+
+Input:
+- newReserveFactorMantissa (uint)
+
+Output:
+- uint (representing success or failure)
+
+Summary: 
+The function sets a new reserve factor for the protocol. It first accrues interest and then updates the reserve factor. In case of any error during the interest accrual, a failure log is emitted.

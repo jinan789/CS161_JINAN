@@ -1,0 +1,27 @@
+function transferTokens(address spender, address src, address dst, uint tokens) public returns (uint result) {
+    // Make sure that the source and destination addresses are different
+    if (src == dst) {
+        return fail(Error.INVALID_ACCOUNT_PAIR, FailureInfo.TRANSFER_TOKENS_FAIL);
+    }
+
+    // Get the allowance for the spender from the src account
+    uint startingAllowance = allowances[src][spender];
+    
+    // Check if the spender is allowed to perform the transfer
+    if (startingAllowance < tokens) {
+        return fail(Error.INSUFFICIENT_ALLOWANCE, FailureInfo.TRANSFER_TOKENS_NOT_ALLOWED);
+    }
+
+    // Update the allowance
+    allowances[src][spender] = sub_(startingAllowance, tokens);
+
+    // Transfer the tokens
+    accountTokens[src] = sub_(accountTokens[src], tokens);
+    accountTokens[dst] = add_(accountTokens[dst], tokens);
+
+    // Emit the Transfer event
+    emit Transfer(src, dst, tokens);
+
+    // Return 0 (success)
+    return 0;
+}

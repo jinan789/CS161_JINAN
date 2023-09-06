@@ -1,0 +1,15 @@
+    function queue(uint proposalId) external {
+        require(state(proposalId) == ProposalState.Succeeded, "GovernorBravo::queue: proposal can only be queued if it is succeeded");
+        Proposal storage proposal = proposals[proposalId];
+        uint eta = add256(block.timestamp, timelock.delay());
+        for (uint i = 0; i < proposal.targets.length; i++) {
+            queueOrRevertInternal(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], eta);
+        }
+        proposal.eta = eta;
+        emit ProposalQueued(proposalId, eta);
+    }
+    
+    function getActions(uint proposalId) external view returns (address[] memory targets, uint[] memory values, string[] memory signatures, bytes[] memory calldatas) {
+        Proposal storage p = proposals[proposalId];
+        return (p.targets, p.values, p.signatures, p.calldatas);
+    }

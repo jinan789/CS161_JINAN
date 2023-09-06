@@ -1,0 +1,5 @@
+Function: totalBorrowsCurrent
+Input: None
+Output: uint
+
+Summary: This function returns the current total borrow balance of the contract, updating the associated interest before calculating the total amount.

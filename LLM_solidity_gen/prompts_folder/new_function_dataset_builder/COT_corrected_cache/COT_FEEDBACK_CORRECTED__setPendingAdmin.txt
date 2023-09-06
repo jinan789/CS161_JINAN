@@ -1,0 +1,61 @@
+TASK 1: Step-by-step plan for `_setPendingAdmin` function:
+
+1. Check if the caller of the function is the admin of the contract. If not, revert the transaction and return an error message "only admin can set pending admin".
+2. Store the current pending admin address in a temporary variable, `oldPendingAdmin`.
+3. Update the `pendingAdmin` state variable to the provided `newPendingAdmin` address.
+4. Emit a `NewPendingAdmin` event containing the old pending admin address, and the new pending admin address.
+5. Return an error code indicating success (Error.NO_ERROR).
+
+Now, let's analyze the provided code and compare it with the plan.
+
+Provided code:
+
+```solidity
+function _setPendingAdmin(address payable newPendingAdmin) external returns (uint) {
+    // Check caller is admin
+    require(msg.sender == admin, "only admin can set pending admin");
+
+    address oldPendingAdmin = pendingAdmin;
+    pendingAdmin = newPendingAdmin;
+
+    emit NewPendingAdmin(oldPendingAdmin, newPendingAdmin);
+
+    return uint(Error.NO_ERROR);
+}
+```
+
+The provided code seems to follow the plan correctly and includes all necessary steps in the correct order. However, I noticed that there is no `Error` enum specified, so we should add that definition. Also, the `_setPendingAdmin` function should be only callable by the admin, so we can add the `onlyAdmin` modifier to the function.
+
+Here's the final version of the code with the added `Error` enum and the `onlyAdmin` modifier.
+
+```solidity
+pragma solidity ^0.5.16;
+// ... (rest of the contract imports & definitions)
+
+contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
+    // Add Error enum definition
+    enum Error {
+        NO_ERROR,
+        // Add other error codes if necessary
+    }
+
+    // Add onlyAdmin modifier
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "only admin can call this function");
+        _;
+    }
+
+    function _setPendingAdmin(address payable newPendingAdmin) external onlyAdmin returns (uint) {
+        address oldPendingAdmin = pendingAdmin;
+        pendingAdmin = newPendingAdmin;
+
+        emit NewPendingAdmin(oldPendingAdmin, newPendingAdmin);
+
+        return uint(Error.NO_ERROR);
+    }
+
+    // ... (rest of the contract functions & events)
+}
+```
+
+Now the `_setPendingAdmin` function follows the plan, and the contract has the necessary enum and modifier to complete the task.

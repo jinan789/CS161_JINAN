@@ -1,0 +1,10 @@
+// CHANGES BASED ON CALLED CODE MADE: Added the nonReentrant modifier to conform with the ERC20 standard and prevent reentrancy attacks
+function approve(address spender, uint rawAmount) public nonReentrant returns (bool) {
+    require(spender != address(0), "INV: approve to the zero address");
+    uint96 amount = safe96(rawAmount, "INV: amount exceeds 96 bits");
+    allowances[msg.sender][spender] = amount;
+
+    emit Approval(msg.sender, spender, rawAmount);
+
+    return true;
+}

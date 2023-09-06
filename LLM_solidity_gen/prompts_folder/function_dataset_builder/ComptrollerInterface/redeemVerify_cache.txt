@@ -1,0 +1,11 @@
+Function: redeemVerify
+
+Input: 
+1. address cToken
+2. address redeemer
+3. uint redeemAmount
+4. uint redeemTokens
+
+Output: None
+
+Summary: The function verifies the redeem process of a specified amount of tokens for a given user in a particular token market.

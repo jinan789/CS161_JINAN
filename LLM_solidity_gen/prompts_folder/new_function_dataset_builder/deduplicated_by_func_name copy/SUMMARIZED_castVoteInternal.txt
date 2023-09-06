@@ -1,0 +1,10 @@
+Function: castVoteInternal(address voter, uint proposalId, uint8 support)
+
+Input:
+1. voter (address): Address of the voter
+2. proposalId (uint): ID of the proposal being voted on
+3. support (uint8): Voting decision, where 0 represents against, 1 represents for, and 2 represents abstain.
+
+Output: (uint256) Number of votes by the voter
+
+Summary: The function allows a voter to participate in voting on a proposal that is currently active. It prevents top stakers from voting and takes a user's voting power (number of votes) based on their past number of votes. It also updates the proposal's total votes (for, against, or abstain) and records the voting details in a receipt.

@@ -1,0 +1,166 @@
+I want you to help me find new gas-wasting patterns for Solidity. Gas is a unique pricing mechanism in Solidity, which measures the amount of computational resources put into the execution of Solidity codes. The goal of gas optimization is to find an equivalent code instruction sequence that produces the same output while consuming less gas, which may misalign from the way people typically write codes, since code writers aim for readability and maintainability, while gas optimization might seem a little unintuitive to newcomers. For example, storage variables in Solidity are expensive in terms of gas, while memory is not, so storage operations should be avoided whenever possible. Gas is paid in real money, so saving gas is saving money.
+
+First, I will give you a list of known gas-wasting patterns. The list is numbered, with each bullet point specifying one gas-wasting pattern, which is followed by an explanation of why this pattern wastes gas. I want you to read through these and learn how to find new gas-wasting patterns from it. The list is as follows:
+
+1. Repeated computation of the same expression: including repetitive reads of the same expensive storage variable (e.g. Overuse of expensive storage variables). This could be solved by introducing an intermediate variable to hold the value.
+ 
+2. Extractable code chunks: if there are multiple chunks of codes that perform the same/similar functionalities, then we could abstract them into one function (or modifier) to save deployment costs 
+
+3. Variable refactoring: by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+
+4. Redundant operations with same effects: redundant operations that overwrite the effect of the previous operation, making the previous useless
+
+5. Pre-computable operations on constants: performing comparisons (or say other operations) to constants is useless and could be pre-computed
+
+6. Persistent conditional checks: some of the condition checks may always evaluate to true or always evaluate to false, which could be directly replaced by their evaluated values
+
+7. Simplifiable conditional operations: expressions that involve logical operations that could be simplified to reduce the amount of computational workload.
+
+8. "dead codes." codes that are guaranteed not to be executed (e.g. unreachable conditional branch) should be removed.
+9. "Opaque predicate." If the outcome of a predicate could be inferred to be true/false without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+10. "Expensive operations in a loop." If an gas-expensive operation is executed multiple times in a loop, while there is a way to equivalently move it out of the loop to execute only once (e.g. storing a storage variable in a memory variable and performing operations on the memory variable inside the loop), then we should do it to save gas.
+11. "Constant outcome of a loop." If the outcome of a loop could be inferred without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+12. "Loop fusion." If two loops have the same starting and stopping conditions with the same increment steps, then we could consider combining them into one (e.g. delete the second loop, and put its loop body codes into the first one) if they have no dependencies. This way, we save the logical comparisons, conditional jumps, as well as the incremental steps of the second loop, which saves computation and thus gas.
+13. "Repeated computations in a loop." If there are expressions that produce the same outcome in each iteration of a loop, we could move it out of the loop and execute only once, which saves computation.
+14. "Struct variable refactoring." If a struct used in a contract contains some fields that are used more often and some that are less often, then by breaking up the struct into two, where the frequently used fields are now put as a separate struct, we get to avoid unnecessary reads on the less often used fields and save gas.s
+
+Next, I will give you a chunk of Solidity codes from which you will find gas-inefficient patterns; note that I have removed simple functions from the contract and only kept complex ones, with the hope that you could focus on the most complicated function codes
+contract RolloverVault is
+    function _rollover(IPerpetualTranche perp_, BondTranches memory bt) private returns (uint256) {
+        // NOTE: The first element of the list is the mature tranche,
+        //       there after the list is NOT ordered by maturity.
+        IERC20Upgradeable[] memory rolloverTokens = perp_.getReserveTokensUpForRollover();
+
+        // Batch rollover
+        uint256 totalPerpRolledOver = 0;
+        uint8 vaultTrancheIdx = 0;
+        uint256 perpTokenIdx = 0;
+
+        // We pair tranche tokens held by the vault with tranche tokens held by perp,
+        // And execute the rollover and continue to the next token with a usable balance.
+        while (vaultTrancheIdx < bt.tranches.length && perpTokenIdx < rolloverTokens.length) {
+            // trancheIntoPerp refers to the tranche going into perp from the vault
+            ITranche trancheIntoPerp = bt.tranches[vaultTrancheIdx];
+
+            // tokenOutOfPerp is the reserve token coming out of perp into the vault
+            IERC20Upgradeable tokenOutOfPerp = rolloverTokens[perpTokenIdx];
+
+            // compute available token out
+            uint256 tokenOutAmtAvailable = address(tokenOutOfPerp) != address(0)
+                ? tokenOutOfPerp.balanceOf(perp_.reserve())
+                : 0;
+
+            // trancheIntoPerp tokens are NOT exhausted but tokenOutOfPerp is exhausted
+            if (tokenOutAmtAvailable <= 0) {
+                // Rollover is a no-op, so skipping to next tokenOutOfPerp
+                ++perpTokenIdx;
+                continue;
+            }
+
+            // Compute available tranche in
+            uint256 trancheInAmtAvailable = trancheIntoPerp.balanceOf(address(this));
+
+            // trancheInAmtAvailable is exhausted
+            if (trancheInAmtAvailable <= 0) {
+                // Rollover is a no-op, so skipping to next trancheIntoPerp
+                ++vaultTrancheIdx;
+                continue;
+            }
+
+            // Preview rollover
+            IPerpetualTranche.RolloverPreview memory rd = perp_.computeRolloverAmt(
+                trancheIntoPerp,
+                tokenOutOfPerp,
+                trancheInAmtAvailable,
+                tokenOutAmtAvailable
+            );
+
+            // trancheIntoPerp isn't accepted by perp, likely because it's yield=0, refer perp docs for more info
+            if (rd.perpRolloverAmt <= 0) {
+                // Rollover is a no-op, so skipping to next trancheIntoPerp
+                ++vaultTrancheIdx;
+                continue;
+            }
+
+            // Perform rollover
+            _checkAndApproveMax(trancheIntoPerp, address(perp_), trancheInAmtAvailable);
+            perp_.rollover(trancheIntoPerp, tokenOutOfPerp, trancheInAmtAvailable);
+
+            // sync deployed asset sent to perp
+            _syncAndRemoveDeployedAsset(trancheIntoPerp);
+
+            // skip insertion into the deployed list the case of the mature tranche, ie underlying
+            if (tokenOutOfPerp != underlying) {
+                // sync deployed asset retrieved from perp
+                _syncAndAddDeployedAsset(tokenOutOfPerp);
+            }
+
+            // keep track of total amount rolled over
+            totalPerpRolledOver += rd.perpRolloverAmt;
+        }
+
+        // sync underlying and earned (ie perp)
+        _syncAsset(underlying);
+        _syncAsset(perp_);
+
+        return totalPerpRolledOver;
+    }
+
+    /// @dev Low level method that redeems the given mature tranche for the underlying asset.
+    ///      It interacts with the button-wood bond contract.
+    ///      This function should NOT be called directly, use `recover()` or `recover(tranche)`
+    ///      which wrap this function with the internal book-keeping necessary,
+    ///      to keep track of the vault's assets.
+    function init(
+        string memory name,
+        string memory symbol,
+        IPerpetualTranche perp_
+    ) public initializer {
+        __ERC20_init(name, symbol);
+        __ERC20Burnable_init();
+        __Ownable_init();
+        __Pausable_init();
+        __ReentrancyGuard_init();
+
+        underlying = perp_.collateral();
+        _syncAsset(underlying);
+
+        perp = perp_;
+    }
+    function transferERC20(
+        IERC20Upgradeable token,
+        address to,
+        uint256 amount
+    ) external onlyOwner {
+        if (isVaultAsset(token)) {
+            revert UnauthorizedTransferOut(token);
+        }
+        token.safeTransfer(to, amount);
+    }
+
+    //--------------------------------------------------------------------------
+    // External & Public write methods
+
+    /// @inheritdoc IVault
+    /// @dev Simply batches the `recover` and `deploy` functions. Reverts if there are no funds to deploy.
+    function deploy() public override nonReentrant whenNotPaused {
+        (uint256 deployedAmt, BondTranches memory bt) = _tranche(perp.getDepositBond());
+        uint256 perpsRolledOver = _rollover(perp, bt);
+        // NOTE: The following enforces that we only tranche the underlying if it can immediately be used for rotations.
+        if (deployedAmt <= minDeploymentAmt || perpsRolledOver <= 0) {
+            revert InsufficientDeployment();
+        }
+    }
+
+    /// @inheritdoc IVault
+Now that I have given you the necessary information, I want you to help me find new gas-wasting patterns from the above codes, based on what you learn from the list of patterns. Please be creative and think out of the box beyond the patterns listed above. Please put the new gas wasting patterns in bullet points (in the form of '1.', '2.', etc), and answer the following questions for each of the found patterns (in sub-bullet-points under each bullet point):
+
+1. How did you find this pattern? Could you explain the reasoning process, step by step, behind the discovery?
+
+2. What should I do, step by step, to fix the found gas-wasting patterns? Could you explain the reasoning process, step by step, behind the reason why such a fix works?
+
+3. On a score of 0 to 5, could you please tell me how would you rate this found new pattern, in terms of how much it is sacrificing readability, security, and maintainability in exchange for gas optimization (5 is the least impacted. For example, Security score of 5 means implementing the found gas-optimization pattern would have no effect on security, whereas 1 means it would reduce security)? Please format your answer as in "Readability: 5; Security: 4; Maintainability: 3". Please also provide explanations.
+
+Here are some additional requirements:
+1. If you think my prompt to you has any issues (e.g. ambiguity or lack of information), please tell me how I should improve it in the next time.
+2. please help me format your answer in the form of a Latex section (e.g. \section*{Analysis of Provided Solidity Code}), since I want to assert it to a Latex document.

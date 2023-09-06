@@ -1,0 +1,7 @@
+Input: 
+1. address 'spender'
+2. uint 'rawAmount'
+
+Output: bool
+
+Summary: The function 'approve' allows the caller (msg.sender) to set an approval limit for a spender to spend on their behalf. The function adjusts the approval amount, emits an Approval event, and returns true if successful.

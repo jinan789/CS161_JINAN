@@ -1,0 +1,85 @@
+Sure, I can definitely help you with that. Let's first break down the functionality of the function `seizeInternal` step-by-step based on the provided Information 2.
+
+**Step-by-Step Plan:**
+
+1. Check if the seizure is allowed by the Comptroller. This is done by calling the `seizeAllowed` function with the appropriate inputs. If it's not allowed, return a failure with an appropriate error message.
+
+2. Calculate the number of tokens to be seized from the borrower and transferred to the liquidator. This is done by multiplying the seized tokens by the liquidation incentive. If there's a math error, return a failure with an appropriate error message.
+
+3. Calculate the number of tokens to be seized from the borrower and transferred to the protocol. This is done by multiplying the seized tokens by the protocol seize incentive. If there's a math error, return a failure with an appropriate error message.
+
+4. Check if the borrower has enough tokens to be seized. If not, return a failure with an appropriate error message.
+
+5. Update the borrower's and liquidator's token balances.
+
+6. Update the total supply and reserves of the contract.
+
+7. Emit two Transfer events. The first one is from the borrower to the liquidator, and the second one is from the borrower to the contract itself.
+
+8. Return success.
+
+Now, let's review your code to check if it follows the above-mentioned plan.
+
+Your code seems to be correctly following this plan. However, it's missing the actual transfer of tokens from the borrower to the liquidator and the protocol. This step is critical as it is the actual action of seizing the tokens. 
+
+Here is the updated version of your code:
+
+```solidity
+function seizeInternal(address seizerToken, address liquidator, address borrower, uint seizeTokens) internal returns (uint) {
+    SeizeInternalLocalVars memory localVars;
+
+    /* Fail if seize not allowed */
+    uint allowed = comptroller.seizeAllowed(address(this), seizerToken, liquidator, borrower, seizeTokens);
+    if (allowed != 0) {
+        return failOpaque(Error.COMPTROLLER_REJECTION, FailureInfo.SEIZE_COMPTROLLER_REJECTION, allowed);
+    }
+
+    /* Calculate the number of tokens to seize from borrower and give to liquidator */
+    (localVars.mathErr, localVars.liquidatorSeizeTokens) = mulScalarTruncate(Exp({mantissa: comptroller.liquidationIncentiveMantissa()}), seizeTokens);
+    if (localVars.mathErr != MathError.NO_ERROR) {
+        return failOpaque(Error.MATH_ERROR, FailureInfo.SEIZE_LIQUIDATOR_SEIZE_CALCULATION_FAILED, uint(localVars.mathErr));
+    }
+
+    /* Calculate the number of tokens to seize from borrower and give to protocol */
+    (localVars.mathErr, localVars.protocolSeizeTokens, localVars.protocolSeizeAmount) = mulScalarTruncate(Exp({mantissa: comptroller.protocolSeizeIncentive()}), seizeTokens);
+    if (localVars.mathErr != MathError.NO_ERROR) {
+        return failOpaque(Error.MATH_ERROR, FailureInfo.SEIZE_PROTOCOL_SEIZE_CALCULATION_FAILED, uint(localVars.mathErr));
+    }
+
+    /* Revert if borrower has not enough tokens to be seized */
+    if (getAccountTokens(borrower) < add(localVars.liquidatorSeizeTokens, localVars.protocolSeizeTokens)) {
+        return fail(Error.TOKEN_INSUFFICIENT_BALANCE, FailureInfo.SEIZE_BALANCE_DECREMENT_FAILED);
+    }
+
+    /* Update borrower and liquidator balances */
+    localVars.borrowerTokensNew = sub(getAccountTokens(borrower), add(localVars.liquidatorSeizeTokens, localVars.protocolSeizeTokens));
+    localVars.liquidatorTokensNew = add(getAccountTokens(liquidator), localVars.liquidatorSeizeTokens);
+    setAccountTokens(liquidator, localVars.liquidatorTokensNew);
+    setAccountTokens(borrower, localVars.borrowerTokensNew);
+
+    /* Transfer tokens from borrower to liquidator and protocol */
+    EIP20Interface token = EIP20Interface(seizerToken);
+    require(token.transferFrom(borrower, liquidator, localVars.liquidatorSeizeTokens));
+    require(token.transferFrom(borrower, address(this), localVars.protocolSeizeTokens));
+
+    /* Update total supply and reserves */
+    localVars.totalSupplyNew = sub(totalSupply, localVars.protocolSeizeTokens);
+    totalSupply = localVars.totalSupplyNew;
+
+    localVars.totalReservesNew = add(reserves, localVars.protocolSeizeAmount);
+    reserves = localVars.totalReservesNew;
+
+    /* Emit transfer events */
+    emit Transfer(borrower, liquidator, localVars.liquidatorSeizeTokens);
+    emit Transfer(borrower, address(this), localVars.protocolSeizeTokens);
+
+    /* Return success */
+    return uint(Error.NO_ERROR);
+}
+```
+
+Note that the actual transferSorry for the cut-off in the previous response. The last part was meant to say:
+
+Note that the actual transfer of tokens from the borrower to the liquidator and the protocol is performed using the `transferFrom` function of the EIP20Interface. This function call requires the borrower to have approved the contract to spend tokens on their behalf. If the borrower has not given this approval, the `transferFrom` calls will fail. If your contract does not handle these failures, it could become stuck in a bad state. Therefore, it's crucial to handle potential transfer failures appropriately.
+
+Also, please be aware that the code I provided is based on the information you provided and my interpretation of it. There might be other requirements or constraints in your project that are not covered by this code. Please carefully review and test this code before integrating it into your project.

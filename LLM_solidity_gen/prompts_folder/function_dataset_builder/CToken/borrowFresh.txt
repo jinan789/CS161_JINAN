@@ -1,0 +1,146 @@
+
+The function that I want you to summarize is borrowFresh, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signature, with the purpose of providing richer background information for you. The codes are: 
+pragma solidity ^0.5.16;
+
+import "./ComptrollerInterface.sol";
+import "./CTokenInterfaces.sol";
+import "./ErrorReporter.sol";
+import "./Exponential.sol";
+import "./EIP20Interface.sol";
+import "./InterestRateModel.sol";
+
+/**
+ * @title Compound's CToken Contract
+ * @notice Abstract base for CTokens
+ * @author Compound
+ */
+contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
+    /**
+     * @notice Initialize the money market
+     * @param comptroller_ The address of the Comptroller
+     * @param interestRateModel_ The address of the interest rate model
+     * @param initialExchangeRateMantissa_ The initial exchange rate, scaled by 1e18
+     * @param name_ EIP-20 name of this token
+     * @param symbol_ EIP-20 symbol of this token
+     * @param decimals_ EIP-20 decimal precision of this token
+     */
+    function initialize(ComptrollerInterface comptroller_,
+    function transferTokens(address spender, address src, address dst, uint tokens) internal returns (uint) {
+    function transfer(address dst, uint256 amount) external nonReentrant returns (bool) {
+    function transferFrom(address src, address dst, uint256 amount) external nonReentrant returns (bool) {
+    function approve(address spender, uint256 amount) external returns (bool) {
+    function allowance(address owner, address spender) external view returns (uint256) {
+    function balanceOf(address owner) external view returns (uint256) {
+    function balanceOfUnderlying(address owner) external returns (uint) {
+    function getAccountSnapshot(address account) external view returns (uint, uint, uint, uint) {
+    function getBlockNumber() internal view returns (uint) {
+    function borrowRatePerBlock() external view returns (uint) {
+    function supplyRatePerBlock() external view returns (uint) {
+    function totalBorrowsCurrent() external nonReentrant returns (uint) {
+    function borrowBalanceCurrent(address account) external nonReentrant returns (uint) {
+    function borrowBalanceStored(address account) public view returns (uint) {
+    function borrowBalanceStoredInternal(address account) internal view returns (MathError, uint) {
+    function exchangeRateCurrent() public nonReentrant returns (uint) {
+    function exchangeRateStored() public view returns (uint) {
+    function exchangeRateStoredInternal() internal view returns (MathError, uint) {
+    function getCash() external view returns (uint) {
+    function accrueInterest() public returns (uint) {
+    function mintInternal(uint mintAmount) internal nonReentrant returns (uint, uint) {
+    function mintFresh(address minter, uint mintAmount) internal returns (uint, uint) {
+    function redeemInternal(uint redeemTokens) internal nonReentrant returns (uint) {
+    function redeemUnderlyingInternal(uint redeemAmount) internal nonReentrant returns (uint) {
+    function redeemFresh(address payable redeemer, uint redeemTokensIn, uint redeemAmountIn) internal returns (uint) {
+    function borrowInternal(uint borrowAmount) internal nonReentrant returns (uint) {
+    function borrowFresh(address payable borrower, uint borrowAmount) internal returns (uint) {
+        /* Fail if borrow not allowed */
+        uint allowed = comptroller.borrowAllowed(address(this), borrower, borrowAmount);
+        if (allowed != 0) {
+            return failOpaque(Error.COMPTROLLER_REJECTION, FailureInfo.BORROW_COMPTROLLER_REJECTION, allowed);
+        }
+
+        /* Verify market's block number equals current block number */
+        if (accrualBlockNumber != getBlockNumber()) {
+            return fail(Error.MARKET_NOT_FRESH, FailureInfo.BORROW_FRESHNESS_CHECK);
+        }
+
+        /* Fail gracefully if protocol has insufficient underlying cash */
+        if (getCashPrior() < borrowAmount) {
+            return fail(Error.TOKEN_INSUFFICIENT_CASH, FailureInfo.BORROW_CASH_NOT_AVAILABLE);
+        }
+
+        BorrowLocalVars memory vars;
+
+        /*
+         * We calculate the new borrower and total borrow balances, failing on overflow:
+         *  accountBorrowsNew = accountBorrows + borrowAmount
+         *  totalBorrowsNew = totalBorrows + borrowAmount
+         */
+        (vars.mathErr, vars.accountBorrows) = borrowBalanceStoredInternal(borrower);
+        if (vars.mathErr != MathError.NO_ERROR) {
+            return failOpaque(Error.MATH_ERROR, FailureInfo.BORROW_ACCUMULATED_BALANCE_CALCULATION_FAILED, uint(vars.mathErr));
+        }
+
+        (vars.mathErr, vars.accountBorrowsNew) = addUInt(vars.accountBorrows, borrowAmount);
+        if (vars.mathErr != MathError.NO_ERROR) {
+            return failOpaque(Error.MATH_ERROR, FailureInfo.BORROW_NEW_ACCOUNT_BORROW_BALANCE_CALCULATION_FAILED, uint(vars.mathErr));
+        }
+
+        (vars.mathErr, vars.totalBorrowsNew) = addUInt(totalBorrows, borrowAmount);
+        if (vars.mathErr != MathError.NO_ERROR) {
+            return failOpaque(Error.MATH_ERROR, FailureInfo.BORROW_NEW_TOTAL_BALANCE_CALCULATION_FAILED, uint(vars.mathErr));
+        }
+
+        /////////////////////////
+        // EFFECTS & INTERACTIONS
+        // (No safe failures beyond this point)
+
+        /*
+         * We invoke doTransferOut for the borrower and the borrowAmount.
+         *  Note: The cToken must handle variations between ERC-20 and ETH underlying.
+         *  On success, the cToken borrowAmount less of cash.
+         *  doTransferOut reverts if anything goes wrong, since we can't be sure if side effects occurred.
+         */
+        doTransferOut(borrower, borrowAmount);
+
+        /* We write the previously calculated values into storage */
+        accountBorrows[borrower].principal = vars.accountBorrowsNew;
+        accountBorrows[borrower].interestIndex = borrowIndex;
+        totalBorrows = vars.totalBorrowsNew;
+
+        /* We emit a Borrow event */
+        emit Borrow(borrower, borrowAmount, vars.accountBorrowsNew, vars.totalBorrowsNew);
+
+        /* We call the defense hook */
+        // unused function
+        // comptroller.borrowVerify(address(this), borrower, borrowAmount);
+
+        return uint(Error.NO_ERROR);
+    }
+
+    /**
+     * @notice Sender repays their own borrow
+     * @param repayAmount The amount to repay
+     * @return (uint, uint) An error code (0=success, otherwise a failure, see ErrorReporter.sol), and the actual repayment amount.
+     */
+    function repayBorrowInternal(uint repayAmount) internal nonReentrant returns (uint, uint) {
+    function repayBorrowBehalfInternal(address borrower, uint repayAmount) internal nonReentrant returns (uint, uint) {
+    function repayBorrowFresh(address payer, address borrower, uint repayAmount) internal returns (uint, uint) {
+    function liquidateBorrowInternal(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal nonReentrant returns (uint, uint) {
+    function liquidateBorrowFresh(address liquidator, address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal returns (uint, uint) {
+    function seize(address liquidator, address borrower, uint seizeTokens) external nonReentrant returns (uint) {
+    function seizeInternal(address seizerToken, address liquidator, address borrower, uint seizeTokens) internal returns (uint) {
+    function _setPendingAdmin(address payable newPendingAdmin) external returns (uint) {
+    function _acceptAdmin() external returns (uint) {
+    function _setComptroller(ComptrollerInterface newComptroller) public returns (uint) {
+    function _setReserveFactor(uint newReserveFactorMantissa) external nonReentrant returns (uint) {
+    function _setReserveFactorFresh(uint newReserveFactorMantissa) internal returns (uint) {
+    function _addReservesInternal(uint addAmount) internal nonReentrant returns (uint) {
+    function _addReservesFresh(uint addAmount) internal returns (uint, uint) {
+    function _reduceReserves(uint reduceAmount) external nonReentrant returns (uint) {
+    function _reduceReservesFresh(uint reduceAmount) internal returns (uint) {
+    function _setInterestRateModel(InterestRateModel newInterestRateModel) public returns (uint) {
+    function _setInterestRateModelFresh(InterestRateModel newInterestRateModel) internal returns (uint) {
+    function getCashPrior() internal view returns (uint);
+    function doTransferIn(address from, uint amount) internal returns (uint);
+    function doTransferOut(address payable to, uint amount) internal;
+}

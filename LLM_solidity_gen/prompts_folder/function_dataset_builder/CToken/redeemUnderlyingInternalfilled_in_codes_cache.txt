@@ -1,0 +1,34 @@
+<CODE_BEGINNING>
+    /**
+     * @notice Redeems the underlying tokens based on the requested amount and updates the interest.
+     * @param redeemAmount The amount of underlying tokens to be redeemed
+     * @return uint error code indicating success or failure of the redemption process
+     */
+    function redeemUnderlyingInternal(uint redeemAmount) internal nonReentrant returns (uint) {
+        // 1. Accrue interest
+        uint err = accrueInterest();
+        if (err != uint(Error.NO_ERROR)) {
+            return failOpaque(Error(redeemAmount));
+        }
+
+        // 2. Calculate the number of tokens corresponding to the redeemAmount
+        (uint exchangeRateMantissa, err) = exchangeRateStoredInternal();
+        if (err != uint(Error.NO_ERROR)) {
+            return failOpaque(Error(redeemAmount));
+        }
+
+        (MathError mathErr, uint redeemTokens) = divScalarByExpTruncate(redeemAmount, Exp({mantissa: exchangeRateMantissa}));
+        if (mathErr != MathError.NO_ERROR) {
+            return failOpaque(Error.BAD_SYSTEM_PARAMS);
+        }
+
+        // 3. Perform the redemption
+        err = redeemFresh(msg.sender, redeemTokens, redeemAmount);
+        if (err != uint(Error.NO_ERROR)) {
+            return failOpaque(Error(redeemAmount));
+        }
+
+        // 4. Return success
+        return uint(Error.NO_ERROR);
+    }
+<CODE_ENDING>

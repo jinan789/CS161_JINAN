@@ -1,0 +1,13 @@
+To add the `getCash` function as described in the summary, you can simply add the following code snippet to your `CToken` contract:
+
+```solidity
+/**
+ * @notice Returns the amount of cash available in the contract
+ * @return The cash amount returned by getCashPrior()
+ */
+function getCash() public view returns (uint) {
+    return getCashPrior();
+}
+```
+
+This function is marked as `public view` since it only reads data from the contract state and doesn't modify anything. It directly calls the `getCashPrior()` function and returns its value, fulfilling the given requirements of the function summary.

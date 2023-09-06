@@ -1,0 +1,28 @@
+TASK 1:
+1. There is no issue with the provided `_acceptAdmin()` function implementation. It follows the pattern provided in the few-shot examples and uses the correct variables, checks, and emits the appropriate events.
+
+TASK 2:
+Since there are no issues found in TASK 1, there will be no modifications made to the code. I'll simply add the <CODE_BEGINNING> and <CODE_ENDING> tokens as requested.
+
+<CODE_BEGINNING>
+function _acceptAdmin() public returns (uint) {
+    // Check if the caller is the pending admin and that the pending admin is not the zero address
+    if (msg.sender != pendingAdmin || msg.sender == address(0)) {
+        return fail(Error.UNAUTHORIZED, FailureInfo.ACCEPT_ADMIN_PENDING_ADMIN_CHECK);
+    }
+
+    // Update the admin to the value of the pending admin
+    address oldAdmin = admin;
+    admin = pendingAdmin;
+
+    // Clear the pending admin value
+    address oldPendingAdmin = pendingAdmin;
+    pendingAdmin = address(0);
+
+    // Emit events for the updated admin and pending admin
+    emit NewAdmin(oldAdmin, admin);
+    emit NewPendingAdmin(oldPendingAdmin, pendingAdmin);
+
+    return uint(Error.NO_ERROR);
+}
+<CODE_ENDING>

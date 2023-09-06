@@ -1,0 +1,11 @@
+Function: _transferTokens
+
+Input:
+- address src (source address)
+- address dst (destination address)
+- uint96 amount (amount of tokens to transfer)
+
+Output: None (emits Transfer event and modifies internal state)
+
+Summary:
+This function transfers the given amount of tokens from the source address to the destination address, ensuring neither address is the zero address. Additionally, it moves delegate votes accordingly.

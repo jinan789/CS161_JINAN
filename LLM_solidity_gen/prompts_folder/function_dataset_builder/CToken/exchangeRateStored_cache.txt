@@ -1,0 +1,5 @@
+Function: exchangeRateStored
+Input: None
+Output: uint (exchange rate scaled by 1e18)
+
+Summary: This function returns the stored exchange rate between the underlying asset and the CToken. It requires a successful internal calculation to return the result.

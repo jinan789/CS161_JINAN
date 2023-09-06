@@ -1,0 +1,4 @@
+Function: balanceOf
+1. Input: One variable - "address" type (account)
+2. Output: One variable - "uint256" type
+3. Purpose: To return the balance of tokens held by the given account address.

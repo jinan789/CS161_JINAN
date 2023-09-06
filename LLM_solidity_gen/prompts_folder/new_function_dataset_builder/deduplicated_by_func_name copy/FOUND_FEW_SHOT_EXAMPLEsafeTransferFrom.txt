@@ -1,0 +1,4 @@
+The function signatures that have the most similar functionality to the target function `safeTransferFrom` are:
+
+1. `function safeTransfer(ERC20 token, address to, uint256 amount) internal`
+2. `function safeApprove(ERC20 token, address to, uint256 amount) internal`

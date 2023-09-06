@@ -1,0 +1,5 @@
+Function: borrowBalanceCurrent
+Input: address account
+Output: uint
+
+Summary: Calculates and returns the current borrow balance for the given account after accruing interest.

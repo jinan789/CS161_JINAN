@@ -1,0 +1,4 @@
+Based on the function names, return types, and parameter lists, the two function signatures that seem most similar to the target function `_acceptImplementation()` are:
+
+1. `function _setPendingImplementation(address newPendingImplementation) public returns (uint)`
+2. `function _acceptAdmin() public returns (uint)`

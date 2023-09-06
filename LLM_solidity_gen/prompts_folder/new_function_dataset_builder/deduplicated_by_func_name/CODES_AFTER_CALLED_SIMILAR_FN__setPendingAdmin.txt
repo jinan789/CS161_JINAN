@@ -1,0 +1,19 @@
+function _setPendingAdmin(address payable newPendingAdmin) external nonReentrant returns (uint) {
+    //MODIFICATIONS MADE: Added nonReentrant modifier for consistency and security against reentrancy attacks
+
+    // Check caller is admin
+    //MODIFICATIONS MADE: Replaced require with if condition and fail function for error handling consistency with example functions
+    if (msg.sender != admin) {
+        return fail(Error.UNAUTHORIZED, FailureInfo.SET_PENDING_ADMIN_OWNER_CHECK);
+    }
+
+    //CHANGES BASED ON CALLED CODE MADE: Added require statement to check that the newPendingAdmin address is non-zero
+    require(newPendingAdmin != address(0), "New pending admin address must be non-zero");
+    
+    address oldPendingAdmin = pendingAdmin;
+    pendingAdmin = newPendingAdmin;
+
+    emit NewPendingAdmin(oldPendingAdmin, newPendingAdmin);
+
+    return uint(Error.NO_ERROR);
+}

@@ -1,0 +1,3 @@
+This is a function in a smart contract written in Solidity programming language. The function is called borrowAllowed and it takes three input parameters: cToken, borrower, and borrowAmount. The function returns an unsigned integer value.
+
+The purpose of this function is to determine if an account is allowed to borrow the underlying asset of a given market. The function first checks if borrowing from the market is paused by the borrow guardian contract. If it is paused, the function returns an error code.

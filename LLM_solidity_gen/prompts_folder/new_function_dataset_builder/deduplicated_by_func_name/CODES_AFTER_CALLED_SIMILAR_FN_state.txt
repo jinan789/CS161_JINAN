@@ -1,0 +1,26 @@
+function state(uint proposalId) public view returns (ProposalState) {
+    require(proposalCount >= proposalId && proposalId > 0, "GovernorBravo::state: invalid proposal id");
+    Proposal memory proposal = proposals[proposalId];
+    if (proposal.canceled) {
+        return ProposalState.Canceled;
+    } else if (block.number <= proposal.startBlock) {
+        return ProposalState.Pending;
+    } else if (block.number <= proposal.endBlock) {
+        return ProposalState.Active;
+    } else if (proposal.forVotes <= proposal.againstVotes || proposal.forVotes < quorumVotes) {
+        return ProposalState.Defeated;
+    } else if(proposal.executed) {
+        return ProposalState.Executed;
+    //CHANGES BASED ON CALLED CODE MADE: Verify if timelock.getPending() and timelock.getTimestamp() are correct functions or implement them in the contract
+    } else if (timelock.getPending(bytes32(proposalId)) > 0) {
+        return ProposalState.Queued;
+    //CHANGES BASED ON CALLED CODE MADE: Compare the calculated value with proposal.endBlock instead of block.timestamp
+    } else if (timelock.getTimestamp(bytes32(proposalId)) > proposal.endBlock) {
+        return ProposalState.Pending;
+    //CHANGES BASED ON CALLED CODE MADE: Use block.timestamp instead of block.number for calculating expiration
+    } else if ((block.timestamp - proposal.endBlock * BLOCKTIME) < 2 * timelock.GRACE_PERIOD()) {  // Assuming BLOCKTIME is the average time per block in seconds
+        return ProposalState.Expired;
+    } else {
+        return ProposalState.Succeeded;
+    }
+}

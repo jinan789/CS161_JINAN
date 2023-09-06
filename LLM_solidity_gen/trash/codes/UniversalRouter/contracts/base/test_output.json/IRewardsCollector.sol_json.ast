@@ -1,0 +1,157 @@
+{
+  "absolutePath": "interfaces/IRewardsCollector.sol",
+  "exportedSymbols":
+  {
+    "ERC20":
+    [
+      736
+    ],
+    "IRewardsCollector":
+    [
+      348
+    ]
+  },
+  "id": 349,
+  "license": "GPL-3.0-or-later",
+  "nodeType": "SourceUnit",
+  "nodes":
+  [
+    {
+      "id": 338,
+      "literals":
+      [
+        "solidity",
+        "^",
+        "0.8",
+        ".15"
+      ],
+      "nodeType": "PragmaDirective",
+      "src": "45:24:3"
+    },
+    {
+      "absolutePath": "solmate/src/tokens/ERC20.sol",
+      "file": "solmate/src/tokens/ERC20.sol",
+      "id": 340,
+      "nameLocation": "-1:-1:-1",
+      "nodeType": "ImportDirective",
+      "scope": 349,
+      "sourceUnit": 737,
+      "src": "71:51:3",
+      "symbolAliases":
+      [
+        {
+          "foreign":
+          {
+            "id": 339,
+            "name": "ERC20",
+            "nodeType": "Identifier",
+            "overloadedDeclarations": [],
+            "referencedDeclaration": 736,
+            "src": "79:5:3",
+            "typeDescriptions": {}
+          },
+          "nameLocation": "-1:-1:-1"
+        }
+      ],
+      "unitAlias": ""
+    },
+    {
+      "abstract": false,
+      "baseContracts": [],
+      "canonicalName": "IRewardsCollector",
+      "contractDependencies": [],
+      "contractKind": "interface",
+      "documentation":
+      {
+        "id": 341,
+        "nodeType": "StructuredDocumentation",
+        "src": "124:211:3",
+        "text": "@title LooksRare Rewards Collector\n @notice Implements a permissionless call to fetch LooksRare rewards earned by Universal Router users\n and transfers them to an external rewards distributor contract"
+      },
+      "fullyImplemented": false,
+      "id": 348,
+      "linearizedBaseContracts":
+      [
+        348
+      ],
+      "name": "IRewardsCollector",
+      "nameLocation": "345:17:3",
+      "nodeType": "ContractDefinition",
+      "nodes":
+      [
+        {
+          "documentation":
+          {
+            "id": 342,
+            "nodeType": "StructuredDocumentation",
+            "src": "369:171:3",
+            "text": "@notice Fetches users' LooksRare rewards and sends them to the distributor contract\n @param looksRareClaim The data required by LooksRare to claim reward tokens"
+          },
+          "functionSelector": "709a1cc2",
+          "id": 347,
+          "implemented": false,
+          "kind": "function",
+          "modifiers": [],
+          "name": "collectRewards",
+          "nameLocation": "554:14:3",
+          "nodeType": "FunctionDefinition",
+          "parameters":
+          {
+            "id": 345,
+            "nodeType": "ParameterList",
+            "parameters":
+            [
+              {
+                "constant": false,
+                "id": 344,
+                "mutability": "mutable",
+                "name": "looksRareClaim",
+                "nameLocation": "584:14:3",
+                "nodeType": "VariableDeclaration",
+                "scope": 347,
+                "src": "569:29:3",
+                "stateVariable": false,
+                "storageLocation": "calldata",
+                "typeDescriptions":
+                {
+                  "typeIdentifier": "t_bytes_calldata_ptr",
+                  "typeString": "bytes"
+                },
+                "typeName":
+                {
+                  "id": 343,
+                  "name": "bytes",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "569:5:3",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_bytes_storage_ptr",
+                    "typeString": "bytes"
+                  }
+                },
+                "visibility": "internal"
+              }
+            ],
+            "src": "568:31:3"
+          },
+          "returnParameters":
+          {
+            "id": 346,
+            "nodeType": "ParameterList",
+            "parameters": [],
+            "src": "608:0:3"
+          },
+          "scope": 348,
+          "src": "545:64:3",
+          "stateMutability": "nonpayable",
+          "virtual": false,
+          "visibility": "external"
+        }
+      ],
+      "scope": 349,
+      "src": "335:276:3",
+      "usedErrors": []
+    }
+  ],
+  "src": "45:567:3"
+}

@@ -1,0 +1,34 @@
+<CODE_BEGINNING>
+/**
+ * @dev Performs a low-level call to an ERC20 token, bypassing Solidity's return data size checking mechanism.
+ * It checks for the success of the operation and ensures that the token call does not fail.
+ * If there is any return data, it decodes the data to a boolean value and verifies the success of the ERC20 operation.
+ * @param token An IERC20 interface object (address of an ERC20 token)
+ * @param data A bytes memory object containing the token function call data
+ */
+function _callOptionalReturn(IERC20 token, bytes memory data) internal {
+    require(address(token).isContract(), "SafeERC20: call to non-contract");
+
+    // solhint-disable-next-line avoid-low-level-calls
+    (bool success, bytes memory returndata) = address(token).call(data);
+    if (!success) {
+        // Lookup the revert reason and bubble it up if present
+        if (returndata.length > 0) {
+            // The easiest way to bubble the revert reason is using memory via assembly
+            // solhint-disable-next-line no-inline-assembly
+            assembly {
+                let returndata_size := mload(returndata)
+                revert(add(32, returndata), returndata_size)
+            }
+        } else {
+            revert("SafeERC20: low-level call failed");
+        }
+    } else {
+        if (returndata.length > 0) {
+            // Return data is optional
+            (bool returnValue) = abi.decode(returndata, (bool));
+            require(returnValue, "SafeERC20: ERC20 operation did not succeed");
+        }
+    }
+}
+<CODE_ENDING>

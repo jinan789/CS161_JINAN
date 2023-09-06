@@ -1,0 +1,18 @@
+
+The function that I want you to summarize is collectRewards(bytes calldata looksRareClaim, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signatureS, with the purpose of providing richer background information for you. The codes are: 
+// SPDX-License-Identifier: GPL-3.0-or-later
+pragma solidity ^0.8.15;
+
+import {ERC20} from 'solmate/src/tokens/ERC20.sol';
+import {SafeTransferLib} from 'solmate/src/utils/SafeTransferLib.sol';
+import {RouterImmutables} from './RouterImmutables.sol';
+import {IRewardsCollector} from '../interfaces/IRewardsCollector.sol';
+
+abstract contract RewardsCollector is IRewardsCollector, RouterImmutables {
+    using SafeTransferLib for ERC20;
+
+    event RewardsSent(uint256 amount);
+
+    error UnableToClaim();
+
+

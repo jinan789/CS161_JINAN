@@ -1,0 +1,16 @@
+solmate/src/tokens/ERC20.sol
+<START_FUNCTIONS>
+- constructor(string memory _name, string memory _symbol, uint8 _decimals): Initializes the ERC20 contract with a name, symbol, and decimals count.
+- approve(address spender, uint256 amount) public virtual returns (bool): Approves the `spender` to spend `amount` of tokens on behalf of the caller.
+- transfer(address to, uint256 amount) public virtual returns (bool): Transfers `amount` of tokens from the caller to the `to` address.
+- transferFrom(address from, address to, uint256 amount) public virtual returns (bool): Transfers `amount` of tokens from `from` address to the `to` address by checking the allowance first.
+- permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s) public virtual: Allows `owner` to approve `spender` to spend `value` tokens using EIP-2612 signature parameters (deadline, v, r, s).
+- DOMAIN_SEPARATOR() public view virtual returns (bytes32): Returns the domain separator based on the EIP-712 standard, it helps to prevent replay attacks across different chains.
+- computeDomainSeparator() internal view virtual returns (bytes32): Computes the domain separator using name, version, chainId, and contract address.
+- _mint(address to, uint256 amount) internal virtual: Mints `amount` of tokens and adds them to the `to` address balance, while also increasing the totalSupply.
+- _burn(address from, uint256 amount) internal virtual: Burns `amount` of tokens from the `from` address, reducing the balance and the totalSupply.
+<END_FUNCTIONS>
+<START_CONTRACTS>
+Summary of the entire contract:
+The ERC20 contract implementation provides basic functionality for a token, including transferring tokens, approving a spender, and manipulating allowances. It also implements EIP-2612 to allow for off-chain approvals via permit(). The contract provides internal minting and burning functions for managing token supply. The domain separator functions help prevent replay attacks across different chains.
+<END_CONTRACTS>

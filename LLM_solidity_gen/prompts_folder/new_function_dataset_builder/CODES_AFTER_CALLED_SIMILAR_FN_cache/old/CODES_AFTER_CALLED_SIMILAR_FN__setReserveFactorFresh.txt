@@ -1,0 +1,34 @@
+TASK 1:
+
+1. Issue: Misuse of variables in error handling.
+   Fix: Instead of using `uint(Error.NO_ERROR)`, you can use `uint128(Error.NO_ERROR)` since the Error enum has been defined to be of type `uint128`.
+
+TASK 2:
+
+<CODE_BEGINNING>
+function _setReserveFactorFresh(uint newReserveFactorMantissa) internal returns (uint) {
+    // Check caller is admin
+    if (msg.sender != admin) {
+        return fail(Error.UNAUTHORIZED, FailureInfo.SET_RESERVE_FACTOR_ADMIN_CHECK);
+    }
+
+    // Check market is fresh
+    if (accrualBlockNumber != getBlockNumber()) {
+        return fail(Error.MARKET_NOT_FRESH, FailureInfo.SET_RESERVE_FACTOR_FRESH_CHECK);
+    }
+
+    // Check reserve factor is within bounds
+    if (newReserveFactorMantissa > maxMantissa) {
+        return fail(Error.BAD_INPUT, FailureInfo.SET_RESERVE_FACTOR_BOUNDS_CHECK);
+    }
+
+    // Update reserve factor
+    reserveFactorMantissa = newReserveFactorMantissa;
+
+    // Emit NewReserveFactor event
+    emit NewReserveFactor(newReserveFactorMantissa);
+
+    //CHANGES BASED ON CALLED CODE MADE: Changed uint to uint128 for error type
+    return uint128(Error.NO_ERROR);
+}
+<CODE_ENDING>

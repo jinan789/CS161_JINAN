@@ -1,0 +1,31 @@
+TASK 1: Analyzing the given code, I did not find any gas-wasting patterns that match with the provided list. The code seems to be well-optimized, as there are no dead code, opaque predicate, expensive operations in a loop, constant outcome of a loop, loop fusion, repeated computations in a loop, or comparison with unilateral outcome in a loop present. Therefore, no changes are required to optimize gas usage further.
+
+TASK 2: Since no changes are required, I will provide the function codes with the requested formatting, without any modifications.
+
+<CODE_BEGINNING>
+function _setReserveFactorFresh(uint newReserveFactorMantissa) internal returns (uint) {
+    // Check caller is admin
+    if (msg.sender != admin) {
+        return fail(Error.UNAUTHORIZED, FailureInfo.SET_RESERVE_FACTOR_ADMIN_CHECK);
+    }
+
+    // Check market is fresh
+    if (accrualBlockNumber != getBlockNumber()) {
+        return fail(Error.MARKET_NOT_FRESH, FailureInfo.SET_RESERVE_FACTOR_FRESH_CHECK);
+    }
+
+    // Check reserve factor is within bounds
+    if (newReserveFactorMantissa > maxMantissa) {
+        return fail(Error.BAD_INPUT, FailureInfo.SET_RESERVE_FACTOR_BOUNDS_CHECK);
+    }
+
+    // Update reserve factor
+    reserveFactorMantissa = newReserveFactorMantissa;
+
+    // Emit NewReserveFactor event
+    emit NewReserveFactor(newReserveFactorMantissa);
+
+    //CHANGES BASED ON CALLED CODE MADE: Changed uint to uint128 for error type
+    return uint128(Error.NO_ERROR);
+}
+<CODE_ENDING>

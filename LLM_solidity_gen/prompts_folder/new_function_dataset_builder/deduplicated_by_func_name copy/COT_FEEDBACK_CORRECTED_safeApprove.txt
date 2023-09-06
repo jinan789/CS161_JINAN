@@ -1,0 +1,33 @@
+Number of steps: 4
+
+Number of branches: 0
+
+Modification needed: YES
+
+NO_LABEL_CODES_BEGINNING
+function safeApprove(
+    ERC20 token,
+    address to,
+    uint256 amount
+) internal {
+    // Validate input (Step 1)
+    require(token != ERC20(0), "INVALID_TOKEN");
+    require(to != address(0), "INVALID_ADDRESS");
+    require(amount > 0, "INVALID_AMOUNT");
+
+    // Call approve function on the token contract and store the success value (Step 2)
+    (bool success, bytes memory data) = address(token).call(
+        abi.encodeWithSelector(token.approve.selector, to, amount)
+    );
+
+    // Check the return value is empty or true (Step 3)
+    if (
+        !success
+        || (data.length > 0 && abi.decode(data, (bool)) == false)
+    ) {
+        revert("APPROVE_FAILED");
+    }
+
+    // If the approval is successful, the function ends without any output (Step 4)
+}
+NO_LABEL_CODES_ENDING

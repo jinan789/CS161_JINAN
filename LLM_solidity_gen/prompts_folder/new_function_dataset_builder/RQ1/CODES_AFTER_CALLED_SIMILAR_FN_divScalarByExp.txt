@@ -1,0 +1,9 @@
+function divScalarByExp(uint scalar, Exp memory divisor) pure internal returns (MathError, Exp memory) {
+    //CHANGES BASED ON CALLED CODE MADE: Replaced divUInt() to divScalar() since scalar needs to be divided by an Exp memory type
+    (MathError mathError, Exp memory expResult) = divScalar(Exp({mantissa: scalar}), divisor.mantissa);
+    if (mathError != MathError.NO_ERROR) {
+        return (mathError, Exp({mantissa: 0}));
+    }
+    
+    return (MathError.NO_ERROR, expResult);
+}

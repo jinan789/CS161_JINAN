@@ -1,0 +1,21 @@
+function _setComptroller(ComptrollerInterface newComptroller) external returns (uint, uint) {
+    // CHANGES BASED ON CALLED CODE MADE: Change the global variable name for the admin
+    address admin = msg.sender;
+
+    // CHANGES BASED ON CALLED CODE MADE: Replace the "if" statement with "require" statements for better error handling
+    require(msg.sender == admin, "UNAUTHORIZED");
+    require(address(newComptroller) != address(0), "INVALID_COMPTROLLER_ADDRESS");
+
+    // Ensure the new comptroller passes the "isComptroller" validation
+    if (!newComptroller.isComptroller()) {
+        return (uint(Error.CONTROLLER_CHECK), uint(FailureInfo.SET_COMPTROLLER_VALIDATION));
+    }
+
+    // Set new comptroller and emit event
+    ComptrollerInterface oldComptroller = comptroller;
+    comptroller = newComptroller;
+    emit NewComptroller(oldComptroller, newComptroller);
+
+    // Return success code
+    return (uint(Error.NO_ERROR), 0);
+}

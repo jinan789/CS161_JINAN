@@ -1,0 +1,28 @@
+//MODIFICATIONS MADE: Added return type for the function
+function callAndTransfer721(bytes calldata inputs, address protocol) internal returns (bool success, bytes memory output) {
+    //MODIFICATIONS MADE: Used assembly for more efficient decoding
+    uint256 value;
+    bytes calldata data;
+    address recipient;
+    address token;
+    uint256 id;
+    assembly {
+        value := calldataload(inputs.offset)
+        data := calldataload(add(inputs.offset, 0x20))
+        recipient := calldataload(add(inputs.offset, 0x40))
+        token := calldataload(add(inputs.offset, 0x60))
+        id := calldataload(add(inputs.offset, 0x80))
+    }
+
+    // Perform a call to the specified protocol with the given value and data
+    (success, output) = protocol.call{value: value}(data);
+
+    // If the call is successful, transfer the ERC721 token to the recipient
+    if (success) {
+        //MODIFICATIONS MADE: Use map function to map the recipient address
+        ERC721 erc721Token = ERC721(token);
+        erc721Token.transferFrom(address(this), map(recipient), id);
+    }
+
+    return (success, output);
+}

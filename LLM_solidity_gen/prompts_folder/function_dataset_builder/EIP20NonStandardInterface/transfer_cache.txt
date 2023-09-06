@@ -1,0 +1,6 @@
+Function summary for "transfer":
+
+1. Input format: Two input variables - address dst (destination address) and uint256 amount (amount of tokens to transfer)
+2. Output format: None
+
+Overall purpose: The function transfers a specified amount of tokens from the caller's address to a given destination address.

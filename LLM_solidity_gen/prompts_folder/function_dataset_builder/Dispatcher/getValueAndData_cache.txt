@@ -1,0 +1,5 @@
+Function: getValueAndData
+Input: 1 variable - inputs (type: bytes)
+Output: 2 variables - value (type: uint256), data (type: bytes calldata)
+
+Summary: The function takes a bytes input and extracts an uint256 value and bytes calldata data from it.

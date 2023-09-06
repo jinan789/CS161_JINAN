@@ -1,0 +1,10 @@
+Function: _transferTokens(address src, address dst, uint96 amount)
+
+Input:
+1. Address 'src': Source address from which tokens will be transferred.
+2. Address 'dst': Destination address to which tokens will be transferred.
+3. uint96 'amount': The number of tokens to be transferred.
+
+Output: None (emits a Transfer event)
+
+Summary: The function performs a token transfer from the 'src' address to the 'dst' address with a specified 'amount'. It checks if the contract is tradable and if the source address is whitelisted before making the transfer. It adjusts the balances of the source and destination addresses and then handles moving delegates accordingly.

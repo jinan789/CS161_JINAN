@@ -1,0 +1,35 @@
+To accomplish the task, we will create a new contract called LiquidationCalculator that will use ComptrollerInterface to call the liquidateCalculateSeizeTokens function. We will expose a "calculateTokensToSeize" function in this new contract that takes in the required parameters and returns the number of collateral tokens to seize.
+
+Here is the Solidity code for the new contract:
+
+```solidity
+pragma solidity ^0.6.12;
+
+import "./ComptrollerInterface.sol"; // Make sure to import the correct path where ComptrollerInterface.sol is stored
+
+contract LiquidationCalculator {
+    ComptrollerInterface public comptroller; // Declare a variable to hold the ComptrollerInterface reference
+
+    constructor(address _comptrollerAddress) public {
+        // Instantiate the ComptrollerInterface with the provided address
+        comptroller = ComptrollerInterface(_comptrollerAddress);
+    }
+
+    function calculateTokensToSeize(
+        address cTokenBorrowed,
+        address cTokenCollateral,
+        uint256 actualRepayAmount
+    ) external view returns (uint256 collateralTokensToSeize, uint256 borrowedTokensToRepay) {
+        // Call the liquidateCalculateSeizeTokens function from ComptrollerInterface and pass the input parameters
+        (collateralTokensToSeize, borrowedTokensToRepay) = comptroller.liquidateCalculateSeizeTokens(
+            cTokenBorrowed,
+            cTokenCollateral,
+            actualRepayAmount
+        );
+    }
+}
+```
+
+The provided LiquidationCalculator contract could be deployed by providing the address of the Comptroller implementation that implements the liquidateCalculateSeizeTokens function. After deploying the contract, you could call the `calculateTokensToSeize` function with the required input parameters (cTokenBorrowed, cTokenCollateral, and actualRepayAmount) to get the number of collateral tokens to seize.
+
+Note that the ComptrollerInterface.sol should be imported from the correct path in your project structure.

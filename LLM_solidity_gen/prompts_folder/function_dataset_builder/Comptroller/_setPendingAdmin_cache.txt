@@ -1,0 +1,9 @@
+Function Name: _setPendingAdmin
+
+Input:
+1. newPendingAdmin (address payable)
+
+Output:
+1. uint (Result code)
+
+Summary: This function takes in the address of a new pending admin and sets it as the pending admin. It returns a result code indicating success or failure.

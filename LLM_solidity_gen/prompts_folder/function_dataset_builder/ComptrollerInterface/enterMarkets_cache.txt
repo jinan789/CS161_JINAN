@@ -1,0 +1,8 @@
+Function: enterMarkets
+Input: 
+1. cTokens: an array of address (address[] calldata)
+
+Output:
+1. An array of unsigned integers (uint[] memory)
+
+Summary: The function allows a user to enter multiple markets by providing an array of addresses corresponding to the markets they want to enter. It returns an array containing the success status of entering each market.

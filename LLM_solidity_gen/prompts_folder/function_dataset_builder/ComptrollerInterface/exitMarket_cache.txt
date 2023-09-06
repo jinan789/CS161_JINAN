@@ -1,0 +1,5 @@
+Function: exitMarket
+Input: 1 variable - address cToken
+Output: 1 variable - uint
+
+Summary: The function "exitMarket" allows a user to exit a specific market represented by a provided cToken address. It returns a uint value indicating the result status.

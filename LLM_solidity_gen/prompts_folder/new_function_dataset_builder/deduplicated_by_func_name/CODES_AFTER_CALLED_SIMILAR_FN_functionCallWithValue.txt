@@ -1,0 +1,27 @@
+function functionCallWithValue(
+    address target,
+    bytes memory data,
+    uint256 value,
+    string memory errorMessage
+) internal returns (bytes memory) {
+    // CHANGES BASED ON CALLED CODE MADE: Uncomment the require statement for better error handling
+    require(
+        address(this).balance >= value,
+        "Address: insufficient balance for call"
+    );
+
+    // CHANGES BASED ON CALLED CODE MADE: Added isContract function implementation
+    function isContract(address _addr) internal view returns (bool) {
+        uint256 size;
+        assembly { size := extcodesize(_addr) }
+        return size > 0;
+    }
+
+    require(
+        isContract(target),
+        "Address: target is not a contract"
+    );
+
+    (bool success, bytes memory returndata) = target.call{value: value}(data);
+    return verifyCallResult(success, returndata, errorMessage);
+}

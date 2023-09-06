@@ -1,0 +1,9 @@
+Function Summary: _callOptionalReturn(IERC20 token, bytes memory data)
+
+Input:
+1. token: An IERC20 interface object (address of an ERC20 token)
+2. data: A bytes memory object, containing the token function call data
+
+Output: None
+
+This function performs a low-level call to an ERC20 token while bypassing Solidity's return data size checking mechanism. It checks for the success of the operation and ensures that the token call does not fail. If there is any return data, it decodes the data to a boolean value and verifies the success of the ERC20 operation.

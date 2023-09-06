@@ -1,0 +1,4 @@
+Input: uint newReserveFactorMantissa
+Output: uint error code
+
+The _setReserveFactorFresh function updates the reserve factor of the CToken contract. It checks if the caller is an admin and if the market is fresh, meaning its block number is equal to the current block number. It also checks if the new reserve factor is within bounds, i.e., less than or equal to the maximum reserve factor. If all the checks pass, it updates the reserve factor and emits the NewReserveFactor event.

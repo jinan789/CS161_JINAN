@@ -1,0 +1,51 @@
+function seizeInternal(address seizerToken, address liquidator, address borrower, uint seizeTokens) internal returns (uint) {
+    SeizeInternalLocalVars memory localVars;
+
+    /* Fail if seize not allowed */
+    uint allowed = comptroller.seizeAllowed(address(this), seizerToken, liquidator, borrower, seizeTokens);
+    if (allowed != 0) {
+        return failOpaque(Error.COMPTROLLER_REJECTION, FailureInfo.SEIZE_COMPTROLLER_REJECTION, allowed);
+    }
+
+    /* Calculate the number of tokens to seize from borrower and give to liquidator */
+    (localVars.mathErr, localVars.liquidatorSeizeTokens) = mulScalarTruncate(Exp({mantissa: comptroller.liquidationIncentiveMantissa()}), seizeTokens);
+    if (localVars.mathErr != MathError.NO_ERROR) {
+        return failOpaque(Error.MATH_ERROR, FailureInfo.SEIZE_LIQUIDATOR_SEIZE_CALCULATION_FAILED, uint(localVars.mathErr));
+    }
+
+    /* Calculate the number of tokens to seize from borrower and give to protocol */
+    (localVars.mathErr, localVars.protocolSeizeTokens, localVars.protocolSeizeAmount) = mulScalarTruncate(Exp({mantissa: comptroller.protocolSeizeIncentive()}), seizeTokens);
+    if (localVars.mathErr != MathError.NO_ERROR) {
+        return failOpaque(Error.MATH_ERROR, FailureInfo.SEIZE_PROTOCOL_SEIZE_CALCULATION_FAILED, uint(localVars.mathErr));
+    }
+
+    /* Revert if borrower has not enough tokens to be seized */
+    if (getAccountTokens(borrower) < add(localVars.liquidatorSeizeTokens, localVars.protocolSeizeTokens)) {
+        return fail(Error.TOKEN_INSUFFICIENT_BALANCE, FailureInfo.SEIZE_BALANCE_DECREMENT_FAILED);
+    }
+
+    /* Update borrower and liquidator balances */
+    localVars.borrowerTokensNew = sub(getAccountTokens(borrower), add(localVars.liquidatorSeizeTokens, localVars.protocolSeizeTokens));
+    localVars.liquidatorTokensNew = add(getAccountTokens(liquidator), localVars.liquidatorSeizeTokens);
+    setAccountTokens(liquidator, localVars.liquidatorTokensNew);
+    setAccountTokens(borrower, localVars.borrowerTokensNew);
+
+    /* Transfer tokens from borrower to liquidator and protocol */
+    EIP20Interface token = EIP20Interface(seizerToken);
+    require(token.transferFrom(borrower, liquidator, localVars.liquidatorSeizeTokens));
+    require(token.transferFrom(borrower, address(this), localVars.protocolSeizeTokens));
+
+    /* Update total supply and reserves */
+    localVars.totalSupplyNew = sub(totalSupply, localVars.protocolSeizeTokens);
+    totalSupply = localVars.totalSupplyNew;
+
+    localVars.totalReservesNew = add(reserves, localVars.protocolSeizeAmount);
+    reserves = localVars.totalReservesNew;
+
+    /* Emit transfer events */
+    emit Transfer(borrower, liquidator, localVars.liquidatorSeizeTokens);
+    emit Transfer(borrower, address(this), localVars.protocolSeizeTokens);
+
+    /* Return success */
+    return uint(Error.NO_ERROR);
+}

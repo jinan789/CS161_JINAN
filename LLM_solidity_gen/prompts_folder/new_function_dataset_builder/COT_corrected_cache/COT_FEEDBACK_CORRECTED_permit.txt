@@ -1,0 +1,32 @@
+TASK 1: Step-by-step plan to perform the functionality described in the provided summaries under the context of the contract from Information 1:
+
+1. Check if the given deadline is greater or equal to the current block timestamp to ensure the permit is still valid.
+2. Convert the given rawAmount to a uint96 variable (named "amount") by using the safe96 function to ensure the amount does not exceed 96 bits.
+3. Calculate the domain separator for the EIP-712 signature by hashing the DOMAIN_TYPEHASH, the hash of the contract's name, the current chain ID, and the contract's address.
+4. Calculate the struct hash for the EIP-712 signature by hashing the PERMIT_TYPEHASH, the _owner's address, the spender's address, the rawAmount, the nonce for the _owner (and increment it), and the deadline.
+5. Calculate the digest (which is to be signed) by hashing the packed values 0x19, 0x01, domain separator, and struct hash.
+6. Recover the signer's address from the provided EIP-712 signature (v, r, s) and the calculated digest.
+7. Ensure that the recovered address is not equal to the zero address and matches the _owner's address to validate the signature.
+8. Set the allowance mapping for the _owner and spender to the amount (uint96).
+9. Emit the Approval event with _owner, spender, and amount as parameters.
+
+After following the step-by-step plan, we can now analyze the given code for any improvements or changes required. Having reviewed your given code, it appears that all steps are already included in the correct order and are consistent with the step-by-step plan. However, a small improvement is to add 'emit Approval...' below 'allowances[_owner][spender] = amount;' to keep related actions together.
+
+Updated code:
+
+```solidity
+function permit(address _owner, address spender, uint rawAmount, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
+    require(deadline >= block.timestamp, "INV: permit expired");
+    uint96 amount = safe96(rawAmount, "INV: amount exceeds 96 bits");
+    bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), getChainId(), address(this)));
+    bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, _owner, spender, rawAmount, nonces[_owner]++, deadline));
+    bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+    address recoveredAddress = ecrecover(digest, v, r, s);
+    require(recoveredAddress != address(0) && recoveredAddress == _owner, "INV: invalid signature");
+
+    allowances[_owner][spender] = amount;
+    emit Approval(_owner, spender, amount);
+}
+```
+
+The updated code now reflects all the steps in the step-by-step plan and is coherent with the information provided.

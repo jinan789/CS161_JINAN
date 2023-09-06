@@ -1,0 +1,14 @@
+<CODE_BEGINNING>
+/**
+ * @notice Get the remaining token balance that the spender is allowed to withdraw or transfer from the owner's account
+ * @param owner The address of the token holder giving the allowance
+ * @param spender The address of the entity allowed to spend owner's tokens
+ * @return remaining The amount of tokens remaining for the spender to spend from the owner's account
+ */
+function allowance(address owner, address spender) external view returns (uint256 remaining) {
+    require(owner != address(0), "Invalid owner address");
+    require(spender != address(0), "Invalid spender address");
+    
+    // Your implementation here to fetch the remaining allowance for the spender from the owner account
+}
+<CODE_ENDING>

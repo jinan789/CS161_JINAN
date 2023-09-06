@@ -1,0 +1,11 @@
+Function name: `divScalarByExpTruncate`
+
+Input: two variables
+1. An unsigned integer variable `scalar`
+2. A struct variable of type `Exp` named `divisor`
+
+Output: returns a tuple with
+1. A MathError enum value
+2. An unsigned integer
+
+Summary: The function takes a scalar value as input and divides it by another input of type Exp. After the division, the resulting value is truncated and returned along with any MathError, if encountered.

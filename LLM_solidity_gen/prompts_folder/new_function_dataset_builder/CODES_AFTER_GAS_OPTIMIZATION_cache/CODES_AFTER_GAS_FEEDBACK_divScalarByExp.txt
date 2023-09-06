@@ -1,0 +1,13 @@
+After analyzing your code, it seems that it doesn't match any of the gas-wasting patterns listed above. The code appears to be efficient and optimized. Therefore, no modifications are needed for this code. Here is the unchanged code with the requested tokens added:
+
+<CODE_BEGINNING>
+function divScalarByExp(uint scalar, Exp memory divisor) pure internal returns (MathError, Exp memory) {
+    //CHANGES BASED ON CALLED CODE MADE: Replaced divUInt() to divScalar() since scalar needs to be divided by an Exp memory type
+    (MathError mathError, Exp memory expResult) = divScalar(Exp({mantissa: scalar}), divisor.mantissa);
+    if (mathError != MathError.NO_ERROR) {
+        return (mathError, Exp({mantissa: 0}));
+    }
+    
+    return (MathError.NO_ERROR, expResult);
+}
+<CODE_ENDING>

@@ -1,0 +1,213 @@
+{
+  "absolutePath": "interfaces/external/IWETH9.sol",
+  "exportedSymbols":
+  {
+    "IERC20":
+    [
+      1119
+    ],
+    "IWETH9":
+    [
+      839
+    ]
+  },
+  "id": 840,
+  "license": "GPL-3.0-or-later",
+  "nodeType": "SourceUnit",
+  "nodes":
+  [
+    {
+      "id": 823,
+      "literals":
+      [
+        "solidity",
+        "^",
+        "0.8",
+        ".4"
+      ],
+      "nodeType": "PragmaDirective",
+      "src": "45:23:4"
+    },
+    {
+      "absolutePath": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+      "file": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+      "id": 825,
+      "nameLocation": "-1:-1:-1",
+      "nodeType": "ImportDirective",
+      "scope": 840,
+      "sourceUnit": 1120,
+      "src": "70:70:4",
+      "symbolAliases":
+      [
+        {
+          "foreign":
+          {
+            "id": 824,
+            "name": "IERC20",
+            "nodeType": "Identifier",
+            "overloadedDeclarations": [],
+            "referencedDeclaration": 1119,
+            "src": "78:6:4",
+            "typeDescriptions": {}
+          },
+          "nameLocation": "-1:-1:-1"
+        }
+      ],
+      "unitAlias": ""
+    },
+    {
+      "abstract": false,
+      "baseContracts":
+      [
+        {
+          "baseName":
+          {
+            "id": 827,
+            "name": "IERC20",
+            "nameLocations":
+            [
+              "193:6:4"
+            ],
+            "nodeType": "IdentifierPath",
+            "referencedDeclaration": 1119,
+            "src": "193:6:4"
+          },
+          "id": 828,
+          "nodeType": "InheritanceSpecifier",
+          "src": "193:6:4"
+        }
+      ],
+      "canonicalName": "IWETH9",
+      "contractDependencies": [],
+      "contractKind": "interface",
+      "documentation":
+      {
+        "id": 826,
+        "nodeType": "StructuredDocumentation",
+        "src": "142:31:4",
+        "text": "@title Interface for WETH9"
+      },
+      "fullyImplemented": false,
+      "id": 839,
+      "linearizedBaseContracts":
+      [
+        839,
+        1119
+      ],
+      "name": "IWETH9",
+      "nameLocation": "183:6:4",
+      "nodeType": "ContractDefinition",
+      "nodes":
+      [
+        {
+          "documentation":
+          {
+            "id": 829,
+            "nodeType": "StructuredDocumentation",
+            "src": "206:46:4",
+            "text": "@notice Deposit ether to get wrapped ether"
+          },
+          "functionSelector": "d0e30db0",
+          "id": 832,
+          "implemented": false,
+          "kind": "function",
+          "modifiers": [],
+          "name": "deposit",
+          "nameLocation": "266:7:4",
+          "nodeType": "FunctionDefinition",
+          "parameters":
+          {
+            "id": 830,
+            "nodeType": "ParameterList",
+            "parameters": [],
+            "src": "273:2:4"
+          },
+          "returnParameters":
+          {
+            "id": 831,
+            "nodeType": "ParameterList",
+            "parameters": [],
+            "src": "292:0:4"
+          },
+          "scope": 839,
+          "src": "257:36:4",
+          "stateMutability": "payable",
+          "virtual": false,
+          "visibility": "external"
+        },
+        {
+          "documentation":
+          {
+            "id": 833,
+            "nodeType": "StructuredDocumentation",
+            "src": "299:47:4",
+            "text": "@notice Withdraw wrapped ether to get ether"
+          },
+          "functionSelector": "2e1a7d4d",
+          "id": 838,
+          "implemented": false,
+          "kind": "function",
+          "modifiers": [],
+          "name": "withdraw",
+          "nameLocation": "360:8:4",
+          "nodeType": "FunctionDefinition",
+          "parameters":
+          {
+            "id": 836,
+            "nodeType": "ParameterList",
+            "parameters":
+            [
+              {
+                "constant": false,
+                "id": 835,
+                "mutability": "mutable",
+                "name": "",
+                "nameLocation": "-1:-1:-1",
+                "nodeType": "VariableDeclaration",
+                "scope": 838,
+                "src": "369:7:4",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions":
+                {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName":
+                {
+                  "id": 834,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "369:7:4",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              }
+            ],
+            "src": "368:9:4"
+          },
+          "returnParameters":
+          {
+            "id": 837,
+            "nodeType": "ParameterList",
+            "parameters": [],
+            "src": "386:0:4"
+          },
+          "scope": 839,
+          "src": "351:36:4",
+          "stateMutability": "nonpayable",
+          "virtual": false,
+          "visibility": "external"
+        }
+      ],
+      "scope": 840,
+      "src": "173:216:4",
+      "usedErrors": []
+    }
+  ],
+  "src": "45:345:4"
+}

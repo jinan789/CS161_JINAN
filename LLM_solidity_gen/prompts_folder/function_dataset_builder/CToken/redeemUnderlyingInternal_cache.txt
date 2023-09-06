@@ -1,0 +1,5 @@
+Function: redeemUnderlyingInternal
+Input: uint redeemAmount
+Output: uint error
+
+Summary: The function redeems the underlying tokens based on the requested amount and updates the interest. It returns an error code indicating success or failure of the redemption process.

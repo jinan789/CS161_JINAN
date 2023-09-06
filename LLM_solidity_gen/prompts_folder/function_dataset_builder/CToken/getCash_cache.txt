@@ -1,0 +1,5 @@
+Function: getCash
+Input: None
+Output: uint
+
+Summary: The function returns the amount of cash available in the contract, calculated using the getCashPrior() function.

@@ -1,0 +1,5 @@
+Function: mulScalar
+Input: (1) Exp memory a (struct with a uint mantissa), (2) uint scalar
+Output: MathError (enum) and Exp memory (struct with uint mantissa)
+
+Summary: The function multiplies the mantissa of the given Exp struct by a scalar, and returns an updated Exp struct with the result as its mantissa along with a MathError, if any.

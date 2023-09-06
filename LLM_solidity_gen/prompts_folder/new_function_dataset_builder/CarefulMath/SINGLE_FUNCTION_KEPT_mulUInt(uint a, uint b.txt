@@ -1,0 +1,44 @@
+
+The function that I want you to summarize is mulUInt(uint a, uint b, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signatureS, with the purpose of providing richer background information for you. The codes are: 
+pragma solidity ^0.5.16;
+
+/**
+  * @title Careful Math
+  * @author Compound
+  * @notice Derived from OpenZeppelin's SafeMath library
+  *         https://github.com/OpenZeppelin/openzeppelin-solidity/blob/master/contracts/math/SafeMath.sol
+  */
+contract CarefulMath {
+
+    /**
+     * @dev Possible error codes that we can return
+     */
+    enum MathError {
+        NO_ERROR,
+        DIVISION_BY_ZERO,
+        INTEGER_OVERFLOW,
+        INTEGER_UNDERFLOW
+    }
+
+    
+
+
+    function mulUInt(uint a, uint b) internal pure returns (MathError, uint) {
+        if (a == 0) {
+            return (MathError.NO_ERROR, 0);
+        }
+
+        uint c = a * b;
+
+        if (c / a != b) {
+            return (MathError.INTEGER_OVERFLOW, 0);
+        } else {
+            return (MathError.NO_ERROR, c);
+        }
+    }
+
+
+    function divUInt(uint a, uint b) internal pure returns (MathError, uint) {
+    function subUInt(uint a, uint b) internal pure returns (MathError, uint) {
+    function addUInt(uint a, uint b) internal pure returns (MathError, uint) {
+    function addThenSubUInt(uint a, uint b, uint c) internal pure returns (MathError, uint) {

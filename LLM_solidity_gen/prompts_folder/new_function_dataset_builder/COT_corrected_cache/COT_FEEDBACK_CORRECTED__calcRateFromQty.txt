@@ -1,0 +1,35 @@
+Task 1: Here is a step-by-step plan for the _calcRateFromQty function:
+
+1. Check if the source amount is not greater than the maximum allowed quantity. If it is, revert the transaction with an appropriate error message.
+2. Check if the destination amount is not greater than the maximum allowed quantity. If it is, revert the transaction with an appropriate error message.
+3. Compare the decimals of destination token and source token.
+4. If destination decimals are equal to or greater than source decimals, calculate the rate by multiplying destination amount by precision and dividing the result by the product of source amount and 10 raised to power (destination decimals - source decimals).
+5. If destination decimals are less than source decimals, calculate the rate by multiplying the destination amount by precision and dividing the result by the source amount divided by 10 raised to power (source decimals - destination decimals).
+6. Return the calculated rate.
+
+Now, let's compare the given code with this plan and make any needed improvements:
+
+```solidity
+function _calcRateFromQty(uint256 srcAmount, uint256 destAmount, uint256 srcDecimals, uint256 dstDecimals) internal pure returns (uint256 rate) {
+    // Step 1: Ensure the source amount is not greater than the maximum allowed quantity
+    require(srcAmount <= _MAX_QTY, "Source amount exceeds maximum allowed quantity");
+
+    // Step 2: Ensure the destination amount is not greater than the maximum allowed quantity
+    require(destAmount <= _MAX_QTY, "Destination amount exceeds maximum allowed quantity");
+
+    // Step 3: Compare the decimals of destination token and source token
+    // Step 4: If destination decimals are equal to or greater than source decimals, calculate the rate
+    // Step 5: If destination decimals are less than source decimals, calculate the rate
+    if (dstDecimals >= srcDecimals) {
+        uint256 multiplier = 10 ** (dstDecimals - srcDecimals);
+        rate = (destAmount.mul(_PRECISION)).div(srcAmount.mul(multiplier));
+    } else {
+        uint256 divisor = 10 ** (srcDecimals - dstDecimals);
+        rate = (destAmount.mul(_PRECISION)).div(srcAmount.div(divisor));
+    }
+    
+    // Step 6: Return the calculated rate
+}
+```
+
+The given code follows the step-by-step plan and seems to be implemented correctly. The function takes four input variables, validates them according to the requirements, calculates the rate based on token decimals, and returns the calculated rate. No changes are needed to the given code as it already covers all steps from the plan and is logically structured.

@@ -1,0 +1,10 @@
+Input: 
+- Error (enum)
+- FailureInfo (enum)
+- uint opaqueError
+
+Output:
+- uint (returns the value of the input Error)
+
+Summary:
+The function failOpaque is used to report an error with details. It takes in 3 parameters: an Error enum, a FailureInfo enum, and an arbitrary uint value called opaqueError. It then emits a Failure event and returns the uint value of the input Error.

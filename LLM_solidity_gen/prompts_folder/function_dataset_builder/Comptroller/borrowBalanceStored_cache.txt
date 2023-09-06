@@ -1,0 +1,10 @@
+Function: borrowBalanceStored
+
+Input:
+1. address account (address of an account)
+
+Output: 
+1. uint (the borrower's stored balance as a uint)
+
+Summary:
+This function takes an account's address as input, and returns their stored borrow balance as a uint.

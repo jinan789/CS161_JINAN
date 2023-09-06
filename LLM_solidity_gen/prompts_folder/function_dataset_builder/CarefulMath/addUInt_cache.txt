@@ -1,0 +1,5 @@
+Function: addUInt
+
+1. Input: 2 unsigned integers (uint a, uint b)
+2. Output: 1 MathError enum and 1 unsigned integer (uint)
+3. Purpose: Adds two input unsigned integers (a and b) and returns either the sum or an integer overflow error if there's an overflow.

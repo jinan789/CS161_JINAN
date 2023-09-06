@@ -1,0 +1,27 @@
+\subsection{Evolution of the GPT Family and Code Generation}
+
+The evolution of the Generative Pretrained Transformer (GPT) family, developed by OpenAI, has consistently pushed the boundaries of what is possible in natural language understanding and generation. GPT-1 started the journey with the revolutionary transformer model, which was further scaled up in GPT-2. GPT-3 marked a significant milestone with its 175 billion parameters, demonstrating compelling performance across a range of natural language tasks with minimal fine-tuning. GPT-4, the current state-of-the-art model, has further advanced these capabilities, showing remarkable proficiency in generating high-quality text and code.
+
+Large language models for code generation, such as Codegen and Codex, have shown the potential of AI in automating programming tasks. Built on the same transformer architecture, these models have been trained on vast amounts of code, enabling them to generate syntactically and semantically correct code for a wide array of programming languages.
+
+GPT-4, with its enhanced size and training data, has shown specific capabilities in code generation. Despite its broad training, it has demonstrated a good understanding of programming languages, including Solidity, and can generate meaningful and contextually relevant code snippets. However, as this paper will explore, further improvements can be made to enhance the quality of this code generation, particularly in terms of context awareness, security, and gas optimization.
+
+\subsection{Solidity Gas Optimization Techniques}
+
+Over recent years, there has been a significant evolution in Solidity gas optimization techniques, driven by the financial implications of gas costs on the Ethereum network. Early optimization techniques focused on simple code modifications, such as reducing unnecessary computations and using appropriate data types.
+
+Super-optimization techniques emerged as a more sophisticated approach, applying exhaustive search methods to find the most gas-efficient code equivalent to a given code fragment. Although powerful, these techniques are computationally intensive and often infeasible for larger codebases.
+
+Pattern-based optimizations have also gained popularity, identifying common code patterns that can be replaced with more gas-efficient equivalents. These techniques are highly effective, but their performance relies on the comprehensiveness and accuracy of the pattern database.
+
+\subsection{Software Design in Software Engineering}
+
+Software design is a critical phase in software engineering, providing a blueprint for constructing software systems. It involves five stages: requirements gathering, system analysis, system design, coding, and testing. 
+
+1. \textbf{Requirements Gathering:} This is the initial stage where the functionalities and constraints of the software are defined based on the user's needs.
+2. \textbf{System Analysis:} This stage involves analyzing the feasibility and requirements of the system and defining the system's architecture.
+3. \textbf{System Design:} Here, the system's components are designed in detail, including data structures, modules, interfaces, and algorithms.
+4. \textbf{Coding:} The actual code is written in this stage based on the software design.
+5. \textbf{Testing:} Finally, the software is tested to ensure it meets the specified requirements and is free of bugs.
+
+In the context of this paper, these stages guide the methodologies we propose for improving the quality of GPT-4 outputs. By treating the GPT-4 output refinement as a software design task, we can systematically identify the requirements, analyze the current system's shortcomings, design solutions, implement these solutions (in the form of additional prompts), and test their efficacy.

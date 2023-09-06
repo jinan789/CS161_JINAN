@@ -1,0 +1,11 @@
+solmate/src/utils/SafeTransferLib.sol
+<START_FUNCTIONS>
+- safeTransferETH(address to, uint256 amount): Transfers the specified `amount` of ETH to the given `to` address and checks if the operation succeeds.
+- safeTransferFrom(ERC20 token, address from, address to, uint256 amount): Transfers `amount` tokens from the `from` address to the `to` address for the given ERC20 `token` safely, ensuring no failures or errors occur.
+- safeTransfer(ERC20 token, address to, uint256 amount): Transfers the specified `amount` of tokens to the `to` address for the given ERC20 `token`, safely ensuring no failures or errors occur.
+- safeApprove(ERC20 token, address to, uint256 amount): Approves the `to` address to spend the specified `amount` of given ERC20 `token` on behalf of the caller, ensuring the operation is safe and successful.
+<END_FUNCTIONS>
+<START_CONTRACTS>
+Summary of the entire contract:
+SafeTransferLib is a library providing safe ETH and ERC20 token transfer operations. It handles the graceful recovery of missing return values and potential errors when transferring, approving, or withdrawing tokens. This allows for a safer and more reliable operation of the deployed smart contract that uses this library.
+<END_CONTRACTS>

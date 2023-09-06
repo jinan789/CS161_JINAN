@@ -1,0 +1,20 @@
+function transferFrom(address src, address dst, uint rawAmount) external returns (bool) {
+    uint96 amount = safe96(rawAmount, "INV::transferFrom: invalid amount");
+    require(src != address(0), "INV::transferFrom: invalid source address"); // Updated
+    require(dst != address(0), "INV::transferFrom: invalid destination address"); // Updated
+
+    // Check if msg.sender has an allowance to transfer from src.
+    uint96 spenderAllowance = allowances[src][msg.sender];
+    require(spenderAllowance >= amount, "INV::transferFrom: not enough allowance for transfer");
+
+    // Update the spender's allowance if needed
+    if (spenderAllowance != uint96(-1)) {
+        uint newAllowance = sub96(spenderAllowance, amount, "INV::transferFrom: allowance overflow");
+        allowances[src][msg.sender] = newAllowance;
+        emit Approval(src, msg.sender, newAllowance); // Moved inside the if statement
+    }
+
+    // Transfer tokens from src to dst
+    _transferTokens(src, dst, amount);
+    return true;
+}

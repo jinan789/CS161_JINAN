@@ -1,0 +1,26 @@
+function _upgradeToAndCallSecure(
+    address newImplementation,
+    bytes memory data,
+    bool forceCall
+) internal {
+    // Store the current implementation before upgrading
+    address currentImplementation = _getImplementation();
+
+    // Upgrade to the new implementation
+    _upgradeTo(newImplementation);
+
+    // Perform a delegate call with the provided data
+    (bool success, bytes memory result) = newImplementation.delegatecall(data);
+
+    // If successful or forceCall is true, finish the upgrade process. Otherwise, revert to the previous implementation.
+    if (success || forceCall) {
+        if (!success) {
+            _upgradeTo(currentImplementation); 
+        }
+    } else {
+        // Revert the upgrade and restore the previous implementation if the call fails
+        _upgradeTo(currentImplementation);
+        // Revert the transaction and return the error message from the failed delegate call
+        revert(string(abi.encodePacked("Upgrade failed: ", result)));
+    }
+}

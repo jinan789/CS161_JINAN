@@ -1,0 +1,35 @@
+TASK 1:
+
+1. The `_transferTokens` function is missing its state variables and events declarations. These should be part of the contract that the `_transferTokens` function will be implemented in.
+
+2. The initial comment "// Check if the contract is tradable or the source address is whitelisted" might be incorrect, as it should say "AND" instead of "OR".
+
+TASK 2:
+
+Below is the updated version of your `_transferTokens` function with the necessary changes.
+
+<CODE_BEGINNING>
+function _transferTokens(address src, address dst, uint96 amount) internal {
+    require(src != address(0), "INV:_transferTokens: cannot transfer from the zero address");
+    require(dst != address(0), "INV:_transferTokens: cannot transfer to the zero address");
+
+    // Check if the contract is tradable AND the source address is whitelisted
+    if (!tradable) {
+        require(whitelist[src], "INV:_transferTokens: source address is not whitelisted");
+    }
+
+    // Adjust balances
+    // MODIFICATIONS MADE: Shortened the error message for consistency with other error messages.
+    balances[src] = sub96(balances[src], amount, "INV:_transferTokens: amount exceeds balance");
+    // MODIFICATIONS MADE: Shortened the error message for consistency with other error messages.
+    balances[dst] = add96(balances[dst], amount, "INV:_transferTokens: amount overflows");
+
+    // Move delegates
+    _moveDelegates(delegates[src], delegates[dst], amount);
+
+    // Emit Transfer event
+    emit Transfer(src, dst, amount);
+}
+<CODE_ENDING>
+
+Please make sure that you have declared the state variables (balances, delegates, tradable, whitelist) and the Transfer event in the contract that holds this function.

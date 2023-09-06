@@ -1,0 +1,12 @@
+<CODE_BEGINNING>
+/**
+ * @dev Check if an account has this role.
+ * @param role The Role struct containing the role mapping.
+ * @param account The address to check the role for.
+ * @return bool indicating the presence or absence of the role for the account.
+ */
+function hasRole(Role storage role, address account) internal view returns (bool) {
+    require(account != address(0), "Roles: account is the zero address");
+    return role.bearer[account];
+}
+<CODE_ENDING>

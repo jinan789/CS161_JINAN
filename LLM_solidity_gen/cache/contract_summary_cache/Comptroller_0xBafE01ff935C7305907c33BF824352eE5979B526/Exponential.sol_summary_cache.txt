@@ -1,0 +1,41 @@
+code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/Exponential.sol
+<START_FUNCTIONS>
+
+- getExp(uint num, uint denom) pure internal returns (MathError, Exp memory): Takes a uint `num` and a uint `denom`, creates an exponential from the numerator and denominator values, and returns a MathError and Exp variable. Input: (num: uint, denom: uint); Output: (MathError, Exp {mantissa: uint}).
+- addExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory): Takes two Exp structures, adds their mantissa values, and returns a new Exp structure with the sum of mantissas. Input: (a: Exp {mantissa: uint}, b: Exp {mantissa: uint}); Output: (MathError, Exp {mantissa: uint}).
+- subExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory): Takes two Exp structures, subtracts the mantissa value of b from a, and returns a new Exp structure with the difference. Input: (a: Exp {mantissa: uint}, b: Exp {mantissa: uint}); Output: (MathError, Exp {mantissa: uint}).
+- mulScalar(Exp memory a, uint scalar) pure internal returns (MathError, Exp memory): Takes an Exp structure and a uint scalar, multiplies the mantissa value of Exp by the scalar, and returns a new Exp structure with the result. Input: (a: Exp {mantissa: uint}, scalar: uint); Output: (MathError, Exp {mantissa: uint}).
+- mulScalarTruncate(Exp memory a, uint scalar) pure internal returns (MathError, uint): Takes an Exp structure and a uint scalar, performs the multiplication of the mantissa value of Exp by the scalar, then truncates and returns the unsigned integer. Input: (a: Exp {mantissa: uint}, scalar: uint); Output: (MathError, uint).
+
+- mulScalarTruncateAddUInt(Exp memory a, uint scalar, uint addend) pure internal returns (MathError, uint): Multiplies an Exp with a scalar value, truncates the result, and adds the given addend. Returns a MathError and the final result as an unsigned integer.
+    - Input: a (Exp memory), scalar (uint), addend (uint)
+    - Output: err (MathError), result (uint)
+
+- divScalar(Exp memory a, uint scalar) pure internal returns (MathError, Exp memory): Divides an Exp by a scalar value, returning a new Exp.
+    - Input: a (Exp memory), scalar (uint)
+    - Output: err0 (MathError), descaledMantissa (Exp memory)
+
+- divScalarByExp(uint scalar, Exp memory divisor) pure internal returns (MathError, Exp memory): Divides a scalar by an Exp, returning a new Exp.
+    - Input: scalar (uint), divisor (Exp memory)
+    - Output: err0 (MathError), numerator (Exp memory)
+
+- divScalarByExpTruncate(uint scalar, Exp memory divisor) pure internal returns (MathError, uint): Divides a scalar by an Exp and truncates the result to return an unsigned integer.
+    - Input: scalar (uint), divisor (Exp memory)
+    - Output: err (MathError), truncate(fraction) (uint)
+
+- mulExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory): Multiplies two exponentials with given mantissas a and b, returning a new exponential with the product's mantissa. Input format: (Exp memory a, Exp memory b); Output format: (MathError, Exp memory {mantissa: product}).
+- mulExp(uint a, uint b) pure internal returns (MathError, Exp memory): Multiplies two exponentials given their mantissas a and b, returning a new exponential with the product's mantissa. Input format: (uint a, uint b); Output format: (MathError, Exp memory).
+- mulExp3(Exp memory a, Exp memory b, Exp memory c) pure internal returns (MathError, Exp memory): Multiplies three exponentials with given mantissas a, b, and c, returning a new exponential with the product's mantissa. Input format: (Exp memory a, Exp memory b, Exp memory c); Output format: (MathError, Exp memory).
+- divExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory): Divides two exponentials and returns a new exponential. Input format: (Exp memory a, Exp memory b); Output format: (MathError, Exp memory).
+<END_FUNCTIONS>
+<START_CONTRACTS>
+
+Summary of the entire contract:
+The Exponential contract is a legacy module for handling fixed-precision decimal values with a precision of 18 decimal places. It provides functions for creating exponentials with numerator and denominator values, for adding, subtracting, and multiplying Exp structures, and for multiplying Exp structures with a scalar and returning a truncated result. This contract is built for compatibility reasons with existing contracts that still use MathError.
+
+Summary of the entire contract:
+The contract provides various mathematical operations for Exponential (Exp) values, including multiplication and division with scalar values, and division between a scalar and an Exp. It also provides rounding and truncation of results.
+
+Summary of the entire contract:
+The contract provides internal functions to perform operations with exponentials, including multiplication and division of two exponentials, multiplication of three exponentials and multiplication of two mantissas. These functions can be used for complex mathematical calculations and can help perform exponential operations on-chain with proper error handling.
+<END_CONTRACTS>

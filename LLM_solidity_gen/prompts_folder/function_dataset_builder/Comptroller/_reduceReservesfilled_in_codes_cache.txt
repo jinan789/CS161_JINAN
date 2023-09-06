@@ -1,0 +1,35 @@
+<CODE_BEGINNING>
+
+/**
+ * @notice Reduces reserves by the specified reduceAmount.
+ * @param reduceAmount The amount of reserves to reduce.
+ * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+ */
+function _reduceReserves(uint reduceAmount) external returns (uint) {
+    // Checking if reserve reduction is allowed for the caller
+    require(msg.sender == admin, "only admin can reduce reserves");
+
+    // Get the current total reserves
+    uint totalReserves = reserves;
+
+    // Check if the reduceAmount is less than or equal to total reserves
+    require(reduceAmount <= totalReserves, "reduceAmount is greater than total reserves");
+
+    // Subtract the reduceAmount from total reserves
+    uint newReserves = totalReserves.sub(reduceAmount);
+
+    // Update the new reserves value
+    reserves = newReserves;
+
+    // Transfer the reduceAmount to the admin
+    // (Assuming here that your contract has some kind of internal ERC20 token representing the reserves)
+    doTransferOut(address(uint160(admin)), reduceAmount);
+
+    // Emit an event for reserve reduction
+    emit ReservesReduced(admin, reduceAmount, newReserves);
+
+    // Return success
+    return 0;
+}
+
+<CODE_ENDING>

@@ -1,0 +1,5 @@
+Function: totalBorrowsCurrent
+Input: None
+Output: 1 variable of type uint
+
+Summary: This function updates the total borrowed amount according to the current interest rates and returns the updated total borrowed amount.

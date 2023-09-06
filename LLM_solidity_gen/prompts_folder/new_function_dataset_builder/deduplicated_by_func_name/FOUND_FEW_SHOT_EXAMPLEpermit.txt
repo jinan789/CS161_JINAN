@@ -1,0 +1,5 @@
+The function signatures that have the most similar functionality to the given target function are:
+
+1. function approve(address spender, uint rawAmount) external returns (bool)
+
+2. function allowance(address account, address spender) external view returns (uint)

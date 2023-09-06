@@ -1,0 +1,1 @@
+The _resignImplementation function in the given Solidity contract takes no input parameters and returns no output values. Its purpose is to allow the current contract implementation to resign, thereby removing it from its active role as the implementation of the contract.

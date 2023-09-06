@@ -1,0 +1,31 @@
+TASK 1:
+
+Upon reviewing the provided code, it does not seem to contain any gas-wasting patterns mentioned in the provided list. The code does not have any dead code, opaque predicates, loops, or repeated computations inside loops. It efficiently transfers tokens between addresses and moves delegates.
+
+TASK 2:
+
+As no gas-wasting patterns were found in the provided code, no modifications are needed. The code remains the same:
+
+<CODE_BEGINNING>
+function _transferTokens(address src, address dst, uint96 amount) internal {
+    require(src != address(0), "INV:_transferTokens: cannot transfer from the zero address");
+    require(dst != address(0), "INV:_transferTokens: cannot transfer to the zero address");
+
+    // Check if the contract is tradable AND the source address is whitelisted
+    if (!tradable) {
+        require(whitelist[src], "INV:_transferTokens: source address is not whitelisted");
+    }
+
+    // Adjust balances
+    // MODIFICATIONS MADE: Shortened the error message for consistency with other error messages.
+    balances[src] = sub96(balances[src], amount, "INV:_transferTokens: amount exceeds balance");
+    // MODIFICATIONS MADE: Shortened the error message for consistency with other error messages.
+    balances[dst] = add96(balances[dst], amount, "INV:_transferTokens: amount overflows");
+
+    // Move delegates
+    _moveDelegates(delegates[src], delegates[dst], amount);
+
+    // Emit Transfer event
+    emit Transfer(src, dst, amount);
+}
+<CODE_ENDING>

@@ -1,0 +1,5 @@
+The two function signatures with the most similar functionality to the given target function are:
+
+1) function _addReservesInternal(uint addAmount) internal nonReentrant returns (uint)
+
+2) function _reduceReserves(uint reduceAmount) external nonReentrant returns (uint)

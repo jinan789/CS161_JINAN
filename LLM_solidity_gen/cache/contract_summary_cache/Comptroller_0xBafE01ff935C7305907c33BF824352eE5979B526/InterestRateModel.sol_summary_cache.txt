@@ -1,0 +1,19 @@
+code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/InterestRateModel.sol
+<START_FUNCTIONS>
+- bool public constant isInterestRateModel: Indicative variable that identifies the contract as an InterestRateModel.
+
+- function getBorrowRate(uint cash, uint borrows, uint reserves) external view returns (uint):
+  - Input: cash (total amount of cash in the market); borrows (total amount of outstanding borrows in the market); reserves (total amount of reserves in the market).
+  - Output: The borrow rate per block, as a percentage scaled by 1e18.
+  - Summary: Calculates the current borrow interest rate per block based on the market conditions (cash, borrows, and reserves).
+
+- function getSupplyRate(uint cash, uint borrows, uint reserves, uint reserveFactorMantissa) external view returns (uint):
+  - Input: cash (total amount of cash in the market); borrows (total amount of outstanding borrows in the market); reserves (total amount of reserves in the market); reserveFactorMantissa (current reserve factor in the market).
+  - Output: The supply rate per block, as a percentage scaled by 1e18.
+  - Summary: Calculates the current supply interest rate per block based on the market conditions (cash, borrows, reserves) and the reserve factor.
+<END_FUNCTIONS>
+
+<START_CONTRACTS>
+Summary of the entire contract:
+The InterestRateModel contract is an interface for creating interest rate models on lending platforms such as Compound. It provides a standard for calculating borrow and supply interest rates per block based on the market conditions and reserve factors. Implementing the contract defines the contract as an InterestRateModel for inspection purposes.
+<END_CONTRACTS>

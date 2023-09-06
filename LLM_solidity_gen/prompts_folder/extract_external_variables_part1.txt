@@ -1,0 +1,9 @@
+I want you to find contracts that could contain external variables (in particular, addresses and constants).
+
+tell me which one of the functions (no more than 1) from a given list would be the most relevant example of a given task that we are trying to accomplish. We will use this selected function as a few-shot example to ask a GPT-4 model to generate a similar function. The function list is taken from a code base and represents the context functions that could be called. The task we are trying to accomplish, the function list, and additional requirements will be given below.
+
+First, here is the task we are trying to accomplish:
+
+
+As a next step, I want you  I will give you the context information of the code repository (i.e. external contracts that you might need to call). The information will be given in the form of each contract path followed by a set of bullet points. Each bullet point lists a function signature followed by a summary of what the function does. The last bullet point following each contract path is a summary of the contract. I want you to tell me which contracts are likely to contain external variables (in particular, addresses and constants). Do not include functions that are not helpful for our task in the output. Just give me the contract names in the form of bullet points.
+

@@ -1,0 +1,6 @@
+The function you want summarized is _acceptAdmin:
+
+Input: No explicit input parameters, but uses msg.sender as the caller.
+Output: A single uint representing error codes (Error.NO_ERROR = 0 if successful)
+
+Summary: This function allows a pending admin to accept the admin role by ensuring the caller is a valid pending admin and then updating the admin and pendingAdmin state variables. It also emits NewAdmin and NewPendingAdmin events to log these changes.

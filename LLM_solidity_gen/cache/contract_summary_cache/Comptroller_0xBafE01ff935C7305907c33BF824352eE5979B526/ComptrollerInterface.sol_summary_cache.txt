@@ -1,0 +1,10 @@
+code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/ComptrollerInterface.sol
+<START_FUNCTIONS>
+
+- liquidateCalculateSeizeTokens(address cTokenBorrowed, address cTokenCollateral, uint repayAmount) external view returns (uint, uint): Calculates the amount of collateral tokens to be seized and the amount of borrowed tokens to be repaid when liquidating a loan.
+<END_FUNCTIONS>
+<START_CONTRACTS>
+
+Summary of the entire contract:
+The Liquidity/Liquidation Calculation contract provides a single external view function to calculate the required collateral tokens to be seized and the remaining borrowed tokens after liquidation. This is useful for protocols implementing liquidation mechanisms to enable efficient and transparent calculation of liquidation amounts.
+<END_CONTRACTS>

@@ -1,0 +1,25 @@
+    function _oneInchTrade(
+        address _srcToken,
+        uint256 _srcAmount,
+        address _destToken,
+        bytes memory _calldata
+    ) internal returns (
+        uint256 _destPriceInSrc,
+        uint256 _srcPriceInDest,
+        uint256 _actualDestAmount,
+        uint256 _actualSrcAmount
+    ) {
+        // Approve 1inch exchange to use src tokens
+        IERC20Detailed(_srcToken).safeApprove(oneInchAddr, _srcAmount);
+
+        // Call 1inch exchange's `swap` function using the provided calldata
+        (bool success, bytes memory returnData) = oneInchAddr.call(_calldata);
+        require(success, "1inch swap failed");
+
+        // Parse return data
+        (_actualDestAmount, _actualSrcAmount) = abi.decode(returnData, (uint256, uint256));
+
+        // Calculate prices
+        _srcPriceInDest = _calcRateFromQty(_srcAmount, _actualDestAmount, _getDecimals(_srcToken), _getDecimals(_destToken));
+        _destPriceInSrc = _calcRateFromQty(_actualDestAmount, _srcAmount, _getDecimals(_destToken), _getDecimals(_srcToken));
+    }

@@ -1,0 +1,39 @@
+TASK 1:
+
+1. In the comment line, you have mentioned "MODIFICATIONS MADE" for adjusting variable naming to match the instructions given. However, these modifications are not relevant to the bullet points in this task since they were made by you before sharing the code. So, I'm not considering them as issues in this task.
+
+2. `_getDecimals` function is used in the calculation of `srcPriceInDest` and `destPriceInSrc`. However, the implementation code for `_getDecimals` is missing. It's crucial to have this function implemented to correctly fetch the decimals for the given token addresses.
+
+TASK 2:
+
+The code seems to be mostly correct, except for the missing `_getDecimals` function implementation. I can't modify the code since the implementation of `_getDecimals` is not provided. Please provide the implementation of `_getDecimals` function or update your contract to use a correct way to fetch decimals for the given token addresses.
+
+<CODE_BEGINNING>
+    function _oneInchTrade(
+        address srcToken, //MODIFICATIONS MADE: Adjusted variable naming for consistency
+        uint256 srcAmount, //MODIFICATIONS MADE: Adjusted variable naming for consistency
+        address destToken, //MODIFICATIONS MADE: Adjusted variable naming for consistency
+        bytes memory calldata //MODIFICATIONS MADE: Adjusted variable naming for consistency
+    ) internal returns (
+        uint256 destPriceInSrc,
+        uint256 srcPriceInDest,
+        uint256 actualDestAmount,
+        uint256 actualSrcAmount
+    ) {
+        // Approve 1inch exchange to use src tokens
+        //MODIFICATIONS MADE: Reset allowance to 0 before setting the desired srcAmount
+        IERC20Detailed(srcToken).safeApprove(oneInchAddr, 0);
+        IERC20Detailed(srcToken).safeApprove(oneInchAddr, srcAmount);
+
+        // Call 1inch exchange's `swap` function using the provided calldata
+        (bool success, bytes memory returnData) = oneInchAddr.call(calldata); //MODIFICATIONS MADE: Adjusted variable name from "_calldata" to "calldata"
+        require(success, "1inch swap failed");
+
+        // Parse return data
+        (actualDestAmount, actualSrcAmount) = abi.decode(returnData, (uint256, uint256));
+
+        // Calculate prices
+        srcPriceInDest = _calcRateFromQty(srcAmount, actualDestAmount, _getDecimals(srcToken), _getDecimals(destToken));
+        destPriceInSrc = _calcRateFromQty(actualDestAmount, srcAmount, _getDecimals(destToken), _getDecimals(srcToken));
+    }
+<CODE_ENDING>

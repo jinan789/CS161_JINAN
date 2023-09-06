@@ -1,0 +1,11 @@
+code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/PriceOracle.sol
+<START_FUNCTIONS>
+- bool public constant isPriceOracle: A constant that indicates if this is a PriceOracle contract for inspection purposes.
+- function getUnderlyingPrice(CToken cToken) external view returns (uint): Retrieves the underlying price of a cToken asset.
+  - Input: cToken (CToken) - The cToken for which to get the underlying price.
+  - Output: uint - The underlying asset price mantissa, scaled by 1e18. If the output is zero, it means the price is unavailable.
+<END_FUNCTIONS>
+<START_CONTRACTS>
+Summary of the entire contract:
+The PriceOracle contract provides an interface to obtain the underlying price of a cToken asset. This contract only has a single function, getUnderlyingPrice(), which takes in a cToken as a parameter and returns the underlying asset price mantissa (scaled by 1e18). A zero value returned signifies that the price is unavailable. Additionally, the contract includes a boolean variable, isPriceOracle, indicating that it is a PriceOracle contract for inspection purposes.
+<END_CONTRACTS>

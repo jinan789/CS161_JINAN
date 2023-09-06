@@ -1,0 +1,5 @@
+Function: totalSupply
+Input: None
+Output: One uint256 variable
+
+Summary: The totalSupply function returns the total amount of tokens in existence for the ERC20 standard token.

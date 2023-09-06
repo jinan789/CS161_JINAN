@@ -1,0 +1,35 @@
+function initialize(
+    ComptrollerInterface comptroller_,
+    InterestRateModel interestRateModel_,
+    uint initialExchangeRateMantissa_,
+    string memory name_,
+    string memory symbol_,
+    uint8 decimals_
+) public {
+    //MODIFICATIONS MADE: Combined the two require statements for better readability
+    require(admin == msg.sender && accrualBlockNumber == 0, "only admin can initialize the market and market must not be initialized");
+
+    //MODIFICATIONS MADE: Moved require statement for initialExchangeRateMantissa before calling _setInterestRateModelFresh
+    require(initialExchangeRateMantissa_ > 0, "initial exchange rate must be greater than zero");
+
+    //CHANGES BASED ON CALLED CODE MADE: Change _setComptroller to setComptroller
+    // Set the comptroller
+    uint err = setComptroller(comptroller_);
+    require(err == uint(Error.NO_ERROR), "setting comptroller failed");
+
+    //CHANGES BASED ON CALLED CODE MADE: Change _setInterestRateModelFresh to setInterestRateModel
+    // Set the interest rate model (requires it is a valid model)
+    err = setInterestRateModel(interestRateModel_);
+    require(err == uint(Error.NO_ERROR), "setting interest rate model failed");
+
+    // Set the initial exchange rate
+    initialExchangeRateMantissa = initialExchangeRateMantissa_;
+
+    // Set the ERC-20 details
+    name = name_;
+    symbol = symbol_;
+    decimals = decimals_;
+
+    // Set initial accrual block number
+    accrualBlockNumber = getBlockNumber();
+}

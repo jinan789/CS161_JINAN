@@ -1,0 +1,10 @@
+Function: _setInterestRateModel
+
+Inputs:
+1. newInterestRateModel (InterestRateModel)
+
+Outputs: 
+1. uint (error code)
+
+Summary: 
+Updates the interest rate model used in the contract. Requires prior interest accrual.

@@ -1,0 +1,5 @@
+The most similar function signatures to the given target function are:
+
+1. function divScalar(Exp memory a, uint scalar) pure internal returns (MathError, Exp memory)
+
+2. function divScalarByExpTruncate(uint scalar, Exp memory divisor) pure internal returns (MathError, uint)

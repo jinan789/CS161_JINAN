@@ -1,0 +1,206 @@
+I want you to help me find new gas-wasting patterns for Solidity. Gas is a unique pricing mechanism in Solidity, which measures the amount of computational resources put into the execution of Solidity codes. The goal of gas optimization is to find an equivalent code instruction sequence that produces the same output while consuming less gas, which may misalign from the way people typically write codes, since code writers aim for readability and maintainability, while gas optimization might seem a little unintuitive to newcomers. For example, storage variables in Solidity are expensive in terms of gas, while memory is not, so storage operations should be avoided whenever possible. Gas is paid in real money, so saving gas is saving money.
+
+First, I will give you a list of known gas-wasting patterns. The list is numbered, with each bullet point specifying one gas-wasting pattern, which is followed by an explanation of why this pattern wastes gas. I want you to read through these and learn how to find new gas-wasting patterns from it. The list is as follows:
+
+1. Repeated computation of the same expression: including repetitive reads of the same expensive storage variable (e.g. Overuse of expensive storage variables). This could be solved by introducing an intermediate variable to hold the value.
+ 
+2. Extractable code chunks: if there are multiple chunks of codes that perform the same/similar functionalities, then we could abstract them into one function (or modifier) to save deployment costs 
+
+3. Variable refactoring: by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+
+4. Redundant operations with same effects: redundant operations that overwrite the effect of the previous operation, making the previous useless
+
+5. Pre-computable operations on constants: performing comparisons (or say other operations) to constants is useless and could be pre-computed
+
+6. Persistent conditional checks: some of the condition checks may always evaluate to true or always evaluate to false, which could be directly replaced by their evaluated values
+
+7. Simplifiable conditional operations: expressions that involve logical operations that could be simplified to reduce the amount of computational workload.
+
+8. "dead codes." codes that are guaranteed not to be executed (e.g. unreachable conditional branch) should be removed.
+9. "Opaque predicate." If the outcome of a predicate could be inferred to be true/false without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+10. "Expensive operations in a loop." If an gas-expensive operation is executed multiple times in a loop, while there is a way to equivalently move it out of the loop to execute only once (e.g. storing a storage variable in a memory variable and performing operations on the memory variable inside the loop), then we should do it to save gas.
+11. "Constant outcome of a loop." If the outcome of a loop could be inferred without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+12. "Loop fusion." If two loops have the same starting and stopping conditions with the same increment steps, then we could consider combining them into one (e.g. delete the second loop, and put its loop body codes into the first one) if they have no dependencies. This way, we save the logical comparisons, conditional jumps, as well as the incremental steps of the second loop, which saves computation and thus gas.
+13. "Repeated computations in a loop." If there are expressions that produce the same outcome in each iteration of a loop, we could move it out of the loop and execute only once, which saves computation.
+14. "Struct variable refactoring." If a struct used in a contract contains some fields that are used more often and some that are less often, then by breaking up the struct into two, where the frequently used fields are now put as a separate struct, we get to avoid unnecessary reads on the less often used fields and save gas.s
+
+Next, I will give you a chunk of Solidity codes from which you will find gas-inefficient patterns; note that I have removed simple functions from the contract and only kept complex ones, with the hope that you could focus on the most complicated function codes
+contract BunniLpZapIn is Multicall, SelfPermit {
+    function zapIn(
+        IBunniHub.DepositParams memory depositParams,
+        ILiquidityGauge gauge,
+        ERC20 token0,
+        ERC20 token1,
+        address recipient,
+        uint256 sharesMin,
+        bool useContractBalance0,
+        bool useContractBalance1,
+        bool compound
+    ) external payable virtual returns (uint256 shares, uint128 addedLiquidity, uint256 amount0, uint256 amount1) {
+        // transfer tokens in and modify deposit params
+        if (!useContractBalance0) {
+            if (depositParams.amount0Desired != 0) {
+                token0.safeTransferFrom(msg.sender, address(this), depositParams.amount0Desired);
+            }
+        } else {
+            depositParams.amount0Desired = token0.balanceOf(address(this));
+        }
+        if (!useContractBalance1) {
+            if (depositParams.amount1Desired != 0) {
+                token1.safeTransferFrom(msg.sender, address(this), depositParams.amount1Desired);
+            }
+        } else {
+            depositParams.amount1Desired = token1.balanceOf(address(this));
+        }
+        depositParams.recipient = address(this);
+
+        // compound if requested
+        if (compound) {
+            bunniHub.compound(depositParams.key);
+        }
+
+        // approve tokens to Bunni
+        if (depositParams.amount0Desired != 0) {
+            token0.safeApprove(address(bunniHub), depositParams.amount0Desired);
+        }
+        if (depositParams.amount1Desired != 0) {
+            token1.safeApprove(address(bunniHub), depositParams.amount1Desired);
+        }
+
+        // deposit tokens into Bunni
+        (shares, addedLiquidity, amount0, amount1) = bunniHub.deposit(depositParams);
+        if (shares < sharesMin) {
+            revert BunniLpZapIn__InsufficientOutput();
+        }
+
+        // reset approvals
+        if (depositParams.amount0Desired != 0 && token0.allowance(address(this), address(bunniHub)) != 0) {
+            token0.safeApprove(address(bunniHub), 0);
+        }
+        if (depositParams.amount1Desired != 0 && token1.allowance(address(this), address(bunniHub)) != 0) {
+            token1.safeApprove(address(bunniHub), 0);
+        }
+
+        // stake Bunni shares into gauge
+        ERC20 bunniToken = ERC20(address(bunniHub.getBunniToken(depositParams.key)));
+        bunniToken.safeApprove(address(gauge), shares);
+        gauge.deposit(shares, recipient);
+
+        // reset approvals
+        if (bunniToken.allowance(address(this), address(gauge)) != 0) {
+            bunniToken.safeApprove(address(gauge), 0);
+        }
+
+        // refund tokens
+        uint256 balance = token0.balanceOf(address(this));
+        if (balance != 0) {
+            token0.safeTransfer(recipient, balance);
+        }
+        balance = token1.balanceOf(address(this));
+        if (balance != 0) {
+            token1.safeTransfer(recipient, balance);
+        }
+    }
+
+    /// @notice Deposits tokens into a Bunni LP position. Any leftover tokens
+    /// are refunded to the recipient address.
+    /// @dev depositParams.recipient will receive the Bunni LP tokens.
+    /// depositParams.amount0Desired and depositParams.amount1Desired are overridden to the balances
+    /// of address(this) if the corresponding useContractBalance flag is set to true.
+    /// @param depositParams The deposit params passed to BunniHub
+    /// @param token0 The token0 of the Uniswap pair to LP into
+    /// @param token1 The token1 of the Uniswap pair to LP into
+    /// @param recipient The recipient of the staked gauge position
+    /// @param sharesMin The minimum acceptable amount of shares received. Used for controlling slippage.
+    /// @param useContractBalance0 Set to true to use the token0 balance of address(this) instead of msg.sender
+    /// @param useContractBalance1 Set to true to use the token1 balance of address(this) instead of msg.sender
+    /// @param compound Set to true to compound the Bunni pool before depositing
+    /// @return shares The new share tokens minted to the sender
+    /// @return addedLiquidity The new liquidity amount as a result of the increase
+    /// @return amount0 The amount of token0 to acheive resulting liquidity
+    /// @return amount1 The amount of token1 to acheive resulting liquidity
+    function zapInNoStake(
+        IBunniHub.DepositParams memory depositParams,
+        ERC20 token0,
+        ERC20 token1,
+        address recipient,
+        uint256 sharesMin,
+        bool useContractBalance0,
+        bool useContractBalance1,
+        bool compound
+    ) external payable virtual returns (uint256 shares, uint128 addedLiquidity, uint256 amount0, uint256 amount1) {
+        // transfer tokens in and modify deposit params
+        if (!useContractBalance0) {
+            if (depositParams.amount0Desired != 0) {
+                token0.safeTransferFrom(msg.sender, address(this), depositParams.amount0Desired);
+            }
+        } else {
+            depositParams.amount0Desired = token0.balanceOf(address(this));
+        }
+        if (!useContractBalance1) {
+            if (depositParams.amount1Desired != 0) {
+                token1.safeTransferFrom(msg.sender, address(this), depositParams.amount1Desired);
+            }
+        } else {
+            depositParams.amount1Desired = token1.balanceOf(address(this));
+        }
+
+        // compound if requested
+        if (compound) {
+            bunniHub.compound(depositParams.key);
+        }
+
+        // approve tokens to Bunni
+        token0.safeApprove(address(bunniHub), depositParams.amount0Desired);
+        token1.safeApprove(address(bunniHub), depositParams.amount1Desired);
+
+        // deposit tokens into Bunni
+        (shares, addedLiquidity, amount0, amount1) = bunniHub.deposit(depositParams);
+        if (shares < sharesMin) {
+            revert BunniLpZapIn__InsufficientOutput();
+        }
+
+        // reset approvals
+        if (token0.allowance(address(this), address(bunniHub)) != 0) {
+            token0.safeApprove(address(bunniHub), 0);
+        }
+        if (token1.allowance(address(this), address(bunniHub)) != 0) {
+            token1.safeApprove(address(bunniHub), 0);
+        }
+
+        // refund tokens
+        uint256 balance = token0.balanceOf(address(this));
+        if (balance != 0) {
+            token0.safeTransfer(recipient, balance);
+        }
+        balance = token1.balanceOf(address(this));
+        if (balance != 0) {
+            token1.safeTransfer(recipient, balance);
+        }
+    }
+
+    /// -----------------------------------------------------------------------
+    /// Timeless yield tokens support
+    /// -----------------------------------------------------------------------
+
+    /// @notice Mints Timeless yield tokens using the underlying asset.
+    /// @param gate The Gate contract to use for minting the yield tokens
+    /// @param nytRecipient The recipient of the minted NYT
+    /// @param pytRecipient The recipient of the minted PYT
+    /// @param vault The vault to mint NYT and PYT for
+    /// @param xPYT The xPYT contract to deposit the minted PYT into. Set to 0 to receive raw PYT instead.
+    /// @param underlyingAmount The amount of underlying tokens to use
+    /// @param useContractBalance Set to true to use the contract's token balance as token input
+    /// @return mintAmount The amount of NYT and PYT minted (the amounts are equal)
+    }
+Now that I have given you the necessary information, I want you to help me find new gas-wasting patterns from the above codes, based on what you learn from the list of patterns. Please be creative and think out of the box beyond the patterns listed above. Please put the new gas wasting patterns in bullet points (in the form of '1.', '2.', etc), and answer the following questions for each of the found patterns (in sub-bullet-points under each bullet point):
+
+1. How did you find this pattern? Could you explain the reasoning process, step by step, behind the discovery?
+
+2. What should I do, step by step, to fix the found gas-wasting patterns? Could you explain the reasoning process, step by step, behind the reason why such a fix works?
+
+3. On a score of 0 to 5, could you please tell me how would you rate this found new pattern, in terms of how much it is sacrificing readability, security, and maintainability in exchange for gas optimization (5 is the least impacted. For example, Security score of 5 means implementing the found gas-optimization pattern would have no effect on security, whereas 1 means it would reduce security)? Please format your answer as in "Readability: 5; Security: 4; Maintainability: 3". Please also provide explanations.
+
+Here are some additional requirements:
+1. If you think my prompt to you has any issues (e.g. ambiguity or lack of information), please tell me how I should improve it in the next time.
+2. please help me format your answer in the form of a Latex section (e.g. \section*{Analysis of Provided Solidity Code}), since I want to assert it to a Latex document.

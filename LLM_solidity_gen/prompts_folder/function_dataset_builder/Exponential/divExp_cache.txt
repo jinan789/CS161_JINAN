@@ -1,0 +1,9 @@
+Input: 
+- a: Exp struct (contains a uint for mantissa)
+- b: Exp struct (contains a uint for mantissa)
+
+Output: 
+- MathError (enum)
+- Exp struct (contains a uint for mantissa)
+
+Purpose: This function divides two Exp structs with fixed-precision decimals and returns the result as an Exp struct along with a MathError indicator.

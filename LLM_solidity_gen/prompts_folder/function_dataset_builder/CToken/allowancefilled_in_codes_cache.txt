@@ -1,0 +1,11 @@
+<CODE_BEGINNING>
+/**
+ * @notice Get the current allowance from owner to spender
+ * @param owner The address of the owner
+ * @param spender The address of the spender
+ * @return uint256 The number of tokens allowed to be transferred from owner to spender
+ */
+function allowance(address owner, address spender) external view returns (uint256) {
+    return transferAllowances[owner][spender];
+}
+<CODE_ENDING>

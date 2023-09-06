@@ -1,0 +1,1 @@
+fail(Error err, FailureInfo info) internal returns (uint): Reports a known error from the money market or a non-upgradeable collaborator and emits a Failure event with error, info and 0 as detail. Returns the error code as a uint. From code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/ErrorReporter.sol

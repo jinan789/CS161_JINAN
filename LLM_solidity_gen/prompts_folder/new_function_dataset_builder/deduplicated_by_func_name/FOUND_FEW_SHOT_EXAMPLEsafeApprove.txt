@@ -1,0 +1,14 @@
+Based on their function names, return types, and parameter lists, the following two function signatures from the given contract seem to have the most similar functionality to the target function:
+
+1. safeTransferFrom(
+        ERC20 token,
+        address from,
+        address to,
+        uint256 amount
+    ) internal
+
+2. safeTransfer(
+        ERC20 token,
+        address to,
+        uint256 amount
+    ) internal

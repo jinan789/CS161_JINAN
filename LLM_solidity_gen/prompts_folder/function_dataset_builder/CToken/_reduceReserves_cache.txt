@@ -1,0 +1,4 @@
+Input: uint - reduceAmount
+Output: uint - error code
+
+Summary: This function `_reduceReserves` aims to reduce the reserves of the contract by a specified amount (reduceAmount), by first accruing interest and then transferring the reduced reserves to the admin.

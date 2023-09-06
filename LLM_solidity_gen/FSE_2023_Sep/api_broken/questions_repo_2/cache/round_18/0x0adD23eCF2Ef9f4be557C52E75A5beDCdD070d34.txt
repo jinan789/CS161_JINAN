@@ -1,0 +1,194 @@
+I want you to help me find new gas-wasting patterns for Solidity. Gas is a unique pricing mechanism in Solidity, which measures the amount of computational resources put into the execution of Solidity codes. The goal of gas optimization is to find an equivalent code instruction sequence that produces the same output while consuming less gas, which may misalign from the way people typically write codes, since code writers aim for readability and maintainability, while gas optimization might seem a little unintuitive to newcomers. For example, storage variables in Solidity are expensive in terms of gas, while memory is not, so storage operations should be avoided whenever possible. Gas is paid in real money, so saving gas is saving money.
+
+First, I will give you a list of known gas-wasting patterns. The list is numbered, with each bullet point specifying one gas-wasting pattern, which is followed by an explanation of why this pattern wastes gas. I want you to read through these and learn how to find new gas-wasting patterns from it. The list is as follows:
+
+1. Repeated computation of the same expression: including repetitive reads of the same expensive storage variable (e.g. Overuse of expensive storage variables). This could be solved by introducing an intermediate variable to hold the value.
+ 
+2. Extractable code chunks: if there are multiple chunks of codes that perform the same/similar functionalities, then we could abstract them into one function (or modifier) to save deployment costs 
+
+3. Variable refactoring: by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+
+4. Redundant operations with same effects: redundant operations that overwrite the effect of the previous operation, making the previous useless
+
+5. Pre-computable operations on constants: performing comparisons (or say other operations) to constants is useless and could be pre-computed
+
+6. Persistent conditional checks: some of the condition checks may always evaluate to true or always evaluate to false, which could be directly replaced by their evaluated values
+
+7. Simplifiable conditional operations: expressions that involve logical operations that could be simplified to reduce the amount of computational workload.
+
+8. "dead codes." codes that are guaranteed not to be executed (e.g. unreachable conditional branch) should be removed.
+9. "Opaque predicate." If the outcome of a predicate could be inferred to be true/false without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+10. "Expensive operations in a loop." If an gas-expensive operation is executed multiple times in a loop, while there is a way to equivalently move it out of the loop to execute only once (e.g. storing a storage variable in a memory variable and performing operations on the memory variable inside the loop), then we should do it to save gas.
+11. "Constant outcome of a loop." If the outcome of a loop could be inferred without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+12. "Loop fusion." If two loops have the same starting and stopping conditions with the same increment steps, then we could consider combining them into one (e.g. delete the second loop, and put its loop body codes into the first one) if they have no dependencies. This way, we save the logical comparisons, conditional jumps, as well as the incremental steps of the second loop, which saves computation and thus gas.
+13. "Repeated computations in a loop." If there are expressions that produce the same outcome in each iteration of a loop, we could move it out of the loop and execute only once, which saves computation.
+14. "Struct variable refactoring." If a struct used in a contract contains some fields that are used more often and some that are less often, then by breaking up the struct into two, where the frequently used fields are now put as a separate struct, we get to avoid unnecessary reads on the less often used fields and save gas.s
+
+Next, I will give you a chunk of Solidity codes from which you will find gas-inefficient patterns; note that I have removed simple functions from the contract and only kept complex ones, with the hope that you could focus on the most complicated function codes
+contract VaultCore is VaultStorage {
+    function _allocate() internal {
+        uint256 vaultValue = _totalValueInVault();
+        // Nothing in vault to allocate
+        if (vaultValue == 0) return;
+        uint256 strategiesValue = _totalValueInStrategies();
+        // We have a method that does the same as this, gas optimisation
+        uint256 calculatedTotalValue = vaultValue + strategiesValue;
+
+        // We want to maintain a buffer on the Vault so calculate a percentage
+        // modifier to multiply each amount being allocated by to enforce the
+        // vault buffer
+        uint256 vaultBufferModifier;
+        if (strategiesValue == 0) {
+            // Nothing in Strategies, allocate 100% minus the vault buffer to
+            // strategies
+            vaultBufferModifier = uint256(1e18) - vaultBuffer;
+        } else {
+            vaultBufferModifier =
+                (vaultBuffer * calculatedTotalValue) /
+                vaultValue;
+            if (1e18 > vaultBufferModifier) {
+                // E.g. 1e18 - (1e17 * 10e18)/5e18 = 8e17
+                // (5e18 * 8e17) / 1e18 = 4e18 allocated from Vault
+                vaultBufferModifier = uint256(1e18) - vaultBufferModifier;
+            } else {
+                // We need to let the buffer fill
+                return;
+            }
+        }
+        if (vaultBufferModifier == 0) return;
+
+        // Iterate over all assets in the Vault and allocate to the appropriate
+        // strategy
+        uint256 assetCount = allAssets.length;
+        for (uint256 i = 0; i < assetCount; ++i) {
+            IERC20 asset = IERC20(allAssets[i]);
+            uint256 assetBalance = asset.balanceOf(address(this));
+            // No balance, nothing to do here
+            if (assetBalance == 0) continue;
+
+            // Multiply the balance by the vault buffer modifier and truncate
+            // to the scale of the asset decimals
+            uint256 allocateAmount = assetBalance.mulTruncate(
+                vaultBufferModifier
+            );
+
+            address depositStrategyAddr = assetDefaultStrategies[
+                address(asset)
+            ];
+
+            if (depositStrategyAddr != address(0) && allocateAmount > 0) {
+                IStrategy strategy = IStrategy(depositStrategyAddr);
+                // Transfer asset to Strategy and call deposit method to
+                // mint or take required action
+                asset.safeTransfer(address(strategy), allocateAmount);
+                strategy.deposit(address(asset), allocateAmount);
+                emit AssetAllocated(
+                    address(asset),
+                    depositStrategyAddr,
+                    allocateAmount
+                );
+            }
+        }
+    }
+
+    /**
+     * @notice Calculate the total value of assets held by the Vault and all
+     *      strategies and update the supply of OTokens.
+     */
+    function mint(
+        address _asset,
+        uint256 _amount,
+        uint256 _minimumOusdAmount
+    ) external whenNotCapitalPaused nonReentrant {
+        require(assets[_asset].isSupported, "Asset is not supported");
+        require(_amount > 0, "Amount must be greater than 0");
+
+        uint256 units = _toUnits(_amount, _asset);
+        uint256 unitPrice = _toUnitPrice(_asset, true);
+        uint256 priceAdjustedDeposit = (units * unitPrice) / 1e18;
+
+        if (_minimumOusdAmount > 0) {
+            require(
+                priceAdjustedDeposit >= _minimumOusdAmount,
+                "Mint amount lower than minimum"
+            );
+        }
+
+        emit Mint(msg.sender, priceAdjustedDeposit);
+
+        // Rebase must happen before any transfers occur.
+        if (priceAdjustedDeposit >= rebaseThreshold && !rebasePaused) {
+            _rebase();
+        }
+
+        // Mint matching amount of OTokens
+        oUSD.mint(msg.sender, priceAdjustedDeposit);
+
+        // Transfer the deposited coins to the vault
+        IERC20 asset = IERC20(_asset);
+        asset.safeTransferFrom(msg.sender, address(this), _amount);
+
+        if (priceAdjustedDeposit >= autoAllocateThreshold) {
+            _allocate();
+        }
+    }
+
+    /**
+     * @notice Mint OTokens for a Metapool Strategy
+     * @param _amount Amount of the asset being deposited
+     *
+     * Notice: can't use `nonReentrant` modifier since the `mint` function can
+     * call `allocate`, and that can trigger `ConvexOUSDMetaStrategy` to call this function
+     * while the execution of the `mint` has not yet completed -> causing a `nonReentrant` collision.
+     *
+     * Also important to understand is that this is a limitation imposed by the test suite.
+     * Production / mainnet contracts should never be configured in a way where mint/redeem functions
+     * that are moving funds between the Vault and end user wallets can influence strategies
+     * utilizing this function.
+     */
+    function mintForStrategy(uint256 _amount)
+        external
+        whenNotCapitalPaused
+        onlyOusdMetaStrategy
+    {
+        require(_amount < MAX_INT, "Amount too high");
+
+        emit Mint(msg.sender, _amount);
+
+        // Rebase must happen before any transfers occur.
+        // TODO: double check the relevance of this
+        if (_amount >= rebaseThreshold && !rebasePaused) {
+            _rebase();
+        }
+
+        // safe to cast because of the require check at the beginning of the function
+        netOusdMintedForStrategy += int256(_amount);
+
+        require(
+            abs(netOusdMintedForStrategy) < netOusdMintForStrategyThreshold,
+            "Minted ousd surpassed netOusdMintForStrategyThreshold."
+        );
+
+        // Mint matching amount of OTokens
+        oUSD.mint(msg.sender, _amount);
+    }
+
+    // In memoriam
+
+    /**
+     * @notice Withdraw a supported asset and burn OTokens.
+     * @param _amount Amount of OTokens to burn
+     * @param _minimumUnitAmount Minimum stablecoin units to receive in return
+     */
+    }
+Now that I have given you the necessary information, I want you to help me find new gas-wasting patterns from the above codes, based on what you learn from the list of patterns. Please be creative and think out of the box beyond the patterns listed above. Please put the new gas wasting patterns in bullet points (in the form of '1.', '2.', etc), and answer the following questions for each of the found patterns (in sub-bullet-points under each bullet point):
+
+1. How did you find this pattern? Could you explain the reasoning process, step by step, behind the discovery?
+
+2. What should I do, step by step, to fix the found gas-wasting patterns? Could you explain the reasoning process, step by step, behind the reason why such a fix works?
+
+3. On a score of 0 to 5, could you please tell me how would you rate this found new pattern, in terms of how much it is sacrificing readability, security, and maintainability in exchange for gas optimization (5 is the least impacted. For example, Security score of 5 means implementing the found gas-optimization pattern would have no effect on security, whereas 1 means it would reduce security)? Please format your answer as in "Readability: 5; Security: 4; Maintainability: 3". Please also provide explanations.
+
+Here are some additional requirements:
+1. If you think my prompt to you has any issues (e.g. ambiguity or lack of information), please tell me how I should improve it in the next time.
+2. please help me format your answer in the form of a Latex section (e.g. \section*{Analysis of Provided Solidity Code}), since I want to assert it to a Latex document.

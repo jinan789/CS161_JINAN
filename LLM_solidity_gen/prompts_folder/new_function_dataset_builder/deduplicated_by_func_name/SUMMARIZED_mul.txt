@@ -1,0 +1,4 @@
+Input: Two uint256 variables (a and b)
+Output: One uint256 variable
+
+The function performs multiplication of two input variables (a and b) in a safe manner by checking for potential overflow and returns the result. If the multiplication leads to an overflow, an error message is thrown.

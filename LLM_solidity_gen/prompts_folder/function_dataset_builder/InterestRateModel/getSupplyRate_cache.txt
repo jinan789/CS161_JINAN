@@ -1,0 +1,13 @@
+Function: getSupplyRate
+
+Input:
+- uint cash: The total amount of cash in the market
+- uint borrows: The total amount of borrows outstanding in the market
+- uint reserves: The total amount of reserves in the market
+- uint reserveFactorMantissa: The mantissa of the reserve factor (scaled by 1e18)
+
+Output:
+- uint: The supply rate per block (as a percentage, and scaled by 1e18)
+
+Purpose:
+This function calculates the current supply interest rate per block based on the given market parameters.

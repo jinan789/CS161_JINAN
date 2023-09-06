@@ -1,0 +1,13 @@
+Function: repayBorrowFresh
+
+Inputs:
+1. address payer (address of the payer)
+2. address borrower (address of the borrower)
+3. uint repayAmount (repayment amount)
+
+Outputs:
+1. uint (Error code: 0 = success, otherwise a failure)
+2. uint (Actual repayment amount)
+
+Summary:
+The function is used to repay a borrowed amount on behalf of a borrower. It first checks if the repayment is allowed by the Comptroller, and then ensures the market's block number is up-to-date. Calculates the borrower's outstanding balance with accumulated interest to determine the actual repayment amount. Transfers the repay amount from the payer to the contract and then updates the borrower's principal and overall borrow amount. A RepayBorrow event is emitted after successful repayment.

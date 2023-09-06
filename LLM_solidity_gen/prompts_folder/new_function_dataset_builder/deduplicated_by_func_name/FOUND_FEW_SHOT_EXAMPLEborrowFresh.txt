@@ -1,0 +1,5 @@
+The two function signatures that have the most similar functionality to the given target function are:
+
+1. function borrowInternal(uint borrowAmount) internal nonReentrant returns (uint)
+
+2. function borrow(address borrower, uint borrowAmount) external nonReentrant returns (uint)

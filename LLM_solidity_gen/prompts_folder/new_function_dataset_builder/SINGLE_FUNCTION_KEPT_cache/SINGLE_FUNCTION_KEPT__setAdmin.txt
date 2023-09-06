@@ -1,0 +1,54 @@
+
+The function that I want you to summarize is _setAdmin(address newAdmin, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signatureS, with the purpose of providing richer background information for you. The codes are: 
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (proxy/ERC1967/ERC1967Upgrade.sol)
+
+pragma solidity ^0.8.2;
+
+import "../beacon/IBeaconUpgradeable.sol";
+import "../../utils/AddressUpgradeable.sol";
+import "../../utils/StorageSlotUpgradeable.sol";
+import "../utils/Initializable.sol";
+
+/**
+ * @dev This abstract contract provides getters and event emitting update functions for
+ * https://eips.ethereum.org/EIPS/eip-1967[EIP1967] slots.
+ *
+ * _Available since v4.1._
+ *
+ * @custom:oz-upgrades-unsafe-allow delegatecall
+ */
+abstract contract ERC1967UpgradeUpgradeable is Initializable {
+
+    function __ERC1967Upgrade_init() internal onlyInitializing {
+    function __ERC1967Upgrade_init_unchained() internal onlyInitializing {
+    function _getImplementation() internal view returns (address) {
+    function _setImplementation(address newImplementation) private {
+    function _upgradeTo(address newImplementation) internal {
+    function _upgradeToAndCall(
+        address newImplementation,
+        bytes memory data,
+        bool forceCall
+    ) internal {
+    function _upgradeToAndCallSecure(
+        address newImplementation,
+        bytes memory data,
+        bool forceCall
+    ) internal {
+    function _getAdmin() internal view returns (address) {
+
+    function _setAdmin(address newAdmin) private {
+        require(newAdmin != address(0), "ERC1967: new admin is the zero address");
+        StorageSlotUpgradeable.getAddressSlot(_ADMIN_SLOT).value = newAdmin;
+    }
+
+
+    function _changeAdmin(address newAdmin) internal {
+    function _getBeacon() internal view returns (address) {
+    function _setBeacon(address newBeacon) private {
+    function _upgradeBeaconToAndCall(
+        address newBeacon,
+        bytes memory data,
+        bool forceCall
+    ) internal {
+    function _functionDelegateCall(address target, bytes memory data) private returns (bytes memory) {

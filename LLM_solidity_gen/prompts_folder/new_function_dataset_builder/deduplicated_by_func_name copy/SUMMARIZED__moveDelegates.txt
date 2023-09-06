@@ -1,0 +1,5 @@
+Function: _moveDelegates(address srcRep, address dstRep, uint96 amount)
+Input: 3 variables - 'srcRep' (address), 'dstRep' (address), and 'amount' (uint96)
+Output: None
+
+Summary: The function moves a specified amount of votes (delegation power) between two delegate addresses, updating the number of votes each delegate has in the process. If the source and destination delegate addresses are different and the amount is greater than 0, it updates the vote balances accordingly.

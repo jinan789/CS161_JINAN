@@ -1,0 +1,17 @@
+function _addReservesFresh(uint addAmount) internal nonReentrant returns (uint, uint) { // MODIFICATIONS MADE: Added nonReentrant modifier to prevent reentrancy attacks
+    // Check for fresh block number
+    if (accrualBlockNumber != getBlockNumber()) {
+        return (uint(ContractName.Error.NOT_FRESH), 0); // CHANGES BASED ON CALLED CODE MADE: Added contract name before Error enum for proper usage
+    }
+
+    // Transfer tokens from msg.sender to the contract
+    uint actualAddAmount = doTransferIn(msg.sender, addAmount); // MODIFICATIONS MADE: Implementation of doTransferIn is not given in the provided context, depending on its implementation this line might have issues.
+
+    // Increase total reserves by the actual transferred amount
+    totalReserves = add_(totalReserves, actualAddAmount);
+
+    // Emit the ReservesAdded event
+    emit ReservesAdded(msg.sender, addAmount, actualAddAmount);
+
+    return (uint(ContractName.Error.NO_ERROR), actualAddAmount); // CHANGES BASED ON CALLED CODE MADE: Added contract name before Error enum for proper usage
+}

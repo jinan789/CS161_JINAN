@@ -1,0 +1,12 @@
+Function Name: getBorrowRate
+
+Input:
+- uint cash
+- uint borrows
+- uint reserves
+
+Output:
+- uint
+
+Purpose:
+The function calculates and returns the current borrow interest rate per block based on the given cash, borrows, and reserves.

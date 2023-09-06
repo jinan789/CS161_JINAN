@@ -1,0 +1,20 @@
+Here is the implementation of the `liquidateBorrowAllowed` function for the ComptrollerInterface contract:
+
+<CODE_BEGINNING>
+/**
+ * @notice Checks if a liquidation attempt for a borrower's debt is allowed
+ * @param cTokenBorrowed The address of the borrowed token
+ * @param cTokenCollateral The address of the collateral token
+ * @param liquidator The address of the liquidator
+ * @param borrower The address of the borrower
+ * @param repayAmount The amount the liquidator is trying to repay on behalf of the borrower
+ * @return errorCode An error code specifying the success or failure of the liquidation allowance check (0 for success, otherwise a non-zero error code)
+ */
+function liquidateBorrowAllowed(
+    address cTokenBorrowed,
+    address cTokenCollateral,
+    address liquidator,
+    address borrower,
+    uint repayAmount
+) external returns (uint errorCode);
+<CODE_ENDING>

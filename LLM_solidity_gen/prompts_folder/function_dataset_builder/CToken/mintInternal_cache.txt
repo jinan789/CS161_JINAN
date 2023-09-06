@@ -1,0 +1,10 @@
+Function: mintInternal
+
+Input:
+- uint mintAmount
+
+Output:
+- uint error
+- uint actualMintAmount
+
+Summary: The function accrues interest and then mints new tokens for the sender based on the given mintAmount. It returns error code and the actual mint amount.

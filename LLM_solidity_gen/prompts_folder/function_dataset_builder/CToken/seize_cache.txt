@@ -1,0 +1,11 @@
+Function: seizeInternal
+
+Inputs:
+1. address seizerToken
+2. address liquidator
+3. address borrower
+4. uint seizeTokens
+
+Output: uint
+
+Summary: This function transfers collateral tokens (from the market this contract is present in) to the liquidator during an in-kind liquidation or liquidation of another CToken, taking input parameters like the seizer token contract, liquidator address, borrower address, and the number of tokens to seize. It returns a status represented as a uint value, where 0 indicates success and other values indicate failures.

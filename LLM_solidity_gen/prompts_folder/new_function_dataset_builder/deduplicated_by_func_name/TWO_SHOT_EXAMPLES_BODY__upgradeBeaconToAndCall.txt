@@ -1,0 +1,53 @@
+    function _upgradeToAndCall(
+        address newImplementation,
+        bytes memory data,
+        bool forceCall
+    ) internal {
+        _upgradeTo(newImplementation);
+        if (data.length > 0 || forceCall) {
+            _functionDelegateCall(newImplementation, data);
+        }
+    }
+
+    function _upgradeToAndCallSecure(
+        address newImplementation,
+        bytes memory data,
+        bool forceCall
+    ) internal {
+        address oldImplementation = _getImplementation();
+
+        // Initial upgrade and setup call
+        _setImplementation(newImplementation);
+        if (data.length > 0 || forceCall) {
+            _functionDelegateCall(newImplementation, data);
+        }
+
+        // Perform rollback test if not already in progress
+        StorageSlotUpgradeable.BooleanSlot storage rollbackTesting = StorageSlotUpgradeable.getBooleanSlot(_ROLLBACK_SLOT);
+        if (!rollbackTesting.value) {
+            // Trigger rollback using upgradeTo from the new implementation
+            rollbackTesting.value = true;
+            _functionDelegateCall(
+                newImplementation,
+                abi.encodeWithSignature("upgradeTo(address)", oldImplementation)
+            );
+            rollbackTesting.value = false;
+            // Check rollback was effective
+            require(oldImplementation == _getImplementation(), "ERC1967Upgrade: upgrade breaks further upgrades");
+            // Finally reset to the new implementation and log the upgrade
+            _upgradeTo(newImplementation);
+        }
+    }
+
+    /**
+     * @dev Storage slot with the admin of the contract.
+     * This is the keccak-256 hash of "eip1967.proxy.admin" subtracted by 1, and is
+     * validated in the constructor.
+     */
+    bytes32 internal constant _ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
+
+    /**
+     * @dev Emitted when the admin account has changed.
+     */
+    event AdminChanged(address previousAdmin, address newAdmin);
+

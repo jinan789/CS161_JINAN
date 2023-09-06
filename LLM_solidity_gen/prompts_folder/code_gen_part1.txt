@@ -1,0 +1,3 @@
+I want you to help me write some Solidity codes on top of an existing code repository. I will tell you the task we are trying to accomplish, as well as a set of additional information that would be helpful for you to generate the codes.
+
+To begin with, the task we are trying to accomplish will be given below:

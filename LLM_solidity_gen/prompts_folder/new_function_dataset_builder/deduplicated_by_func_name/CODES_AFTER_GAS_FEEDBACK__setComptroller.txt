@@ -1,0 +1,1 @@
+FOUND: Opaque predicate: In the condition "if (msg.sender == admin)", since admin was just assigned the value of msg.sender, the condition is always true, making the predicate check unnecessary. Suggestion for fix: Remove the condition check and directly use a "require" statement for checking the validity of the newComptroller address.

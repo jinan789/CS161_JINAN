@@ -1,0 +1,12 @@
+Function: transferAllowed
+
+Input:
+- address cToken 
+- address src
+- address dst
+- uint transferTokens
+
+Output:
+- uint
+
+Summary: Checks if a token transfer between two addresses (src and dst) is allowed for a specified cToken and amount of transferTokens. Returns a uint as the result.

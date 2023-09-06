@@ -1,0 +1,25 @@
+TASK 1:
+1. There is no problem with the usage of contextual functions and contracts in the code you provided. Everything appears to be implemented properly according to the structure of the ERC1967UpgradeUpgradeable contract.
+
+TASK 2:
+As there are no issues identified in TASK 1, the codes should stay the same. Thus, your implementation should look like this:
+
+<CODE_BEGINNING>
+//MODIFICATIONS MADE: None
+function _upgradeBeaconToAndCall(address newBeacon, bytes memory data, bool forceCall) internal {
+    require(newBeacon != address(0), "ERC1967Upgrade: new beacon is the zero address");
+    
+    // Update the beacon address
+    _setBeacon(newBeacon);
+
+    // Emit the BeaconUpgraded event
+    emit BeaconUpgraded(newBeacon);
+
+    // Perform the delegate call if data length is greater than 0 or forceCall is true
+    if (data.length > 0 || forceCall) {
+        _functionDelegateCall(IBeaconUpgradeable(newBeacon).implementation(), data);
+    }
+}
+
+event BeaconUpgraded(address indexed newBeacon);
+<CODE_ENDING>

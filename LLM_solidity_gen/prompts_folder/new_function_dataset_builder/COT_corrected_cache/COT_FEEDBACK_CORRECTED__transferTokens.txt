@@ -1,0 +1,35 @@
+TASK 1: Step-by-step plan for implementing the _transferTokens function
+
+1. Check if the source address (src) is a non-zero address. If not, revert the transaction with an appropriate error message.
+2. Check if the destination address (dst) is a non-zero address. If not, revert the transaction with an appropriate error message.
+3. Check if the contract is tradable. If not, check if the source address is whitelisted. If the source address is not whitelisted, revert the transaction with an appropriate error message.
+4. Subtract the transfer amount from the source address's balance. If the source balance is not sufficient for the transfer, revert the transaction with an appropriate error message.
+5. Add the transfer amount to the destination address's balance. If the destination balance overflows, revert the transaction with an appropriate error message.
+6. Call the _moveDelegates function to handle the delegate updates for the source and destination addresses.
+7. Emit a Transfer event with the source address, destination address, and transfer amount as the event parameters.
+
+Updated Solidity code:
+
+```solidity
+function _transferTokens(address src, address dst, uint96 amount) internal {
+    require(src != address(0), "INV:_transferTokens: cannot transfer from the zero address");
+    require(dst != address(0), "INV:_transferTokens: cannot transfer to the zero address");
+
+    // Check if the contract is tradable or the source address is whitelisted
+    if (!tradable) {
+        require(whitelist[src], "INV:_transferTokens: source address is not whitelisted");
+    }
+
+    // Adjust balances
+    balances[src] = sub96(balances[src], amount, "INV:_transferTokens: transfer amount exceeds balance");
+    balances[dst] = add96(balances[dst], amount, "INV:_transferTokens: transfer amount overflows");
+
+    // Move delegates
+    _moveDelegates(delegates[src], delegates[dst], amount);
+
+    // Emit Transfer event
+    emit Transfer(src, dst, amount);
+}
+```
+
+Based on the provided step-by-step plan, your existing code implementation is accurate and logically coherent. No improvements or changes are necessary, as each step of the plan is already present in the code in the correct order.

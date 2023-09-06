@@ -1,0 +1,8 @@
+    function castVote(uint proposalId, uint8 support) external {
+        emit VoteCast(msg.sender, proposalId, support, castVoteInternal(msg.sender, proposalId, support), "");
+    }
+
+
+    function castVoteWithReason(uint proposalId, uint8 support, string calldata reason) external {
+        emit VoteCast(msg.sender, proposalId, support, castVoteInternal(msg.sender, proposalId, support), reason);
+    }

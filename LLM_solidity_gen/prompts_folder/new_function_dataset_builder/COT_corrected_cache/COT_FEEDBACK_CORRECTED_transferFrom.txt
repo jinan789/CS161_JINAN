@@ -1,0 +1,40 @@
+TASK 1: Step-by-step plan to implement the transferFrom function based on Information 1 and 2.
+
+1. Verify that the source and destination addresses are valid by checking if both are not the zero address.
+
+2. Check if `msg.sender` has sufficient allowance to transfer from the source address, i.e., allowance of `msg.sender` for the source address should be greater than or equal to the amount to be transferred.
+
+3. Update the spender's allowance if necessary. If the allowance of the `msg.sender` for the source address is not set to the maximum value (uint96(-1)), subtract the amount to be transferred from the current allowance and update the allowance accordingly.
+
+4. Transfer the tokens from the source address to the destination address using the _transferTokens internal function with the source address, destination address, and amount as arguments.
+
+5. Emit the Approval event with source address, msg.sender, and new allowance as arguments if the spender's allowance was updated in step 3.
+
+6. Return true to indicate a successful operation.
+
+Now, let's check and improve the provided code based on the step-by-step plan:
+
+```solidity
+function transferFrom(address src, address dst, uint rawAmount) external returns (bool) {
+    uint96 amount = safe96(rawAmount, "INV::transferFrom: invalid amount");
+    require(src != address(0), "INV::transferFrom: invalid source address"); // Updated
+    require(dst != address(0), "INV::transferFrom: invalid destination address"); // Updated
+
+    // Check if msg.sender has an allowance to transfer from src.
+    uint96 spenderAllowance = allowances[src][msg.sender];
+    require(spenderAllowance >= amount, "INV::transferFrom: not enough allowance for transfer");
+
+    // Update the spender's allowance if needed
+    if (spenderAllowance != uint96(-1)) {
+        uint newAllowance = sub96(spenderAllowance, amount, "INV::transferFrom: allowance overflow");
+        allowances[src][msg.sender] = newAllowance;
+        emit Approval(src, msg.sender, newAllowance); // Moved inside the if statement
+    }
+
+    // Transfer tokens from src to dst
+    _transferTokens(src, dst, amount);
+    return true;
+}
+```
+
+I've updated the code to correct the verification of source and destination addresses according to the step-by-step plan and also moved the Approval event emission inside the if statement, as it should only be emitted if the spender's allowance is updated. The rest of the code already followed the step-by-step plan, so no further changes are needed.

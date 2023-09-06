@@ -1,0 +1,5 @@
+Summary:
+
+- Input: The function takes one input, an address called 'account'.
+- Output: The function returns one output, a uint data type value representing the borrow balance stored of the given account.
+- Purpose: The main purpose of the "borrowBalanceStored" function is to calculate and return the borrow balance for a given account based on stored data.

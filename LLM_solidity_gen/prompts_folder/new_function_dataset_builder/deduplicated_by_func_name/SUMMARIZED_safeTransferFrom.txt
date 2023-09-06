@@ -1,0 +1,9 @@
+Input: 
+1. ERC20 token (type: ERC20)
+2. address from (type: address)
+3. address to (type: address)
+4. uint256 amount (type: uint256)
+
+Output: None
+
+Summary: The function performs a safe transfer of a specified amount of an ERC20 token from one address to another, and checks whether the transfer is successful or not. If the transfer fails, it reverts the transaction with an error message "TRANSFER_FROM_FAILED".

@@ -1,0 +1,7 @@
+Next, here is some additional information that the selected functions should be helpful in the following sense:
+1. Have a similar functionality to our task at hand
+2. If provided to you, it would help you understand how to utilize other codes in the code repository. 
+3. Unless necessary, try to avoid selecting functions from abstract contracts and interfaces as they are not the most helpful in terms of providing an example on how to utilize external functions.  
+4. Please just tell me the function name in the output.
+
+Finally, the list of functions to select from is given below, where the format of the given functions will start with the <START_FUNCTIONS> token and end with the <END_FUNCTIONS> token, with each bullet point starting at a new line. The contract that each function comes from is also provided at the end of each bullet point. In the response, please give the selected function that is the exact copy of the corresponding bullet point. The functions information are:

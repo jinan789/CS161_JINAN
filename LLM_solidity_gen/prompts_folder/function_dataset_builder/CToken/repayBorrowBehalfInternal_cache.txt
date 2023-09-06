@@ -1,0 +1,5 @@
+Function: repayBorrowBehalfInternal
+Input: (address borrower, uint repayAmount)
+Output: (uint, uint)
+
+This function allows anyone to repay a debt on behalf of a borrower. It first accrues interest on the loan, and then processes the repayment amount. The function returns an error code (0 for success) and the actual repayment amount.

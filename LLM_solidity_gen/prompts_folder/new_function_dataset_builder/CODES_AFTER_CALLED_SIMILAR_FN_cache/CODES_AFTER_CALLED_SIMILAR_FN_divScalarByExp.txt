@@ -1,0 +1,21 @@
+After reviewing your provided codes and implementations, I found the following issues in your divScalarByExp() function implementation:
+
+1. The call to `divUInt()` is not necessary since what you need is to divide a scalar by an Exp memory type, which requires a call to `divScalar()` instead. So, the initial call to `divUInt()` needs to be replaced with the appropriate function call to `divScalar()`.
+
+2. The created variable `ratio` should be an Exp memory type instead of uint since `divScalar()` returns an Exp memory object.
+
+Here is the corrected/updated code based on the found issues and my suggestions:
+
+<CODE_BEGINNING>
+function divScalarByExp(uint scalar, Exp memory divisor) pure internal returns (MathError, Exp memory) {
+    //CHANGES BASED ON CALLED CODE MADE: Replaced divUInt() to divScalar() since scalar needs to be divided by an Exp memory type
+    (MathError mathError, Exp memory expResult) = divScalar(Exp({mantissa: scalar}), divisor.mantissa);
+    if (mathError != MathError.NO_ERROR) {
+        return (mathError, Exp({mantissa: 0}));
+    }
+    
+    return (MathError.NO_ERROR, expResult);
+}
+<CODE_ENDING>
+
+In summary, your original implementation was close, but it called the wrong function 'divUInt()' in the first step of the calculation. The corrected code now calls `divScalar()`, which handles dividing an Exp memory by an integer properly, and stores the outcome in an Exp memory data structure. This single change makes the code correct based on the given implementations provided.

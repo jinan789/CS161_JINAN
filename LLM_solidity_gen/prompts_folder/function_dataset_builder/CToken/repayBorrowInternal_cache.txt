@@ -1,0 +1,11 @@
+Function: repayBorrowInternal
+
+Input: 
+- uint repayAmount
+
+Output: 
+- uint error code (0 = success, otherwise failure)
+- uint actual repayment amount
+
+Summary: 
+The function accrues interest on the borrowed amount and then attempts to repay the given amount of the borrow. It returns an error code and the actual repayment amount.

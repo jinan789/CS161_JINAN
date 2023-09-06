@@ -1,0 +1,5 @@
+Function: exchangeRateCurrent()
+Input: None
+Output: uint (a single unsigned integer value as the exchange rate)
+
+Summary: The function calculates and returns the current exchange rate for the token, which represents the amount of underlying tokens per each CToken. It achieves this by first accruing interest on the tokens and then calculating the exchange rate based on the token's current cash balance, total borrows, and total reserves.

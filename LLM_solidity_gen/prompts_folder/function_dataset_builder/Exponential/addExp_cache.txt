@@ -1,0 +1,5 @@
+Function: addExp
+Input: Two Exp structs, a and b. Each struct contains one member variable called 'mantissa', which is of type uint.
+Output: Returns a tuple containing a MathError enum and an Exp struct.
+
+Summary: The function takes two Exp structs as inputs and adds their 'mantissa' values. The resultant sum is used to create a new Exp struct, which is returned alongside a potential MathError.

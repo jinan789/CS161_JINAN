@@ -1,0 +1,4 @@
+I want you to act as a Solidity coding expert and help me improve some Solidity codes. I will give you a piece of Solidity codes, which is a function that I just wrote for a contract. I wrote it following a given set of instructions (which I will give you below), and my written codes could potentially have some issues since I am not an expert on Solidity. Therefore, I need your help to make corrections or updates to the codes.
+
+To begin with, I will give you 3 pieces of additional information below, where each is numbered. After the information, I will tell you how you should perform the code correction task.
+

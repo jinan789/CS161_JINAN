@@ -1,0 +1,9 @@
+The function `getSupplyRate` has four input variables with the following types:
+1. uint cash
+2. uint borrows
+3. uint reserves
+4. uint reserveFactorMantissa
+
+The function returns a single output variable of type uint.
+
+The purpose of the `getSupplyRate` function is to calculate and return the supply rate for the pool based on given input values for cash, borrows, reserves, and reserve factor mantissa.

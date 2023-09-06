@@ -1,0 +1,35 @@
+TASK 1: Step-by-Step Plan
+
+1. Determine the current block number and store it in a variable `currentBlockNumber`.
+2. Calculate the number of blocks elapsed since the last accrual by subtracting `accrualBlockNumber` from `currentBlockNumber`. Store the result in a variable `blockDelta`.
+3. If `blockDelta` is 0, no blocks have elapsed since the last accrual, so return success (Error.NO_ERROR). Otherwise, continue to next step.
+4. Calculate the current borrow interest rate using the interest rate model and store it in a variable `interestRateMantissa`.
+5. Verify that the error code for `interestRateMantissa` is Error.NO_ERROR to ensure successful calculation.
+6. Calculate the interest accumulated on borrows by doing the following steps:
+   a. Multiply `borrows` with `interestRateMantissa`.
+   b. Divide the result by `blocksPerYear`.
+   c. Multiply the result by `blockDelta`. Store the final result in the variable `interestAccumulated`.
+7. Update the total borrows by adding `interestAccumulated` to `borrows` and storing the result in `totalBorrowsNew`. Ensure there are no math errors during this calculation.
+8. Calculate the reserves accumulated by multiplying `interestAccumulated` by `reserveFactorMantissa` and dividing the result by `expScale`. Store the result in the variable `reservesAccumulated`.
+9. Update the total reserves by adding `reservesAccumulated` to `reserves` and storing the result in the variable `totalReservesNew`. Ensure there are no math errors during this calculation.
+10. Calculate the new borrow index by the following steps:
+    a. Multiply `borrowIndex` with `interestRateMantissa`.
+    b. Divide the result by `blocksPerYear`.
+    c. Multiply the result by `blockDelta`.
+    d. Add the result to `borrowIndex`. Store the final result in the variable `borrowIndexNew`.
+11. Update the market's state variables with the new calculated values: `accrualBlockNumber`, `borrowIndex`, `borrows`, and `reserves`.
+12. Emit an AccrueInterest event with the calculated values: `interestAccumulated`, `borrowIndexNew`, `totalBorrowsNew`, and `totalReservesNew`.
+13. Return success (Error.NO_ERROR).
+
+Your code seems to follow the described step-by-step plan correctly with the expected calculations and updates. I would only suggest one improvement: In step 6, you should divide the result by `expScale` instead of `blocksPerYear`.
+
+Here's the corrected code for this step:
+
+```solidity
+/* Calculate the interest accumulated on borrows */
+uint interestAccumulated = mul_(borrows, interestRateMantissa);
+interestAccumulated = div_(interestAccumulated, expScale);
+interestAccumulated = mul_(interestAccumulated, blockDelta);
+```
+
+Other than this, your code correctly follows the given plan and should work as expected.

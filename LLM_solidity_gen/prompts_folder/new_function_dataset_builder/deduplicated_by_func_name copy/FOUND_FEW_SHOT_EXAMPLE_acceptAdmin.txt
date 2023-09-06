@@ -1,0 +1,4 @@
+Based on the function names, return types, and parameter lists, the two function signatures from the provided contract that have the most similar functionality to the target function are:
+
+1. function _setPendingAdmin(address newPendingAdmin) public returns (uint)
+2. function _acceptImplementation() public returns (uint)

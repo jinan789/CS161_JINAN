@@ -1,0 +1,69 @@
+TASK 1:
+
+1. Error in error message
+- Issue: In the second condition check of the `redeemFresh` function, the error message returned should be `REDEEM_BOTH_INPUT_SPECIFIED` instead of `REDEEM_NO_AMOUNT_SPECIFIED`.
+- Suggestion: Change the error message to `Error.REDEEM_BOTH_INPUT_SPECIFIED`.
+
+TASK 2:
+
+<CODE_BEGINNING>
+function redeemFresh(address redeemer, uint redeemTokensIn, uint redeemAmountIn) internal returns (uint) {
+    RedeemLocalVars memory vars;
+
+    //MODIFICATIONS MADE: Fixed the error message for the condition checks
+    /* Determine the number of redeem tokens and redeem amount */
+    if (redeemTokensIn == 0 && redeemAmountIn == 0) {
+        return fail(Error.REDEEM_NEITHER_INPUT_SPECIFIED, FailureInfo.REDEEM_FRESH_BALANCE_CALCULATION_FAILED);
+    }
+    //CHANGES BASED ON CALLED CODE MADE: Change the error message to Error.REDEEM_BOTH_INPUT_SPECIFIED
+    if (redeemTokensIn > 0 && redeemAmountIn > 0) {
+        return fail(Error.REDEEM_BOTH_INPUT_SPECIFIED, FailureInfo.REDEEM_FRESH_BALANCE_CALCULATION_FAILED);
+    }
+
+    /* Calculate the redeem amount and number of redeem tokens */
+    (vars.mathErr, vars.exchangeRateMantissa) = exchangeRateStoredInternal();
+    if (vars.mathErr != MathError.NO_ERROR) {
+        return fail(Error.MATH_ERROR, FailureInfo.REDEEM_FRESH_BALANCE_CALCULATION_FAILED);
+    }
+
+    if (redeemTokensIn > 0) {
+        vars.redeemTokens = redeemTokensIn;
+        (vars.mathErr, vars.redeemAmount) = mulScalarTruncate(Exp({mantissa : vars.exchangeRateMantissa}), vars.redeemTokens);
+        if (vars.mathErr != MathError.NO_ERROR) {
+            return fail(Error.MATH_ERROR, FailureInfo.REDEEM_FRESH_BALANCE_CALCULATION_FAILED);
+        }
+    } else {
+        vars.redeemAmount = redeemAmountIn;
+        (vars.mathErr, vars.redeemTokens) = divScalarByExpTruncate(vars.redeemAmount, Exp({mantissa : vars.exchangeRateMantissa}));
+        if (vars.mathErr != MathError.NO_ERROR) {
+            return fail(Error.MATH_ERROR, FailureInfo.REDEEM_FRESH_BALANCE_CALCULATION_FAILED);
+        }
+    }
+
+    /* Verify redemption allowed on this market */
+    (vars.err, ) = comptroller.redeemAllowed(address(this), redeemer, vars.redeemTokens);
+    if (vars.err != Error.NO_ERROR) {
+        return fail(vars.err, FailureInfo.REDEEM_FRESH_COMPTROLLER_REJECTION);
+    }
+
+    /* Check market's cash is enough to redeem underlying assets */
+    if (getCash() < vars.redeemAmount) {
+        return fail(Error.TOKEN_INSUFFICIENT_CASH, FailureInfo.REDEEM_FRESH_INSUFFICIENT_CASH);
+    }
+
+    /////// Effects //////
+    /* Update total supply and account tokens */
+    totalSupply = sub_(totalSupply, vars.redeemTokens);
+    accountTokens[redeemer] = sub_(accountTokens[redeemer], vars.redeemTokens);
+
+    //MODIFICATIONS MADE: Changed to non-payable redeemer, as the doTransferOut function handles the payable aspect internally
+    /* Transfer underlying asset to redeemer */
+    doTransferOut(redeemer, vars.redeemAmount);
+
+    /* Emit Redeem event */
+    emit Redeem(redeemer, vars.redeemAmount, vars.redeemTokens);
+
+    /* We always return success */
+    return uint(Error.NO_ERROR);
+}
+<CODE_ENDING>

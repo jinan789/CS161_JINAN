@@ -1,0 +1,142 @@
+
+
+\begin{table}
+\centering
+\footnotesize
+\caption{\small{ROUND 7-10: statistics of the found gas-wasting patterns (to be added: gas saved)}}
+\begin{tabular}{c|ccccccccl} 
+
+% \toprule
+\textbf{Pattern name}   & \textbf{Location num}       & \textbf{Categorization}  & \textbf{Verified} & \textbf{readability} & \textbf{security} & \textbf{maintainability} & \textbf{Prompt feedback} & \textbf{Self reflection} & \textbf{Comments}  \\
+\hline \hline 
+Unnecessary input variable duplication        & 7.1   &  12 &   Y     &5  &5  &5 &  &  &input parameters of the function are immediately reassigned to new variables.   \\
+Repeated check for zero address        & 7.1   &  A3 &   N     &5  &3  &4  &P1,P2  &S1  & assumed "if some function precedes another"   \\
+\hline 
+\hline 
+
+
+
+Repeatedly retrieving token balances        & 7.2   &  A13 &   N     &5  &5  &5 &  &  &  repeated operations of reading the balance occurs with a modification to balance in between, and this does not constitute a repeated operation \\
+Repeated computation of `keccak256(abi.encodePacked(\_name))        & 7.2   &  A4 &   N     &5  &5  &5  &  &  &   \\
+Repeated access to `params.nftPositionManager`        & 7.2   &  13 &   Y     &4  &5  &4  &  &  & test\_dot\_u and \_o: Du = 94 steps, 240962 gas, Ru = 1004 steps, 21007 gas. Do = 94 steps, 240931 gas, Ru = 961 steps, Ro = 20452 gas  \\
+Repeated computation of `position.tickLower != -maxTick position.tickUpper != maxTick`        & 7.2   &  A4 &   N     &5  &5  &5  &P3  &S1,S2  &   \\
+\hline 
+\hline 
+
+
+
+Repeatedly Accessing the Same Contract        & 7.3   &  1 &   Y     &5  &5  &4  &  &  &   \\
+Unnecessary Conditional Checks in Loop    & 7.3   &  A14 &   N     &4  &5  &4  &  &  &   \\
+Repeated Calls to the Same Function with the Same Parameters    & 7.3    &  A5 &   N     &5  &5  &4  &P4,P5  &S3,S4  &   \\
+\hline 
+\hline 
+
+
+
+
+Excessive use of `require` for input validation         & 7.4   & A3  & N       &5  &3  &5  &  &  &   \\
+Repetitive calls to external contracts        & 7.4   & 1  &   Y     &5  &4  &5  &  &  &   \\
+Repeated assignment of storage variables                & 7.4   & 10  & Y       &5  &5  &5  &P5  &S5  &   \\
+\hline 
+\hline 
+
+
+
+Repeatedly calling external contract interfaces        & 7.5   & 1  &Y        &5  &5  &5  &  &  &   \\
+The use of storage variables for temporary data        & 7.5   &A11   & N        &4  &4  &4  &  &  &   \\
+Redundant checks for the exclusion status of `address(this)` and `treasuryWallet`        & 7.5   &1   & Y       &5  &5  &5  &P5  &S6  &  accesses to potentially storage variables like \_isExcluded[sender] are done multiple times.  \\
+\hline 
+\hline 
+
+
+%\todo{TO CONTINUE: below are templates}
+
+Redundant storage reads for `game` in different functions        & 7.6   & 1  & Y       &5  &5  &5  &  &  & The game variable could be copied over to a local variable (only one storage read). This is something as direct copying of a single struct variable could still constitue the type 1 pattern  \\
+Repeated computation of `\_gameStatus(game)`        & 7.6   &A5   & N       &5  &5  &5  &  &  & if the same expression (e.g. function call) is defined across multiple functions, then this does not mean that's repetitive, since functions could be called separately  \\
+Unnecessary storage writes in `createGame` function        & 7.6   &A3   &N        &5  &5  &5  &P5  &S3  &   \\
+\hline 
+\hline 
+
+
+Unnecessary Function Calls        & 7.7   & A5  & N       &5  &5  &5  &  &  &   \\
+Repeated State Variable Accesses        & 7.7   &1   & Y       &5  &5  &5  &  &  &   \\
+Unoptimized Loop        & 7.7   & A15  &  N      &3  &4  &3  &P5  &S3  &   \\
+\hline 
+\hline 
+
+
+
+Repeated Invocation of External Contracts      & 7.8   &A4   &  N      &5  &4  &5  & P3 &S1,S7  &   \\
+\hline 
+\hline 
+
+
+
+Redundant Condition Check     & 7.9   & A4  & N       &5  &5  &5  &P6  &S1,S8  &   \\
+\hline 
+\hline 
+
+
+Unnecessary conditional checks for `revert` operations        & 7.10   & A3  &N        &5  &4  &5  &  &  &   \\
+Repeated use of contract's state variables        & 7.10   & A4  & N       &5  &5  &5  &  &  &   \\
+High complexity algorithms        & 7.10   &9   & Y       &4  &5  &4  &P7  & S9  &   In the `openLottery()` function, there's a nested loop for checking duplicate winning ticket IDs (`winTicketIdsTmp`), which is of high complexity (O(n^2)). For the duplicate check, a more gas-efficient way is to use a mapping to check whether a winning ticket ID has been picked before. This reduces the complexity from O(n^2) to O(n). \\
+\hline 
+\hline 
+
+
+
+
+Excessive use of the `try-catch` syntax        & 8.1   &14   & Y       &4  &3  &2  &  &  &   many try-catches with "catch {}". This could of course be combined, but need to check if gas is actually saved.\\
+Multiple calls to same function with same parameters        & 8.1   &A4   & N       &5  &5  &5  &P5  &S6  &   \\
+\hline 
+\hline 
+
+
+
+Redundant External Calls        & 8.2   & A5  & N       &5  &5  &5  &  &  &   \\
+Repeated Zero Address Validation Checks        & 8.2   &A8   & N       &4  &5  &4  &  &  &   \\
+Use of Division Operation Inside a Loop        & 8.2   &A4   & N       &5  &5  &5  &  &  &   \\
+
+Your prompt was clear and well-structured. However, it would be helpful if you include the complete contract code or at least provide all the dependencies. This could help in understanding the context better and identifying more potential gas-wasting patterns.
+
+Regarding the reasoning process, I started by looking for the patterns mentioned in the list and then moved onto other common gas-wasting practices like redundant external calls, unnecessary calculations inside loops, and frequent storage operations.
+
+Next time, I could improve by familiarizing myself more with the contract dependencies and the overall architecture of the contract system. This would help in identifying more complex and context-specific gas-wasting patterns.
+
+
+
+
+Unnecessary use of the `unchecked` keyword        & 8.3   &15   &Y        &5  &5  &5  &  &  & The report says otherwise, but we could attribute that to a lack of up-to-date information. unchecked saves gas and this remains to be investigated  \\
+Repeated computation of a constant expression        & 8.3   & 1  &Y        &5  &5  &5  &  &  & both  farms[fId].ranges[rangeId] and  farms[fId] are repeated  \\
+Excessive computation in condition checks        & 8.3   & A5  &  N      &5  &5  &5  &  &  &   \\
+
+Your prompt was clear and detailed, which was helpful for understanding your requirements. As for improvements in the reasoning process, a deeper understanding of the Solidity language and Ethereum gas mechanics would certainly help. And practice is also key; the more Solidity code you analyze, the better you'll become at identifying potential optimizations.
+
+In terms of improvements to the output, it's important to clearly explain the reasoning behind each identified pattern and fix, as well as the potential impact on readability, security, and maintainability. This helps the reader understand why each change is beneficial and what trade-offs it may involve.
+
+
+Repeated external function calls        & 8.4   &A3   & N       &5  &5  &4  &  &  &   \\
+
+Your prompt was clear and comprehensive. The example list of gas-wasting patterns was useful in guiding the analysis. However, it would be helpful to know the context in which the contract operates, as some patterns might be more or less relevant depending on the specific use case.
+
+In terms of my reasoning process, I started by going through the code line by line, keeping in mind the provided list of gas-wasting patterns. I found this approach to be effective, although it is important to note that some patterns might not be immediately visible at the function or contract level, and might require a deeper understanding of the overall system architecture and the interactions between different contracts.
+
+
+
+Unnecessary re-computation of the same value in different functions        & 8.5   & A5  & N       &5  &4  &4  &  &  &   \\
+Repeated map lookups        & 8.5   &1   & A       &5  &5  &5  &  &  &   \\
+Usage of `require` for input validation        & 8.5   &A3   & N       &5  &4  &4  &  &  &   \\
+
+1. Your prompt was clear and informative. However, it would be helpful to understand the context in which this contract is used. For example, how frequently is `_etherPrice()` expected to change? How often are `liquidation` and `superLiquidation` called? This context could help identify more gas-wasting patterns.
+
+2. My reasoning process involved scanning the code for repeated patterns and reflecting on the gas cost of various Solidity operations. To improve, I could use a more systematic approach, such as creating a checklist of common gas-wasting patterns to look for. I could also use automated tools to analyze the code for gas usage.
+
+
+
+
+Repeated Calls to the Same Function (getConfiguration)        & 8.6   &A5   &  N      &5  &5  &5  &  &  &   \\
+Unnecessary State Variables        & 8.6   &A6   & N       &5  &5  &5  &  &  &   \\
+
+Regarding your second question about improving the prompt, it was well-structured and clear. However, it would be helpful if you could provide more context about the overall functionality of the contract and the purpose of each function. This additional information would allow for a more in-depth analysis of potential gas-wasting patterns.
+
+In terms of my reasoning process, I used my knowledge of Solidity and the Ethereum virtual machine (EVM) to identify areas of the provided code that could potentially lead to higher gas costs. While I feel confident in the patterns I identified, it's possible that I missed some less obvious patterns due to the complexity of the contract. In the future, I could improve by delving deeper into the specific functionality of each function to better understand potential areas of inefficiency.

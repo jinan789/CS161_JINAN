@@ -1,0 +1,47 @@
+TASK 1: Step-by-step plan for the mulExp function
+
+1. Receive two Exp structs, "a" and "b", as inputs.
+2. Multiply the mantissa of "a" and the mantissa of "b" using the mulUint function to obtain "doubleScaledProduct".
+3. Check if there is any MathError from mulUint; if there is, return the error with an Exp struct with a mantissa of 0.
+4. Add halfExp.mantissa to "doubleScaledProduct" to account for rounding instead of truncation using the addUint function to obtain "result".
+5. Check if there is any MathError from addUint; if there is, return the error with an Exp struct with a mantissa of 0.
+6. Divide "result" by "expScale" using the divUint function to obtain "unscaledResult".
+7. Check if there is any MathError from divUint; if there is, return the error with an Exp struct with a mantissa of 0.
+8. Return the final Exp struct with the mantissa of "unscaledResult" and MathError.NO_ERROR.
+
+Improved Solidity code based on the step-by-step plan:
+
+```solidity
+pragma solidity ^0.5.16;
+
+import "./CarefulMath.sol";
+import "./ExponentialNoError.sol";
+
+contract Exponential is CarefulMath, ExponentialNoError {
+
+    // ... (other functions)
+
+    function mulExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory) {
+        (MathError err0, uint doubleScaledProduct) = mulUint(a.mantissa, b.mantissa);
+        if (err0 != MathError.NO_ERROR) {
+            return (err0, Exp({mantissa: 0}));
+        }
+
+        (MathError err1, uint result) = addUint(halfExp().mantissa, doubleScaledProduct); // add halfExp() function to get the struct.
+        if (err1 != MathError.NO_ERROR) {
+            return (err1, Exp({mantissa: 0}));
+        }
+
+        (MathError err2, uint unscaledResult) = divUint(result, expScale);
+        if (err2 != MathError.NO_ERROR) {
+            return (err2, Exp({mantissa: 0}));
+        }
+
+        return (MathError.NO_ERROR, Exp({mantissa: unscaledResult}));
+    }
+
+    // ... (other functions)
+}
+```
+
+I've made one improvement to the code you provided, which is updating the use of "halfExp" by calling a function "halfExp()" that should return the Exp struct with the correct mantissa value for half of expScale. This will ensure that the code correctly adds halfExp's mantissa to the doubleScaledProduct in step 4.

@@ -1,0 +1,20 @@
+<CODE_BEGINNING>
+function safeApprove(
+    ERC20 token,
+    address to,
+    uint256 amount
+) internal {
+    // Call approve function on the token contract and store the success value
+    (bool success, bytes memory data) = address(token).call(
+        abi.encodeWithSelector(token.approve.selector, to, amount)
+    );
+
+    // Check the return value is empty or true
+    if (
+        !success
+        || (data.length > 0 && abi.decode(data, (bool)) == false)
+    ) {
+        revert("APPROVE_FAILED");
+    }
+}
+<CODE_ENDING>

@@ -1,0 +1,30 @@
+<CODE_BEGINNING>
+pragma solidity ^0.5.16;
+
+contract ComptrollerInterface {
+    /// @notice Indicator that this is a Comptroller contract (for inspection)
+    bool public constant isComptroller = true;
+
+    /*** Assets You Are In ***/
+
+    function enterMarkets(address[] calldata cTokens) external returns (uint[] memory);
+    function mintAllowed(address cToken, address minter, uint mintAmount) external returns (uint);
+    function mintVerify(address cToken, address minter, uint mintAmount, uint mintTokens) external;
+    function redeemAllowed(address cToken, address redeemer, uint redeemTokens) external returns (uint);
+    function redeemVerify(address cToken, address redeemer, uint redeemAmount, uint redeemTokens) external;
+    function borrowAllowed(address cToken, address borrower, uint borrowAmount) external returns (uint);
+    function borrowVerify(address cToken, address borrower, uint borrowAmount) external;
+    function repayBorrowAllowed(
+    function repayBorrowVerify(
+    function liquidateBorrowAllowed(
+    function liquidateBorrowVerify(
+    function seizeAllowed(
+    function seizeVerify(
+    function transferAllowed(address cToken, address src, address dst, uint transferTokens) external returns (uint);
+    function transferVerify(address cToken, address src, address dst, uint transferTokens) external;
+    function liquidateCalculateSeizeTokens(
+
+    // Adding the new function
+    function exitMarket(address cToken) external returns (uint);
+}
+<CODE_ENDING>

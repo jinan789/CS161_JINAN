@@ -1,0 +1,5 @@
+The most similar function signatures to the given target function _setReserveFactorFresh(uint newReserveFactorMantissa) are:
+
+1. function _setReserveFactor(uint newReserveFactorMantissa) external nonReentrant returns (uint)
+
+2. function _reduceReserves(uint reduceAmount) external nonReentrant returns (uint)

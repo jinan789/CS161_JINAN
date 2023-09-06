@@ -1,0 +1,37 @@
+<CODE_BEGINNING>
+/**
+ * @notice Multiplies an Exp type value (a) with a scalar, truncates the result, and adds an additional uint value (addend) to it.
+ * @param a The Exp value to be multiplied by the scalar.
+ * @param scalar The uint value to multiply with the Exp value (a).
+ * @param addend The uint value to be added to the result of multiplication.
+ * @return MathError An error enum indicating success or failure.
+ * @return uint The final calculated value after multiplication, truncation, and addition.
+ */
+function mulScalarTruncateAddUInt(Exp memory a, uint scalar, uint addend) pure internal returns (MathError, uint) {
+    // First, we multiply the Exp with the scalar
+    MathError mulError;
+    Exp memory mulResult;
+    (mulError, mulResult) = mulScalar(a, scalar);
+    if (mulError != MathError.NO_ERROR) {
+        return (mulError, 0);
+    }
+
+    // Then, we truncate the result of the multiplication
+    MathError truncationError;
+    uint truncatedResult;
+    (truncationError, truncatedResult) = truncate(mulResult);
+    if (truncationError != MathError.NO_ERROR) {
+        return (truncationError, 0);
+    }
+
+    // Finally, we add the addend to the truncated result
+    MathError addError;
+    uint finalResult;
+    (addError, finalResult) = addUInt(truncatedResult, addend);
+    if (addError != MathError.NO_ERROR) {
+        return (addError, 0);
+    }
+
+    return (MathError.NO_ERROR, finalResult);
+}
+<CODE_ENDING>

@@ -1,0 +1,170 @@
+I want you to help me find new gas-wasting patterns for Solidity. Gas is a unique pricing mechanism in Solidity, which measures the amount of computational resources put into the execution of Solidity codes. The goal of gas optimization is to find an equivalent code instruction sequence that produces the same output while consuming less gas, which may misalign from the way people typically write codes, since code writers aim for readability and maintainability, while gas optimization might seem a little unintuitive to newcomers. For example, storage variables in Solidity are expensive in terms of gas, while memory is not, so storage operations should be avoided whenever possible. Gas is paid in real money, so saving gas is saving money.
+
+First, I will give you a list of known gas-wasting patterns. The list is numbered, with each bullet point specifying one gas-wasting pattern, which is followed by an explanation of why this pattern wastes gas. I want you to read through these and learn how to find new gas-wasting patterns from it. The list is as follows:
+
+1. Repeated computation of the same expression: including repetitive reads of the same expensive storage variable (e.g. Overuse of expensive storage variables). This could be solved by introducing an intermediate variable to hold the value.
+ 
+2. Extractable code chunks: if there are multiple chunks of codes that perform the same/similar functionalities, then we could abstract them into one function (or modifier) to save deployment costs 
+
+3. Variable refactoring: by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+
+4. Redundant operations with same effects: redundant operations that overwrite the effect of the previous operation, making the previous useless
+
+5. Pre-computable operations on constants: performing comparisons (or say other operations) to constants is useless and could be pre-computed
+
+6. Persistent conditional checks: some of the condition checks may always evaluate to true or always evaluate to false, which could be directly replaced by their evaluated values
+
+7. Simplifiable conditional operations: expressions that involve logical operations that could be simplified to reduce the amount of computational workload.
+
+8. "dead codes." codes that are guaranteed not to be executed (e.g. unreachable conditional branch) should be removed.
+9. "Opaque predicate." If the outcome of a predicate could be inferred to be true/false without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+10. "Expensive operations in a loop." If an gas-expensive operation is executed multiple times in a loop, while there is a way to equivalently move it out of the loop to execute only once (e.g. storing a storage variable in a memory variable and performing operations on the memory variable inside the loop), then we should do it to save gas.
+11. "Constant outcome of a loop." If the outcome of a loop could be inferred without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+12. "Loop fusion." If two loops have the same starting and stopping conditions with the same increment steps, then we could consider combining them into one (e.g. delete the second loop, and put its loop body codes into the first one) if they have no dependencies. This way, we save the logical comparisons, conditional jumps, as well as the incremental steps of the second loop, which saves computation and thus gas.
+13. "Repeated computations in a loop." If there are expressions that produce the same outcome in each iteration of a loop, we could move it out of the loop and execute only once, which saves computation.
+14. "Struct variable refactoring." If a struct used in a contract contains some fields that are used more often and some that are less often, then by breaking up the struct into two, where the frequently used fields are now put as a separate struct, we get to avoid unnecessary reads on the less often used fields and save gas.s
+
+Next, I will give you a chunk of Solidity codes from which you will find gas-inefficient patterns; note that I have removed simple functions from the contract and only kept complex ones, with the hope that you could focus on the most complicated function codes
+contract QWATreasury is Ownable {
+    function excessReserves() external view returns (uint256 excess_) {
+        uint256[] memory _balances = new uint256[](backingTokens.length);
+        uint256[] memory _values = new uint256[](backingTokens.length);
+
+        uint256 _totalSupply = IERC20(QWA).totalSupply();
+        uint256 _mintableValue;
+
+        for (uint i; i < backingTokens.length; ++i) {
+            uint256 _balance = IERC20(backingTokens[i]).balanceOf(
+                address(this)
+            );
+            if (backingTokens[i] == QWN)
+                _balance += IERC20(sQWN).balanceOf(address(this));
+            _balances[i] = _balance;
+            uint256 _value = (_balance * 1e9) / backingTokenAmounts[i];
+            if (_totalSupply > _value) return 0;
+
+            _values[i] = _value;
+
+            if (i == 0) _mintableValue = _value;
+            else if (_value < _values[i - 1]) _mintableValue = _value;
+        }
+
+        return (_mintableValue - IERC20(QWA).totalSupply());
+    }
+
+    /// MUTATIVE FUNCTIONS ///
+
+    /// @notice         Redeem QWA for backing
+    /// @param _amount  Amount of QWA to redeem
+    function mintQWA(address _to, uint256 _amount) external {
+        require(msg.sender == distributor, "not distributor");
+        IQWA(QWA).mint(_to, _amount);
+
+        if (qwnBackingToken) {
+            uint256 balance = IERC20(QWN).balanceOf(address(this));
+            IERC20(QWN).approve(QWNStaking, balance);
+            IStaking(QWNStaking).stake(address(this), balance);
+        }
+    }
+
+    /// VIEW FUNCTION ///
+
+    /// @notice          Returns amount of excess reserves
+    /// @return excess_  Excess reserves
+    function redeemQWA(uint256 _amount) external {
+        IQWA(QWA).burnFrom(msg.sender, _amount);
+        for (uint i; i < backingTokens.length; ++i) {
+            uint256 amountToSend = (_amount * backingTokenAmounts[i]) / 1e9;
+            if (backingTokens[i] == QWN) {
+                IERC20(sQWN).approve(QWNStaking, amountToSend);
+                IStaking(QWNStaking).unstake(
+                    address(this),
+                    amountToSend,
+                    false
+                );
+            }
+            IERC20(backingTokens[i]).transfer(msg.sender, amountToSend);
+        }
+    }
+
+    /// @notice Wrap any ETH in conract
+    function sendETHToToken() public {
+        uint256 ethBalance_ = address(this).balance;
+        bool success;
+        if (ethBalance_ > 0)
+            (success, ) = address(QWA).call{value: ethBalance_}("");
+    }
+
+    /// OWNER FUNCTIONS ///
+
+    /// @notice         Withdraw stuck token from treasury
+    /// @param _amount  Amount of token to remove
+    /// @param _token   Address of token to remove
+    function withdrawStuckToken(
+        uint256 _amount,
+        address _token
+    ) external onlyOwner {
+        require(_token != uniswapV2Pair);
+        if (qwnBackingToken) require(_token != sQWN);
+        for (uint i; i < backingTokens.length; ++i) {
+            require(_token != backingTokens[i]);
+        }
+        IERC20(_token).transfer(msg.sender, _amount);
+    }
+
+    /// @notice              Set QWA distributor
+    /// @param _distributor  Address of QWA distributor
+    function removeLiquidity(uint256 _amount) external onlyOwner {
+        uint256 balance = IERC20(uniswapV2Pair).balanceOf(address(this));
+        require(_amount <= (balance * MAX_REMOVAL) / 100, "10% of liquidity");
+        require(block.timestamp > lastRemoval + TIME_TO_WAIT, "1 day lock");
+        lastRemoval = block.timestamp;
+
+        IERC20(uniswapV2Pair).approve(address(uniswapV2Router), _amount);
+
+        uniswapV2Router.removeLiquidityETHSupportingFeeOnTransferTokens(
+            QWA,
+            _amount,
+            0,
+            0,
+            address(this),
+            block.timestamp
+        );
+
+        sendETHToToken();
+
+        _burnQWA();
+    }
+    function removeLiquidity(uint256 _amount) external onlyOwner {
+        uint256 balance = IERC20(uniswapV2Pair).balanceOf(address(this));
+        require(_amount <= (balance * MAX_REMOVAL) / 100, "10% of liquidity");
+        require(block.timestamp > lastRemoval + TIME_TO_WAIT, "1 day lock");
+        lastRemoval = block.timestamp;
+
+        IERC20(uniswapV2Pair).approve(address(uniswapV2Router), _amount);
+
+        uniswapV2Router.removeLiquidityETHSupportingFeeOnTransferTokens(
+            QWA,
+            _amount,
+            0,
+            0,
+            address(this),
+            block.timestamp
+        );
+
+        sendETHToToken();
+
+        _burnQWA();
+    }
+    }
+Now that I have given you the necessary information, I want you to help me find new gas-wasting patterns from the above codes, based on what you learn from the list of patterns. Please be creative and think out of the box beyond the patterns listed above. Please put the new gas wasting patterns in bullet points (in the form of '1.', '2.', etc), and answer the following questions for each of the found patterns (in sub-bullet-points under each bullet point):
+
+1. How did you find this pattern? Could you explain the reasoning process, step by step, behind the discovery?
+
+2. What should I do, step by step, to fix the found gas-wasting patterns? Could you explain the reasoning process, step by step, behind the reason why such a fix works?
+
+3. On a score of 0 to 5, could you please tell me how would you rate this found new pattern, in terms of how much it is sacrificing readability, security, and maintainability in exchange for gas optimization (5 is the least impacted. For example, Security score of 5 means implementing the found gas-optimization pattern would have no effect on security, whereas 1 means it would reduce security)? Please format your answer as in "Readability: 5; Security: 4; Maintainability: 3". Please also provide explanations.
+
+Here are some additional requirements:
+1. If you think my prompt to you has any issues (e.g. ambiguity or lack of information), please tell me how I should improve it in the next time.
+2. please help me format your answer in the form of a Latex section (e.g. \section*{Analysis of Provided Solidity Code}), since I want to assert it to a Latex document.

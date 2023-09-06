@@ -1,0 +1,11 @@
+Function name: functionCallWithValue
+
+Input:
+1. address target (address)
+2. bytes memory data (bytes)
+3. uint256 value (uint256)
+4. string memory errorMessage (string)
+
+Output: bytes memory (bytes)
+
+Summary: This function sends value in ether from the contract's balance to the target address and calls a function with the given data in the target contract. It checks if the contract's balance is sufficient and if the target address is a contract. If the call is successful, it returns the returndata from the target function; otherwise, it produces an error with the provided errorMessage string.

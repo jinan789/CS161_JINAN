@@ -1,0 +1,32 @@
+TASK 1: Based on the given patterns and codes, I found the following gas-wasting pattern in your code:
+
+1. Opaque predicate:
+   - In the condition "if (msg.sender == admin)", since admin was just assigned the value of msg.sender, the condition is always true, making the predicate check unnecessary.
+   
+   Suggestion for fix: Remove the condition check and directly use a "require" statement for checking the validity of the newComptroller address.
+
+TASK 2: Based on the suggestions from TASK 1, here are the necessary corrections/updates to the code:
+
+<CODE_BEGINNING>
+function _setComptroller(ComptrollerInterface newComptroller) external returns (uint, uint) {
+    // CHANGES BASED ON CALLED CODE MADE: Change the global variable name for the admin
+    address admin = msg.sender;
+
+    // GAS OPTIMIZATIONS MADE HERE: Removed the unnecessary condition check for "msg.sender == admin", since it is always true 
+    // CHANGES BASED ON CALLED CODE MADE: Replace the "if" statement with "require" statements for better error handling
+    require(address(newComptroller) != address(0), "INVALID_COMPTROLLER_ADDRESS");
+
+    // Ensure the new comptroller passes the "isComptroller" validation
+    if (!newComptroller.isComptroller()) {
+        return (uint(Error.CONTROLLER_CHECK), uint(FailureInfo.SET_COMPTROLLER_VALIDATION));
+    }
+
+    // Set new comptroller and emit event
+    ComptrollerInterface oldComptroller = comptroller;
+    comptroller = newComptroller;
+    emit NewComptroller(oldComptroller, newComptroller);
+
+    // Return success code
+    return (uint(Error.NO_ERROR), 0);
+}
+<CODE_ENDING>

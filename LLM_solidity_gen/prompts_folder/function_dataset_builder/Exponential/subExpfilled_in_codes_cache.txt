@@ -1,0 +1,15 @@
+<CODE_BEGINNING>
+    /**
+     * @notice Calculates the difference between two Exps with 18 decimal fixed point precision.
+     * @param a The first Exp.
+     * @param b The second Exp.
+     * @return MathError enum and Exp struct with the result in its `mantissa` property.
+     */
+    function subExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory) {
+        (MathError error, uint difference) = subUInt(a.mantissa, b.mantissa);
+        if (error != MathError.NO_ERROR) {
+            return (error, Exp({mantissa: 0}));
+        }
+        return (MathError.NO_ERROR, Exp({mantissa: difference}));
+    }
+<CODE_ENDING>

@@ -1,0 +1,1 @@
+FOUND: Use of `if... else if... else if...` could be replaced with a more efficient pattern, such as a mapping of function selectors to their implementations. This will result in less bytecode, which in turn will consume less gas.

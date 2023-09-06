@@ -1,0 +1,13 @@
+Based on the similarities in function names, return types, and parameter lists, the two function signatures that have the most similar functionality to the given target function are:
+
+1. function functionCall(
+        address target,
+        bytes memory data,
+        string memory errorMessage
+    ) internal returns (bytes memory)
+
+2. function functionStaticCall(
+        address target,
+        bytes memory data,
+        string memory errorMessage
+    ) internal view returns (bytes memory)

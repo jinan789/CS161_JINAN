@@ -1,0 +1,22 @@
+<CODE_BEGINNING>
+/**
+ * @notice Divides an unsigned integer by an exponential (fixed-point decimal), truncates the result
+ *         to zero decimal places, and returns the resulting unsigned integer along with any potential MathError.
+ * @param scalar The unsigned integer to be divided.
+ * @param divisor The exponential (fixed-point decimal) value to divide by.
+ * @return (error, result) Tuple containing a MathError enum value, if encountered, and the result of the division.
+ */
+function divScalarByExpTruncate(uint scalar, Exp memory divisor) pure internal returns (MathError, uint) {
+    // Perform the division and store the result in a new Exp.
+    (MathError mathErr, Exp memory expResult) = divScalarByExp(scalar, divisor);
+
+    // If a MathError occurred, return it along with a 0 result.
+    if (mathErr != MathError.NO_ERROR) {
+        return (mathErr, 0);
+    }
+
+    // Truncate the result to zero decimal places and return the result.
+    uint result = truncate(expResult);
+    return (MathError.NO_ERROR, result);
+}
+<CODE_ENDING>

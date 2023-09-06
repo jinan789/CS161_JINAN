@@ -1,0 +1,4 @@
+The two function signatures that have the most similar functionality to the given target function are:
+
+1. function getCurrentVotes(address account) external view returns (uint96);
+2. function _writeCheckpoint(address delegatee, uint32 nCheckpoints, uint96 oldVotes, uint96 newVotes) internal;

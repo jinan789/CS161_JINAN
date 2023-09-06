@@ -1,0 +1,9 @@
+    function exchangeRateCurrent() public nonReentrant returns (uint) {
+        require(accrueInterest() == uint(Error.NO_ERROR), "accrue interest failed");
+        return exchangeRateStored();
+    }
+
+    function totalBorrowsCurrent() external nonReentrant returns (uint) {
+        require(accrueInterest() == uint(Error.NO_ERROR), "accrue interest failed");
+        return totalBorrows;
+    }

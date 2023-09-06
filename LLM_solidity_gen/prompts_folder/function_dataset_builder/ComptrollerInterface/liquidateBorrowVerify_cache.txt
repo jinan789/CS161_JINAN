@@ -1,0 +1,11 @@
+Input: 
+1. address cTokenBorrowed
+2. address cTokenCollateral
+3. address liquidator
+4. address borrower
+5. uint repayAmount
+6. uint seizeTokens
+
+Output: None
+
+Summary: The function liquidateBorrowVerify checks the validity of a liquidation process by taking the addresses of the borrowed token, collateral token, liquidator, and borrower, as well as the repay amount and seize tokens.

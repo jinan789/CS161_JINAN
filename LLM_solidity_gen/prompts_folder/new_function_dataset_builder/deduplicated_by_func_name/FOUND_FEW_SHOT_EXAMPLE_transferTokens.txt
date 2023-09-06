@@ -1,0 +1,4 @@
+The two function signatures that have the most similar functionality to the target function _transferTokens are:
+
+1. function transfer(address dst, uint rawAmount) external returns (bool);
+2. function transferFrom(address src, address dst, uint rawAmount) external returns (bool);

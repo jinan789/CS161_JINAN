@@ -1,0 +1,187 @@
+I want you to help me find new gas-wasting patterns for Solidity. Gas is a unique pricing mechanism in Solidity, which measures the amount of computational resources put into the execution of Solidity codes. The goal of gas optimization is to find an equivalent code instruction sequence that produces the same output while consuming less gas, which may misalign from the way people typically write codes, since code writers aim for readability and maintainability, while gas optimization might seem a little unintuitive to newcomers. For example, storage variables in Solidity are expensive in terms of gas, while memory is not, so storage operations should be avoided whenever possible. Gas is paid in real money, so saving gas is saving money.
+
+First, I will give you a list of known gas-wasting patterns. The list is numbered, with each bullet point specifying one gas-wasting pattern, which is followed by an explanation of why this pattern wastes gas. I want you to read through these and learn how to find new gas-wasting patterns from it. The list is as follows:
+
+1. Repeated computation of the same expression: including repetitive reads of the same expensive storage variable (e.g. Overuse of expensive storage variables). This could be solved by introducing an intermediate variable to hold the value.
+ 
+2. Extractable code chunks: if there are multiple chunks of codes that perform the same/similar functionalities, then we could abstract them into one function (or modifier) to save deployment costs 
+
+3. Variable refactoring: by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+
+4. Redundant operations with same effects: redundant operations that overwrite the effect of the previous operation, making the previous useless
+
+5. Pre-computable operations on constants: performing comparisons (or say other operations) to constants is useless and could be pre-computed
+
+6. Persistent conditional checks: some of the condition checks may always evaluate to true or always evaluate to false, which could be directly replaced by their evaluated values
+
+7. Simplifiable conditional operations: expressions that involve logical operations that could be simplified to reduce the amount of computational workload.
+
+8. "dead codes." codes that are guaranteed not to be executed (e.g. unreachable conditional branch) should be removed.
+9. "Opaque predicate." If the outcome of a predicate could be inferred to be true/false without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+10. "Expensive operations in a loop." If an gas-expensive operation is executed multiple times in a loop, while there is a way to equivalently move it out of the loop to execute only once (e.g. storing a storage variable in a memory variable and performing operations on the memory variable inside the loop), then we should do it to save gas.
+11. "Constant outcome of a loop." If the outcome of a loop could be inferred without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+12. "Loop fusion." If two loops have the same starting and stopping conditions with the same increment steps, then we could consider combining them into one (e.g. delete the second loop, and put its loop body codes into the first one) if they have no dependencies. This way, we save the logical comparisons, conditional jumps, as well as the incremental steps of the second loop, which saves computation and thus gas.
+13. "Repeated computations in a loop." If there are expressions that produce the same outcome in each iteration of a loop, we could move it out of the loop and execute only once, which saves computation.
+14. "Struct variable refactoring." If a struct used in a contract contains some fields that are used more often and some that are less often, then by breaking up the struct into two, where the frequently used fields are now put as a separate struct, we get to avoid unnecessary reads on the less often used fields and save gas.s
+
+Next, I will give you a chunk of Solidity codes from which you will find gas-inefficient patterns; note that I have removed simple functions from the contract and only kept complex ones, with the hope that you could focus on the most complicated function codes
+contract Comptroller is ComptrollerV1Storage, ComptrollerInterface, ComptrollerErrorReporter, Exponential {
+    function addToMarketInternal(CToken cToken, address borrower) internal returns (Error) {
+        Market storage marketToJoin = markets[address(cToken)];
+
+        require(marketToJoin.isListed, "market not listed");
+
+        if (marketToJoin.version == Version.COLLATERALCAP) {
+            // register collateral for the borrower if the token is CollateralCap version.
+            CCollateralCapErc20Interface(address(cToken)).registerCollateral(borrower);
+        }
+
+        if (marketToJoin.accountMembership[borrower] == true) {
+            // already joined
+            return Error.NO_ERROR;
+        }
+
+        // survived the gauntlet, add to list
+        // NOTE: we store these somewhat redundantly as a significant optimization
+        //  this avoids having to iterate through the list for the most common use cases
+        //  that is, only when we need to perform liquidity checks
+        //  and not whenever we want to check if an account is in a particular market
+        marketToJoin.accountMembership[borrower] = true;
+        accountAssets[borrower].push(cToken);
+
+        emit MarketEntered(cToken, borrower);
+
+        return Error.NO_ERROR;
+    }
+
+    /**
+     * @notice Removes asset from sender's account liquidity calculation
+     * @dev Sender must not have an outstanding borrow balance in the asset,
+     *  or be providing necessary collateral for an outstanding borrow.
+     * @param cTokenAddress The address of the asset to be removed
+     * @return Whether or not the account successfully exited the market
+     */
+    function enterMarkets(address[] memory cTokens) public returns (uint256[] memory) {
+        uint256 len = cTokens.length;
+
+        uint256[] memory results = new uint256[](len);
+        for (uint256 i = 0; i < len; i++) {
+            CToken cToken = CToken(cTokens[i]);
+
+            results[i] = uint256(addToMarketInternal(cToken, msg.sender));
+        }
+
+        return results;
+    }
+
+    /**
+     * @notice Add the market to the borrower's "assets in" for liquidity calculations
+     * @param cToken The market to enter
+     * @param borrower The address of the account to modify
+     * @return Success indicator for whether the market was entered
+     */
+    function exitMarket(address cTokenAddress) external returns (uint256) {
+        CToken cToken = CToken(cTokenAddress);
+        /* Get sender tokensHeld and amountOwed underlying from the cToken */
+        (uint256 oErr, uint256 tokensHeld, uint256 amountOwed, ) = cToken.getAccountSnapshot(msg.sender);
+        require(oErr == 0, "exitMarket: getAccountSnapshot failed"); // semi-opaque error code
+
+        /* Fail if the sender has a borrow balance */
+        require(amountOwed == 0, "nonzero borrow balance");
+
+        /* Fail if the sender is not permitted to redeem all of their tokens */
+        require(redeemAllowedInternal(cTokenAddress, msg.sender, tokensHeld) == 0, "failed to exit market");
+
+        Market storage marketToExit = markets[cTokenAddress];
+
+        if (marketToExit.version == Version.COLLATERALCAP) {
+            CCollateralCapErc20Interface(cTokenAddress).unregisterCollateral(msg.sender);
+        }
+
+        /* Return true if the sender is not already ‘in’ the market */
+        if (!marketToExit.accountMembership[msg.sender]) {
+            return uint256(Error.NO_ERROR);
+        }
+
+        /* Set cToken account membership to false */
+        delete marketToExit.accountMembership[msg.sender];
+
+        /* Delete cToken from the account’s list of assets */
+        // load into memory for faster iteration
+        CToken[] memory userAssetList = accountAssets[msg.sender];
+        uint256 len = userAssetList.length;
+        uint256 assetIndex = len;
+        for (uint256 i = 0; i < len; i++) {
+            if (userAssetList[i] == cToken) {
+                assetIndex = i;
+                break;
+            }
+        }
+
+        // We *must* have found the asset in the list or our redundant data structure is broken
+        assert(assetIndex < len);
+
+        // copy last item in list to location of item to be removed, reduce length by 1
+        CToken[] storage storedList = accountAssets[msg.sender];
+        if (assetIndex != storedList.length - 1) {
+            storedList[assetIndex] = storedList[storedList.length - 1];
+        }
+        storedList.length--;
+
+        emit MarketExited(cToken, msg.sender);
+
+        return uint256(Error.NO_ERROR);
+    }
+
+    /**
+     * @notice Return a specific market is listed or not
+     * @param cTokenAddress The address of the asset to be checked
+     * @return Whether or not the market is listed
+     */
+    function mintAllowed(
+        address cToken,
+        address minter,
+        uint256 mintAmount
+    ) external returns (uint256) {
+        // Pausing is a very serious situation - we revert to sound the alarms
+        require(!mintGuardianPaused[cToken], "mint is paused");
+        require(!isCreditAccount(minter, cToken), "credit account cannot mint");
+
+        require(isMarketListed(cToken), "market not listed");
+
+        uint256 supplyCap = supplyCaps[cToken];
+        // Supply cap of 0 corresponds to unlimited supplying
+        if (supplyCap != 0) {
+            uint256 totalCash = CToken(cToken).getCash();
+            uint256 totalBorrows = CToken(cToken).totalBorrows();
+            uint256 totalReserves = CToken(cToken).totalReserves();
+            // totalSupplies = totalCash + totalBorrows - totalReserves
+            (MathError mathErr, uint256 totalSupplies) = addThenSubUInt(totalCash, totalBorrows, totalReserves);
+            require(mathErr == MathError.NO_ERROR, "totalSupplies failed");
+
+            uint256 nextTotalSupplies = add_(totalSupplies, mintAmount);
+            require(nextTotalSupplies < supplyCap, "market supply cap reached");
+        }
+
+        return uint256(Error.NO_ERROR);
+    }
+
+    /**
+     * @notice Validates mint and reverts on rejection. May emit logs.
+     * @param cToken Asset being minted
+     * @param minter The address minting the tokens
+     * @param actualMintAmount The amount of the underlying asset being minted
+     * @param mintTokens The number of tokens being minted
+     */
+    }
+Now that I have given you the necessary information, I want you to help me find new gas-wasting patterns from the above codes, based on what you learn from the list of patterns. Please be creative and think out of the box beyond the patterns listed above. Please put the new gas wasting patterns in bullet points (in the form of '1.', '2.', etc), and answer the following questions for each of the found patterns (in sub-bullet-points under each bullet point):
+
+1. How did you find this pattern? Could you explain the reasoning process, step by step, behind the discovery?
+
+2. What should I do, step by step, to fix the found gas-wasting patterns? Could you explain the reasoning process, step by step, behind the reason why such a fix works?
+
+3. On a score of 0 to 5, could you please tell me how would you rate this found new pattern, in terms of how much it is sacrificing readability, security, and maintainability in exchange for gas optimization (5 is the least impacted. For example, Security score of 5 means implementing the found gas-optimization pattern would have no effect on security, whereas 1 means it would reduce security)? Please format your answer as in "Readability: 5; Security: 4; Maintainability: 3". Please also provide explanations.
+
+Here are some additional requirements:
+1. If you think my prompt to you has any issues (e.g. ambiguity or lack of information), please tell me how I should improve it in the next time.
+2. please help me format your answer in the form of a Latex section (e.g. \section*{Analysis of Provided Solidity Code}), since I want to assert it to a Latex document.

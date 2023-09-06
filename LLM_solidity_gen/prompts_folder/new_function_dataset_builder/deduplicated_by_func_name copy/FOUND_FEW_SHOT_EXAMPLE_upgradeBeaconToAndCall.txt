@@ -1,0 +1,13 @@
+The two function signatures from the provided contract that have the most similar functionality to the given target function are:
+
+1. function _upgradeToAndCall(
+        address newImplementation,
+        bytes memory data,
+        bool forceCall
+    ) internal
+
+2. function _upgradeToAndCallSecure(
+        address newImplementation,
+        bytes memory data,
+        bool forceCall
+    ) internal

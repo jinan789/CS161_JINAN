@@ -1,0 +1,4 @@
+The two function signatures from the given list that have the most similar functionality to the target function `tryMul(uint256 a, uint256 b)` are:
+
+1. `function tryAdd(uint256 a, uint256 b) internal pure returns (bool, uint256)`
+2. `function mul(uint256 a, uint256 b) internal pure returns (uint256)`

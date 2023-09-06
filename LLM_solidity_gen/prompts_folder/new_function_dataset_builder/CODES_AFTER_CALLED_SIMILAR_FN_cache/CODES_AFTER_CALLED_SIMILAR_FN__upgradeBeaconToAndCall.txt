@@ -1,0 +1,23 @@
+TASK 1: After analyzing the provided code and the related functions, I did not find any misuse of functions, variables, or other issues that need to be addressed.
+
+TASK 2: Since there were no issues found in TASK 1, there is no need to modify the code. However, I will provide the code below again for your convenience, with <CODE_BEGINNING> and <CODE_ENDING> tokens as requested. 
+
+<CODE_BEGINNING>
+//MODIFICATIONS MADE: None
+function _upgradeBeaconToAndCall(address newBeacon, bytes memory data, bool forceCall) internal {
+    require(newBeacon != address(0), "ERC1967Upgrade: new beacon is the zero address");
+    
+    // Update the beacon address
+    _setBeacon(newBeacon);
+
+    // Emit the BeaconUpgraded event
+    emit BeaconUpgraded(newBeacon);
+
+    // Perform the delegate call if data length is greater than 0 or forceCall is true
+    if (data.length > 0 || forceCall) {
+        _functionDelegateCall(IBeaconUpgradeable(newBeacon).implementation(), data);
+    }
+}
+
+event BeaconUpgraded(address indexed newBeacon);
+<CODE_ENDING>

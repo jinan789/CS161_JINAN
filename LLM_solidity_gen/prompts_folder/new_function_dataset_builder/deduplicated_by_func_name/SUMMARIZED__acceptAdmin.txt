@@ -1,0 +1,4 @@
+Input: None
+Output: A single uint
+
+The _acceptAdmin() function checks if the caller is the pending admin and if the pending admin is not the zero address. If the conditions are met, it updates the admin to the value of the pending admin, clears the pending admin value, and emits events for the updated admin and pending admin. Returns an error code indicating success or failure.

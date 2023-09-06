@@ -1,0 +1,37 @@
+Based on the given information, here is the Solidity code for liquidateBorrowAllowed function:
+
+```solidity
+pragma solidity ^0.6.0;
+
+import "./ComptrollerInterface.sol";
+import "./ErrorReporter.sol";
+
+contract Liquidation is ComptrollerErrorReporter {
+    ComptrollerInterface public comptroller;
+
+    constructor(address comptrollerAddress) public {
+        comptroller = ComptrollerInterface(comptrollerAddress);
+    }
+
+    function liquidateBorrowAllowed(address cTokenBorrowed, address cTokenCollateral, address liquidator, address borrower, uint repayAmount) external returns (uint) {
+        // Check if both the cTokenBorrowed and cTokenCollateral markets are listed
+        (bool isBorrowedMarketListed, bool isCollateralMarketListed) = comptroller.checkMarketsListed(cTokenBorrowed, cTokenCollateral);
+        
+        if (!isBorrowedMarketListed || !isCollateralMarketListed) {
+            return fail(Error.MARKET_NOT_LISTED, FailureInfo.LIQUIDATE_BORROW_ALLOWED_MARKET_NOT_LISTED);
+        }
+
+        // Calculate seize tokens
+        (uint seizeTokens, uint seizeCollateralTokens) = comptroller.liquidateCalculateSeizeTokens(cTokenBorrowed, cTokenCollateral, repayAmount);
+
+        // Check if liquidation is valid and allowed
+        if (seizeTokens == 0 || seizeCollateralTokens == 0) {
+            return fail(Error.INVALID_ACCOUNT_PAIR, FailureInfo.LIQUIDATE_BORROW_ALLOWED_INVALID_ACCOUNT_PAIR);
+        }
+
+        return uint(Error.NO_ERROR);
+    }
+}
+```
+
+This contract inherits from the ErrorReporter provided and accepts the address of the comptroller contract during the deployment. The function liquidateBorrowAllowed checks whether the markets are listed and then calculates the amount of tokens to be seized using liquidateCalculateSeizeTokens function available in the ComptrollerInterface. If the amounts are valid, it returns NO_ERROR, otherwise, it returns the appropriate error code.

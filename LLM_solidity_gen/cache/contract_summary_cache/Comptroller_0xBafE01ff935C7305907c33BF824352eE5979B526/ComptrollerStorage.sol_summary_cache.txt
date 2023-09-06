@@ -1,0 +1,15 @@
+code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/ComptrollerStorage.sol
+<START_FUNCTIONS>
+- constructor(): Initializes the UnitrollerAdminStorage contract, which contains the basic administrative properties of the Comptroller.
+- ComptrollerV1Storage(): Inherits UnitrollerAdminStorage, adds additional properties like PriceOracle, closeFactorMantissa, liquidationIncentiveMantissa, maxAssets, and accountAssets mapping.
+- ComptrollerV2Storage(): Inherits ComptrollerV1Storage, adds additional properties in the form of Market struct, markets mapping, pauseGuardian, mintGuardianPaused, borrowGuardianPaused, and other GuardianPaused variables.
+- ComptrollerV3Storage(): Inherits ComptrollerV2Storage, adds properties related to COMP token distribution such as allMarkets array, compRate, compSpeeds, compSupplyState, compBorrowState, compSupplierIndex, compBorrowerIndex, and compAccrued mapping.
+- ComptrollerV4Storage(): Inherits ComptrollerV3Storage, adds borrowCapGuardian address and borrowCaps mapping for setting and enforcing borrow caps.
+- ComptrollerV5Storage(): Inherits ComptrollerV4Storage, adds compContributorSpeeds mapping and lastContributorBlock mapping for contributors' COMP token rewards allocation.
+- ComptrollerV6Storage(): Inherits ComptrollerV5Storage, adds compBorrowSpeeds and compSupplySpeeds mappings for distribution rates of COMP tokens in borrow and supply markets.
+- ComptrollerV7Storage(): Inherits ComptrollerV6Storage, adds proposal65FixExecuted flag and compReceivable mapping to handle COMP accruals related to Proposal 62 bug.
+<END_FUNCTIONS>
+<START_CONTRACTS>
+Summary of the entire contract:
+The Comptroller contract is a complex contract involving multiple inheritance levels, with each level extending a previous version. It starts from basic administration properties in UnitrollerAdminStorage and expands towards more complex functionalities like market listings, COMP token distribution, borrow caps, contributor rewards, and fixing COMP accruals related to the Proposal 62 bug.
+<END_CONTRACTS>

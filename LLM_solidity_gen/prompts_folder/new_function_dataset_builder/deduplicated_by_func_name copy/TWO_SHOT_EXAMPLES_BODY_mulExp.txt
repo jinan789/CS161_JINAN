@@ -1,0 +1,12 @@
+    function mulExp(uint a, uint b) pure internal returns (MathError, Exp memory) {
+        return mulExp(Exp({mantissa: a}), Exp({mantissa: b}));
+    }
+
+    function mulExp3(Exp memory a, Exp memory b, Exp memory c) pure internal returns (MathError, Exp memory) {
+        (MathError err, Exp memory ab) = mulExp(a, b);
+        if (err != MathError.NO_ERROR) {
+            return (err, ab);
+        }
+        return mulExp(ab, c);
+    }
+

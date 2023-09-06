@@ -1,0 +1,5 @@
+Function: mulExp
+Input: Two Exp structs "a" and "b", each containing a uint mantissa.
+Output: MathError and an Exp struct.
+
+Summary: The function multiplies two given exponentials "a" and "b" and returns the product in a new Exp struct, taking care of accurate rounding instead of truncation. The MathError indicates any error that occurs during the process.

@@ -1,0 +1,22 @@
+TASK 1: Step-by-step plan to implement the 'mod' function
+
+1. Start by defining the function with the name "mod". It should accept three parameters: two uint256 variables 'a' and 'b', and a string variable named 'errorMessage' in case the modulus operation isn't possible (e.g. if 'b' is 0).
+
+2. Inside the function, check if 'b' is equal to 0. If it is, throw an error with the given 'errorMessage'.
+
+3. If 'b' isn't 0, calculate the modulus (remainder) of 'a' divided by 'b' and store it in a uint256 variable.
+
+4. Return the result of the modulus operation.
+
+---
+
+After analyzing your provided code (Information 3) and comparing it to the required functionalities (Information 2), I can say that your implementation does cover all the necessary steps. Your code looks correct and should function as expected:
+
+```solidity
+function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    require(b != 0, errorMessage);
+    return a % b;
+}
+```
+
+You can go ahead and add this function to the SafeMath library in your contract (Information 1).

@@ -1,0 +1,13 @@
+Function: delegateBySig
+
+Input:
+- address delegatee
+- uint nonce
+- uint expiry
+- uint8 v
+- bytes32 r
+- bytes32 s
+
+Output: None (calls _delegate function internally)
+
+Summary: Allows a signer to delegate their votes on behalf of another user using an EIP-712 signature. The provided signature is verified for the signer and if valid, internally calls the _delegate function with the signatory and the delegatee.

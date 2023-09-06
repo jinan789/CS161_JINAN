@@ -1,0 +1,39 @@
+Number of steps: 9
+
+Number of branches: 0
+
+Modification needed: YES
+
+NO_LABEL_CODES_BEGINNING
+function transferTokens(address spender, address src, address dst, uint tokens) public returns (uint result) {
+    // Step 1: Make sure that the source and destination addresses are different
+    if (src == dst) {
+        return fail(Error.INVALID_ACCOUNT_PAIR, FailureInfo.TRANSFER_TOKENS_FAIL);
+    }
+
+    // Step 2 and Step 3: If 'spender' is not the 'src', get the allowance for the spender from the 'src' address
+    if (spender != src) {
+        uint startingAllowance = allowances[src][spender];
+
+        // Step 4: Check if the spender is allowed to perform the transfer
+        if (startingAllowance < tokens) {
+            return fail(Error.INSUFFICIENT_ALLOWANCE, FailureInfo.TRANSFER_TOKENS_NOT_ALLOWED);
+        }
+
+        // Step 5: Update the allowance
+        allowances[src][spender] = sub_(startingAllowance, tokens);
+    }
+
+    // Step 6: Transfer the tokens from src address
+    accountTokens[src] = sub_(accountTokens[src], tokens);
+
+    // Step 7: Transfer the tokens to dst address
+    accountTokens[dst] = add_(accountTokens[dst], tokens);
+
+    // Step 8: Emit the Transfer event
+    emit Transfer(src, dst, tokens);
+
+    // Step 9: Return 0 (success)
+    return 0;
+}
+NO_LABEL_CODES_ENDING

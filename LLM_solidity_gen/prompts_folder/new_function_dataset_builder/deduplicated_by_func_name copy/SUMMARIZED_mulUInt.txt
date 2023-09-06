@@ -1,0 +1,5 @@
+Function: mulUInt
+Input: 2 uint variables (a, b)
+Output: MathError (enum) and uint
+
+Summary: The function multiplies two uint numbers and returns a MathError code and the multiplication result. It checks for integer overflow during multiplication, and ensures that the operation is safe.

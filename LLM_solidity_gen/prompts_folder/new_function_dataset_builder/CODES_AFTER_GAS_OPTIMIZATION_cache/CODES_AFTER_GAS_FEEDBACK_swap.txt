@@ -1,0 +1,61 @@
+TASK 1:
+
+Upon reviewing the provided code, I found there are no gas-wasting patterns that match the given list. The code seems to be optimized well for gas usage. However, there is one small improvement that can be done even though it does not directly correspond to the given list of patterns. The change is related to moving the safeTransferFrom function below the require statements for small efficiency gain:
+
+Improvement:
+
+- Move the safeTransferFrom function below require statements: This allows any transaction that does not meet the requirements to fail early resulting in a smaller amount of gas being consumed.
+
+TASK 2:
+
+<CODE_BEGINNING>
+
+function swap(
+    address srcToken,
+    uint256 srcAmount,
+    uint256 minPrice,
+    uint256 maxPrice,
+    address destToken,
+    bytes memory oneInchData
+)
+    public
+    onlyDao
+    returns (
+        uint256 actualDestAmount,
+        uint256 actualSrcAmount
+    )
+{
+    require(minPrice < maxPrice, "Pool: minPrice should be less than maxPrice");
+    require(srcToken != destToken, "Pool: Source and destination tokens should be different");
+
+    //GAS OPTIMIZATIONS MADE HERE: Moved the safeTransferFrom function below require statements for efficiency
+    IERC20Detailed(srcToken).safeTransferFrom(_msgSender(), address(this), srcAmount);
+
+    uint256 destPriceInSrc;
+    uint256 srcPriceInDest;
+
+    (uint256 _destPriceInSrc, uint256 _srcPriceInDest, uint256 _actualDestAmount, uint256 _actualSrcAmount) = _oneInchTrade(
+        srcToken,
+        srcAmount,
+        destToken,
+        oneInchData
+    );
+
+    destPriceInSrc = _destPriceInSrc;
+    srcPriceInDest = _srcPriceInDest;
+    actualDestAmount = _actualDestAmount;
+    actualSrcAmount = _actualSrcAmount;
+
+    require(
+        destPriceInSrc >= minPrice,
+        "Pool: Swap rate is lower than the minimum acceptable price"
+    );
+    require(
+        destPriceInSrc <= maxPrice,
+        "Pool: Swap rate is higher than the maximum acceptable price"
+    );
+
+    emit Swapped(srcToken, destToken, actualSrcAmount, actualDestAmount);
+}
+
+<CODE_ENDING>

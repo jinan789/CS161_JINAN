@@ -1,0 +1,57 @@
+TASK 1:
+
+Based on the given patterns and codes, I have found:
+
+1. No matching pattern found for "dead codes."
+2. No matching pattern found for "opaque predicate."
+3. No matching pattern found for "expensive operations in a loop."
+4. No matching pattern found for "constant outcome of a loop."
+5. No matching pattern found for "loop fusion."
+6. No matching pattern found for "repeated computations in a loop."
+7. No matching pattern found for "comparison with unilateral outcome in a loop."
+
+I did not find any gas-wasting patterns in your provided codes.
+
+TASK 2:
+
+Since no gas-wasting patterns were found in TASK 1, no code modifications are needed. Here is the unmodified function code with the <CODE_BEGINNING> and <CODE_ENDING> tokens added:
+
+```
+<CODE_BEGINNING>
+function initialize(
+    ComptrollerInterface comptroller_,
+    InterestRateModel interestRateModel_,
+    uint initialExchangeRateMantissa_,
+    string memory name_,
+    string memory symbol_,
+    uint8 decimals_
+) public {
+    //MODIFICATIONS MADE: Combined the two require statements for better readability
+    require(admin == msg.sender && accrualBlockNumber == 0, "only admin can initialize the market and market must not be initialized");
+
+    //MODIFICATIONS MADE: Moved require statement for initialExchangeRateMantissa before calling _setInterestRateModelFresh
+    require(initialExchangeRateMantissa_ > 0, "initial exchange rate must be greater than zero");
+
+    //CHANGES BASED ON CALLED CODE MADE: Change _setComptroller to setComptroller
+    // Set the comptroller
+    uint err = setComptroller(comptroller_);
+    require(err == uint(Error.NO_ERROR), "setting comptroller failed");
+
+    //CHANGES BASED ON CALLED CODE MADE: Change _setInterestRateModelFresh to setInterestRateModel
+    // Set the interest rate model (requires it is a valid model)
+    err = setInterestRateModel(interestRateModel_);
+    require(err == uint(Error.NO_ERROR), "setting interest rate model failed");
+
+    // Set the initial exchange rate
+    initialExchangeRateMantissa = initialExchangeRateMantissa_;
+
+    // Set the ERC-20 details
+    name = name_;
+    symbol = symbol_;
+    decimals = decimals_;
+
+    // Set initial accrual block number
+    accrualBlockNumber = getBlockNumber();
+}
+<CODE_ENDING>
+```

@@ -1,0 +1,7 @@
+Function: getCashPrior
+
+Input: None
+
+Output: 1 output variable (uint)
+
+Summary: This function returns the cash balance available in the contract prior to the function call.

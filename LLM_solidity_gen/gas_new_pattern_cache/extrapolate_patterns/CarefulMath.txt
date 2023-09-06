@@ -1,0 +1,106 @@
+After analyzing the given Solidity code, I have found the following gas-wasting patterns:
+
+8. "Redundant conditional checks for arithmetic operations." In the existing functions such as `mulUInt`, `divUInt`, `subUInt`, and `addUInt`, the code checks for conditions that help prevent integer overflow, underflow, or division by zero before performing the actual arithmetic operation. While these checks might seem useful, they lead to extra gas consumption during the execution of these functions.
+
+For instance, in `mulUInt`, if `a` is not zero, it checks whether `c / a != b`. If this condition is true, it returns an error of "INTEGER_OVERFLOW". But in modern Solidity versions, integer overflow will revert the transaction automatically due to "assertions". Therefore, this additional check is redundant and consumes extra gas unnecessarily.
+
+Similarly, in other functions, explicit checks also waste gas due to the built-in checks and revert mechanisms in Solidity. It's possible to rely on these checks instead of adding extra conditions in the code.
+
+A potential way to save gas could be to simplify the arithmetic functions and rely on existing automation provided by the Solidity language for error handling. For example, the `mulUInt` function can be simplified as:
+
+```solidity
+function mulUInt(uint a, uint b) internal pure returns (uint) {
+    uint c = a * b;
+    return c;
+}
+```
+
+Removing these redundant conditional checks will help reduce the gas cost during the execution of these functions.
+
+9. "Separate function calls for related arithmetic operations." In the `addThenSubUInt` function, separate function calls are made for `addUInt` and `subUInt`. Although separating arithmetic functions by operations may lead to more modular and readable code, they also result in an increased gas cost due to the overhead associated with function calls.
+
+To save gas, these separate function calls can be combined into a single function, like this:
+
+```solidity
+function addThenSubUInt(uint a, uint b, uint c) internal pure returns (uint) {
+    uint sum = a + b;
+    require(sum >= a, "INTEGER_OVERFLOW"); // Assertion added for safety
+    uint result = sum - c;
+    require(result <= sum, "INTEGER_UNDERFLOW"); // Assertion added for safety
+    return result;
+}
+```
+
+Combining these arithmetic operations within a single function will help reduce the gas cost associated with function calls especially when we can rely on assertions provided by the Solidity language.
+*****&&&&&^^^^^%%%%%$$$$$
+
+
+After analyzing the given Solidity source code, I found the following gas-wasting patterns:
+
+8. "Unnecessary branching." In the `mulUInt` function, the check for `if (a == 0)` is not necessary because it would not cause any loss of information or errors during multiplication. While it is intended to save gas by returning early, it introduces unnecessary branching and takes up additional gas. To save gas, this check could be removed.
+
+9. "Multiple function calls." In the `addThenSubUInt` function, first, the `addUInt` function is called and its result is checked for errors. Then, the `subUInt` function is called and its result is checked for errors. This sequence of calls could be combined into a single function call without affecting functionality, which would reduce overall gas consumption.
+*****&&&&&^^^^^%%%%%$$$$$
+
+
+Here are some gas-wasting patterns I found in the given Solidity code snippet:
+
+1. "Repeated computations in a loop." In the `addThenSubUInt` function, both `addUInt(a, b)` and `subUInt(sum, c)` are called to perform arithmetic computations and then further check for arithmetic errors. However, these checks for arithmetic errors have already been implemented in the internal `addUInt` and `subUInt` functions. To save gas, the arithmetic operations can be done directly inside the `addThenSubUInt` function, and the error checks can be performed once after both operations to verify that no arithmetic error occurred, reducing the redundant checking.
+
+Here's the modified `addThenSubUInt` function for better gas usage:
+```solidity
+function addThenSubUInt(uint a, uint b, uint c) internal pure returns (MathError, uint) {
+    uint sum = a + b;
+    uint result = sum - c;
+
+    if (sum < a || result > sum) {
+        return (MathError.INTEGER_OVERFLOW, 0);
+    } else if (result > sum) {
+        return (MathError.INTEGER_UNDERFLOW, 0);
+    } else {
+        return (MathError.NO_ERROR, result);
+    }
+}
+```
+
+2. "Constant outcome of a loop." This is not quite a loop, but it appears in a similar context as the previous pattern mentioned. The `mulUInt` function checks for integer overflow in multiplication by checking if `c / a != b`. The outcome of this condition is the same for all cases. This condition could be evaluated in a more efficient way by comparing `c >= a` and `c < a * (b - 1)` to avoid the division operation, saving gas in the process.
+
+Here's the modified `mulUInt` function for better gas usage:
+```solidity
+function mulUInt(uint a, uint b) internal pure returns (MathError, uint) {
+    if (a == 0) {
+        return (MathError.NO_ERROR, 0);
+    }
+
+    uint c = a * b;
+
+    if (c >= a && c < a * (b - 1)) {
+        return (MathError.INTEGER_OVERFLOW, 0);
+    } else {
+        return (MathError.NO_ERROR, c);
+    }
+}
+```
+
+After applying these optimizations, the Solidity code will consume less gas while retaining the same functionality.
+*****&&&&&^^^^^%%%%%$$$$$
+
+
+I found one gas-wasting pattern in the provided source code:
+
+8. "Separate functions for simple arithmetic operations." The contract has dedicated functions to handle basic arithmetic operations like addition, subtraction, multiplication, and division (e.g., `mulUInt`, `divUInt`, `subUInt`, `addUInt`). This design might lead to slightly higher gas consumption since each function call requires a certain amount of gas. The Solidity compiler optimizes simple arithmetic operations effectively, and gas consumption can be reduced by directly using in-built arithmetic operations rather than separate functions. 
+
+However, one potential argument for using separate functions in this particular case is to handle arithmetic error codes like overflow and underflow. If that is a primary goal, then these functions make sense. But as an optimization recommendation, it is crucial to consider whether there's a need to manage these errors and weigh the trade-offs between gas usage and dealing with error codes. If the error management is not vital for the contract's functionality, then relying on simple arithmetic operations instead of separate functions might be more efficient in terms of gas consumption.
+*****&&&&&^^^^^%%%%%$$$$$
+
+
+8. "Multiple error handling in simple arithmetic operations." In the given code, the mulUInt, divUInt, subUInt, and addUInt functions perform basic arithmetic operations like multiplication, division, subtraction, and addition, respectively. For each operation, a custom error handling using MathError enumerated type is implemented. Using this custom error handling introduces an overhead and consumes extra gas for each simple operation, even though they are pure functions.
+
+A better gas-saving approach would be to use Solidity's built-in SafeMath library, which performs the same operations with proper overflow/underflow checks in a more efficient way. Alternatively, instead of using an enumerated type for error handling, it is possible to use the 'assert' or 'require' built-in functions for error checks, which might consume less gas.
+
+9. "Redundant error checks in addThenSubUInt." The addThenSubUInt function checks for errors by calling the addUInt and subUInt functions. However, this introduces redundancies in error checks, causing wastage of gas.
+
+Since it's guaranteed that the addition of 'a' and 'b' will always produce an output equal to or more than 'a' and 'b' (due to the properties of unsigned integers), and 'c' will also be an unsigned integer, the subtraction operation will most likely not result in any underflow. Therefore, error checks in addUInt might be enough, and the error check in subUInt can be skipped in this specific context. This can reduce gas consumption, as the error check overhead is eliminated for the subtraction step.
+*****&&&&&^^^^^%%%%%$$$$$
+
+

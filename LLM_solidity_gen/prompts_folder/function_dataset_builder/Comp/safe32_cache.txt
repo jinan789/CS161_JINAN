@@ -1,0 +1,9 @@
+Function: safe32
+
+Input: 
+1. uint n
+2. string memory errorMessage
+
+Output: uint32
+
+Summary: The function ensures that the input number 'n' is within the range (less than 2**32), and if it is, returns the given number as a uint32 type. If the input number is out of range, the function reverts with the provided error message.

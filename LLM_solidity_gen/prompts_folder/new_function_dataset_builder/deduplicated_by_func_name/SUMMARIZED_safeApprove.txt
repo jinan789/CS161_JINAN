@@ -1,0 +1,10 @@
+Function Summary: safeApprove
+
+Input: 
+1. ERC20 token (ERC20)
+2. address to (address)
+3. uint256 amount (uint256)
+
+Output: None, but reverts with "APPROVE_FAILED" message if the operation fails
+
+Purpose: The safeApprove function is designed to safely approve the specified `amount` of an ERC20 `token` to be used by the intended address `to`. It ensures the success of the approve operation and reverts if it fails.

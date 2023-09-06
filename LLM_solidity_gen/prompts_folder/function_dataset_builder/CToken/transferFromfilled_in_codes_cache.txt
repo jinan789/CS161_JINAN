@@ -1,0 +1,25 @@
+<CODE_BEGINNING>
+/**
+ * @notice Transfer `amount` tokens from `src` to `dst` on behalf of the message sender
+ * @param src The source address of the tokens to be transferred
+ * @param dst The destination address to receive the transferred tokens
+ * @param amount The number of tokens to be transferred
+ * @return bool Whether the transfer was successful
+ */
+function transferFrom(address src, address dst, uint256 amount) external nonReentrant returns (bool) {
+    // Get the current allowance of msg.sender for src
+    uint256 senderAllowance = allowance(src, msg.sender);
+
+    // Check if the msg.sender has enough allowance to perform the transfer
+    require(senderAllowance >= amount, "Transfer exceeds allowance");
+
+    // Perform the token transfer
+    uint256 result = transferTokens(msg.sender, src, dst, amount);
+    require(result == uint256(Error.NO_ERROR), "Token transfer failed");
+
+    // Update the allowance for msg.sender
+    _approve(src, msg.sender, senderAllowance - amount);
+
+    return true;
+}
+<CODE_ENDING>

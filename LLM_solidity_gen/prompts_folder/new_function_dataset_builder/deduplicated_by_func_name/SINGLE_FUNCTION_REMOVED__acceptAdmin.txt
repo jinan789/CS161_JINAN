@@ -1,0 +1,38 @@
+
+The function that I want you to summarize is _acceptAdmin(, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signatureS, with the purpose of providing richer background information for you. The codes are: 
+pragma solidity ^0.5.16;
+
+import "./ErrorReporter.sol";
+import "./ComptrollerStorage.sol";
+/**
+ * @title ComptrollerCore
+ * @dev Storage for the comptroller is at this address, while execution is delegated to the `comptrollerImplementation`.
+ * CTokens should reference this contract as their comptroller.
+ */
+contract Unitroller is UnitrollerAdminStorage, ComptrollerErrorReporter {
+
+    /**
+      * @notice Emitted when pendingComptrollerImplementation is changed
+      */
+    event NewPendingImplementation(address oldPendingImplementation, address newPendingImplementation);
+
+    /**
+      * @notice Emitted when pendingComptrollerImplementation is accepted, which means comptroller implementation is updated
+      */
+    event NewImplementation(address oldImplementation, address newImplementation);
+
+    /**
+      * @notice Emitted when pendingAdmin is changed
+      */
+    event NewPendingAdmin(address oldPendingAdmin, address newPendingAdmin);
+
+    /**
+      * @notice Emitted when pendingAdmin is accepted, which means admin is updated
+      */
+    event NewAdmin(address oldAdmin, address newAdmin);
+
+
+    constructor() public {
+    function _setPendingImplementation(address newPendingImplementation) public returns (uint) {
+    function _acceptImplementation() public returns (uint) {
+    function _setPendingAdmin(address newPendingAdmin) public returns (uint) {

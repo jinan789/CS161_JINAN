@@ -1,0 +1,86 @@
+    function _oneInchTrade(
+        address _srcToken,
+        uint256 _srcAmount,
+        address _destToken,
+        bytes memory _calldata
+    )
+        internal
+        returns (
+            uint256 _destPriceInSrc,
+            uint256 _srcPriceInDest,
+            uint256 _actualDestAmount,
+            uint256 _actualSrcAmount
+        )
+    {
+        uint256 beforeSrcBalance = _getBalance(_srcToken, address(this));
+        uint256 beforeDestBalance = _getBalance(_destToken, address(this));
+        // Note: _actualSrcAmount is being used as msgValue here, because otherwise we'd run into the stack too deep error
+        if (_srcToken != _ETH_ADDRESS) {
+            _actualSrcAmount = 0;
+            IERC20Detailed(_srcToken).approve(oneInchAddr, 0);
+            IERC20Detailed(_srcToken).approve(oneInchAddr, _srcAmount);
+        } else {
+            _actualSrcAmount = _srcAmount;
+        }
+
+        // trade through 1inch proxy
+        (bool success, ) = oneInchAddr.call{value: _actualSrcAmount}(_calldata);
+        require(success, "_oneInchTrade: External 1inch issue!");
+
+        // calculate trade amounts and price
+        _actualDestAmount = _getBalance(_destToken, address(this)).sub(
+            beforeDestBalance
+        );
+        _actualSrcAmount = beforeSrcBalance.sub(
+            _getBalance(_srcToken, address(this))
+        );
+        require(_actualDestAmount > 0 && _actualSrcAmount > 0);
+        _destPriceInSrc = _calcRateFromQty(
+            _actualDestAmount,
+            _actualSrcAmount,
+            _getDecimals(_destToken),
+            _getDecimals(_srcToken)
+        );
+        _srcPriceInDest = _calcRateFromQty(
+            _actualSrcAmount,
+            _actualDestAmount,
+            _getDecimals(_srcToken),
+            _getDecimals(_destToken)
+        );
+    }
+
+    function swap(
+        address srcToken,
+        uint256 srcAmount,
+        uint256 minPrice,
+        uint256 maxPrice,
+        address destToken,
+        bytes memory oneInchData
+    ) public onlyDao returns (
+        uint256 actualDestAmount,
+        uint256 actualSrcAmount
+    ) {
+        require(minPrice < maxPrice, "swap: Incorrect min/max prices!");
+        require(srcToken != destToken, "swap: Incorrect path of swap!");
+
+        uint256 dInS; // price of dest token denominated in src token
+        uint256 sInD; // price of src token denominated in dest token
+
+        // 1inch trading
+        (
+            dInS,
+            sInD,
+            actualDestAmount,
+            actualSrcAmount
+        ) = _oneInchTrade(
+            srcToken,
+            srcAmount,
+            destToken,
+            oneInchData
+        );
+        
+        // NOTE: Slippage is the part of 1Inch data.
+        // require(minPrice <= dInS && dInS <= maxPrice, "swap: Incorrect min/max output!");
+
+        emit Swapped(srcToken, destToken, actualSrcAmount, actualDestAmount);
+    }

@@ -1,0 +1,41 @@
+TASK 1:
+Based on the provided Solidity code, I could not find any occurrences of the 7 given gas-wasting patterns. The code seems to be gas-efficient and well-optimized. As a result, no changes are suggested to improve gas usage for the provided code chunk.
+
+TASK 2:
+Since there are no gas-wasting patterns found in the code, no modifications are needed. The provided code is already optimized, and no additional optimization suggestions can be recommended.
+
+Below is the code for reference:
+
+<CODE_BEGINNING>
+function getPriorVotes(address account, uint blockNumber) public view returns (uint96) {
+    require(blockNumber < block.number, "INV: blockNumber must be in the past");
+
+    // Most recent balance (last checkpoint)
+    uint32 nCheckpoints = numCheckpoints[account];
+    if (nCheckpoints == 0) {
+        return 0;
+    }
+
+    // Implicit zero balance (no checkpoint)
+    Checkpoint memory cp = checkpoints[account][nCheckpoints - 1];
+    if (cp.fromBlock <= blockNumber) {
+        return cp.votes;
+    }
+
+    // Perform binary search for the vote count at the specified block number
+    uint32 min = 0;
+    uint32 max = nCheckpoints - 1;
+    while (min < max) {
+        uint32 mid = (min + max + 1) / 2;
+        cp = checkpoints[account][mid];
+        if (cp.fromBlock <= blockNumber) {
+            min = mid;
+        } else {
+            max = mid - 1;
+        }
+    }
+    cp = checkpoints[account][min];
+
+    return cp.fromBlock <= blockNumber ? cp.votes : 0;
+}
+<CODE_ENDING>

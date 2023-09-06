@@ -1,0 +1,16 @@
+To implement the `borrowBalanceStored` function according to the given summary, you can add the following code to the `CToken` contract:
+
+```solidity
+/**
+ * @notice Calculate and return the borrow balance for a given account based on stored data
+ * @param account The address of the account whose borrow balance is to be calculated
+ * @return The stored borrow balance of the given account, as a uint value
+ */
+function borrowBalanceStored(address account) external view returns (uint) {
+    (MathError err, uint balance) = borrowBalanceStoredInternal(account);
+    require(err == MathError.NO_ERROR, "borrow balance calculation failed");
+    return balance;
+}
+```
+
+This function is marked as `external view` because it calculates the stored borrow balance without making any changes to the contract's state. It takes an address `account` as input and calls the `borrowBalanceStoredInternal` function, which returns a tuple `(MathError, uint)` - the error code and the calculated balance. We check if there is no error (`err == MathError.NO_ERROR`) and return the balance, otherwise, we raise an error message "borrow balance calculation failed".

@@ -1,0 +1,34 @@
+    function swap(
+        address srcToken,
+        uint256 srcAmount,
+        uint256 minPrice,
+        uint256 maxPrice,
+        address destToken,
+        bytes memory oneInchData
+    )
+        public
+        onlyAdmin
+        returns (
+            uint256 actualDestAmount,
+            uint256 actualSrcAmount
+        )
+    {
+        require(minPrice < maxPrice, "Pool: minPrice should be less than maxPrice");
+        require(srcToken != destToken, "Pool: Source and destination tokens should be different");
+
+        IERC20Detailed(srcToken).safeTransferFrom(_msgSender(), address(this), srcAmount);
+
+        uint256 destPriceInSrc;
+        uint256 srcPriceInDest;
+        (destPriceInSrc, srcPriceInDest, actualDestAmount, actualSrcAmount) = _oneInchTrade(
+            srcToken,
+            srcAmount,
+            destToken,
+            oneInchData
+        );
+
+        require(destPriceInSrc >= minPrice, "Pool: destPriceInSrc should be greater or equal to minPrice");
+        require(destPriceInSrc <= maxPrice, "Pool: destPriceInSrc should be less or equal to maxPrice");
+
+        emit Swapped(srcToken, destToken, actualSrcAmount, actualDestAmount);
+    }

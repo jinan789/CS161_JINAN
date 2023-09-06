@@ -1,0 +1,7 @@
+The two function signatures from the given contract that have the most similar functionality to the target function are:
+
+1. function _setPendingAdmin(address payable newPendingAdmin) external returns (uint)
+
+2. function _setInterestRateModel(InterestRateModel newInterestRateModel) public returns (uint)
+
+Both of these function signatures involve setting or updating a contract attribute and have checks similar to the target function, such as checking that the caller is authorized or validating input values using conditions.

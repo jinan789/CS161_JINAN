@@ -1,0 +1,5 @@
+Function: _setReserveFactor
+Input: uint newReserveFactorMantissa
+Output: uint (as a status code)
+
+The _setReserveFactor function updates the reserve factor, which determines how much of the interest paid by borrowers is stored as reserves in the contract. The function takes a single input, the new reserve factor mantissa. The function returns a status code indicating success or failure.

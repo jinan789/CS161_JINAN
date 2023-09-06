@@ -1,0 +1,12 @@
+Function: addThenSubUInt
+
+Input:
+- uint a
+- uint b
+- uint c
+
+Output: 
+- MathError error code (enumerated values: NO_ERROR, DIVISION_BY_ZERO, INTEGER_OVERFLOW, INTEGER_UNDERFLOW)
+- uint result
+
+Summary: The addThenSubUInt function takes three input unsigned integers (a, b, and c), adds (a + b) together, and then subtracts c from the sum. The function returns an error code (MathError) and the resulting unsigned integer value.

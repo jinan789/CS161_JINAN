@@ -1,0 +1,17 @@
+function tryMul(uint256 a, uint256 b) internal pure returns (bool success, uint256 result) {
+    if (a == 0 || b == 0) {
+        return (true, 0);
+    }
+    
+    // MODIFICATIONS MADE: We add an `unchecked` block to prevent unnecessary overflow checks and follow the standard style employed within the SafeMath library.
+    unchecked {
+        uint256 c = a * b;
+        
+        // MODIFICATIONS MADE: Refactor the condition for success to follow the style used in the `tryAdd()` function.
+        if (c / a != b) {
+            return (false, 0);
+        }
+        
+        return (true, c);
+    }
+}

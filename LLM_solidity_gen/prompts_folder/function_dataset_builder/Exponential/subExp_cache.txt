@@ -1,0 +1,4 @@
+Input: Two Exp memory structs (a and b) containing `mantissa` properties (uint)
+Output: A MathError enum and an Exp memory containing a `mantissa` property (uint)
+
+This function, subExp, calculates the difference in value between two given exponential structs (a and b) in the fixed-precision decimal format with a precision of 18 decimal places.

@@ -1,0 +1,4 @@
+The function signatures that have the most similar functionality to the given target function are:
+
+1. function transfer(address dst, uint256 amount) external nonReentrant returns (bool)
+2. function transferFrom(address src, address dst, uint256 amount) external nonReentrant returns (bool)

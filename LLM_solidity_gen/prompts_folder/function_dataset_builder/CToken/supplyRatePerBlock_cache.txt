@@ -1,0 +1,4 @@
+Input: None
+Output: (uint) supply rate per block
+
+The function "supplyRatePerBlock" calculates and returns the current supply rate per block, by calling "getSupplyRate" from the interest rate model with parameters like cash prior, total borrows, total reserves, and reserve factor mantissa.

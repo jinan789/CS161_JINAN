@@ -1,0 +1,24 @@
+TASK 1:
+1. Your written codes seem to be appropriately using the contract functions and do not have any problems in the way they utilize other functions in the contract. The function appears to implement a rate calculation as required by the other two example functions.
+
+TASK 2:
+As there are no necessary modifications identified in TASK 1, your code remains unchanged:
+
+<CODE_BEGINNING>
+    function _calcRateFromQty(uint256 srcAmount, uint256 destAmount, uint256 srcDecimals, uint256 dstDecimals) internal pure returns (uint256 rate) {
+        // Ensure the source amount is not greater than the maximum allowed quantity
+        require(srcAmount <= _MAX_QTY, "Source amount exceeds maximum allowed quantity");
+
+        // Ensure the destination amount is not greater than the maximum allowed quantity
+        require(destAmount <= _MAX_QTY, "Destination amount exceeds maximum allowed quantity");
+
+        // Calculate the rate using the provided decimal resolutions
+        if (dstDecimals >= srcDecimals) {
+            uint256 multiplier = 10 ** (dstDecimals - srcDecimals);
+            rate = (destAmount.mul(_PRECISION)).div(srcAmount.mul(multiplier));
+        } else {
+            uint256 divisor = 10 ** (srcDecimals - dstDecimals);
+            rate = (destAmount.mul(_PRECISION)).div(srcAmount.div(divisor));
+        }
+    }
+<CODE_ENDING>

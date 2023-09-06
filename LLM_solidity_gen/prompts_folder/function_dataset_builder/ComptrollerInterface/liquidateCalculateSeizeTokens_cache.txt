@@ -1,0 +1,13 @@
+Function: liquidateCalculateSeizeTokens
+
+Input: 
+1. cTokenBorrowed (address)
+2. cTokenCollateral (address)
+3. repayAmount (uint)
+
+Output:
+1. uint
+2. uint
+
+Summary: 
+This function calculates the amount of collateral tokens to be seized in a liquidation process given a borrowed token, a collateral token, and a repayment amount.

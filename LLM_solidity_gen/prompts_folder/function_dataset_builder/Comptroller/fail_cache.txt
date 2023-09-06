@@ -1,0 +1,1 @@
+The "fail" function takes two inputs: an Error (enumerated type) and a FailureInfo (enumerated type), and returns a uint256. The function emits a Failure event that contains the error code, failure information and a 0 value. The return value is the error code. The main purpose of this function is to log errors and failure information in the contract.

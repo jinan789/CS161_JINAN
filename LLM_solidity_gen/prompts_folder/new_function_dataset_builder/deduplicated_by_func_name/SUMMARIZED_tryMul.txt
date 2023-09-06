@@ -1,0 +1,4 @@
+1. Input: Two uint256 variables "a" and "b"
+   Output: A boolean and a uint256 variable
+
+2. The tryMul function attempts to multiply two input uint256 values "a" and "b". It handles the zero case and checks if the multiplication overflows. If successful, the function returns true and the product of "a" and "b". If there is an overflow, it returns false and 0.

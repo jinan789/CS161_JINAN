@@ -1,0 +1,36 @@
+Based on the provided input and expert's feedback, here is a summary of the gas-wasting patterns in Solidity, categorized and formatted for better understanding:
+
+1. Unoptimized looping
+- Consider using the 'break' statement or other early exit mechanisms when possible to reduce iterations and gas consumption.
+
+2. Large array storage or data storage
+- Consider using off-chain storage solutions, smaller data structures, or data compression techniques to reduce overall storage needs and save gas.
+
+3. Unnecessary function calls
+- Evaluate the necessity of each call and consider combining multiple function calls into one or using events to reduce the overall number of calls.
+
+4. Using complex arithmetic operations
+- Consider using simpler alternatives or built-in functions like addmod and mulmod to perform modular arithmetic more efficiently.
+
+5. Unoptimized library usage
+- Import only the functions that are needed and avoid including entire libraries if only a few functions are required to reduce gas costs for deployment and the overall contract size.
+
+6. Redundant state variable updates
+- Evaluate when updates are necessary and group updates inside the same function or transaction to avoid repeated update costs.
+
+7. Excessive use of global variables
+- Assess the necessity of global variables and consider using local variables or storage pointers when possible to reduce gas consumption.
+
+8. Inefficient use of external/native function calls
+- Analyze the gas efficiency of external or native function calls, and choose the most gas-efficient version available, while maintaining good programming practices and security.
+
+9. "Suboptimal function call"
+- Replace low-level .call() methods with a more explicit and gas-efficient high-level function call for better gas consumption and code readability.
+
+10. Unnecessary event emission
+- Consider removing or reducing event emissions when the emitted event information is not crucial for the contract's primary use case, to save gas consumption.
+
+By understanding and addressing these gas-wasting patterns, Solidity developers can work towards optimizing their smart contracts, minimizing gas costs, and enhancing the overall efficiency of their code. Always consider the specific requirements of the contract and the potential trade-offs when optimizing for gas usage.
+*****&&&&&^^^^^%%%%%$$$$$
+
+

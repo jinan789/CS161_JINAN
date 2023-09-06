@@ -1,0 +1,4 @@
+Based on the function names, return types, and parameter lists, the following two function signatures seem to have the most similar functionality to the given target function:
+
+1. function allowance(address account, address spender) external view returns (uint)
+2. function permit(address _owner, address spender, uint rawAmount, uint deadline, uint8 v, bytes32 r, bytes32 s) external

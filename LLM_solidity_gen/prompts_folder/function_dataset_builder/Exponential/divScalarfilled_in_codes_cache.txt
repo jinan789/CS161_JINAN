@@ -1,0 +1,20 @@
+<CODE_BEGINNING>
+/**
+ * @notice Divides the mantissa of input Exp struct "a" by the scalar value.
+ * @param a The Exp memory struct containing the mantissa value to be divided
+ * @param scalar The uint value to divide the mantissa of "a" by
+ * @return (error, newExp) A MathError enum indicating whether the division was successful or not, and an Exp struct with the resulting mantissa
+ */
+function divScalar(Exp memory a, uint scalar) pure internal returns (MathError, Exp memory) {
+    if (scalar == 0) {
+        return (MathError.DIVISION_BY_ZERO, Exp({mantissa: 0}));
+    }
+
+    // Perform the division and check for rounding errors
+    uint newMantissa = a.mantissa / scalar;
+
+    // Create and return the new Exp struct with the resulting mantissa, and a successful MathError
+    Exp memory newExp = Exp({mantissa: newMantissa});
+    return (MathError.NO_ERROR, newExp);
+}
+<CODE_ENDING>

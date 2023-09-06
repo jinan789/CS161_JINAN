@@ -1,0 +1,175 @@
+I want you to help me find new gas-wasting patterns for Solidity. Gas is a unique pricing mechanism in Solidity, which measures the amount of computational resources put into the execution of Solidity codes. Gas is paid in money, so saving gas is saving money. The goal of gas optimization is to find an equivalent code instruction sequence that produces the same output while consuming less gas. This may misalign from how people typically write codes, since the gas pricing mechanism is less intuitive and code writers do not often keep it in mind. For example, storage variables in Solidity are expensive in terms of gas, while memory is not, so unnecessary storage operations should be avoided when possible, but programmers from other languages might not be aware of this. 
+
+First, I will give you a list of known gas-wasting patterns as an example. The list is numbered, with each bullet point specifying one gas-wasting pattern and an explanation of why this pattern wastes gas. Please be creative and see if my provided codes contain any gas-wasting patterns beyond the provided ones. The list is as follows:
+
+1. Repeated computation of the same expression: including repetitive reads of the same expensive storage variable (e.g. Overuse of expensive storage variables). This could be solved by introducing an intermediate variable to hold the value
+2. Variable refactoring: by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+3. Redundant operations with same effects: redundant operations that overwrite the effect of the previous operation, making the previous useless
+4. Pre-computable operations on constants: performing comparisons (or other operations) to constants is useless and could be pre-computed
+5. Simplifiable conditional operations: expressions that involve logical operations that could be simplified to reduce the amount of computational workload.
+6. "Loop fusion." If two loops have the same starting and stopping conditions with the same increment steps, then we could consider combining them into one, if they have no dependencies. 
+7. "Repeated computations in a loop." If there are expressions that produce the same outcome in each iteration of a loop, we could move it out of the loop and execute only once, which saves computation.
+8. "Opaque predicate." If the outcome of a predicate could be inferred to be true/false without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+
+Next, I will give you a chunk of Solidity codes from which you will find gas-inefficient patterns:
+contract AkshunSeasonPassNft is IAkshunSeasonPassNft, ERC721Burnable, Ownable  {
+    function addpresetURIs(uint16 subcollectionIdx, string[] memory _presetURIs)
+        public
+        onlyOwner
+    {
+        // Validate input params.
+
+        if (subcollectionIdx >= subcollections.length) revert ParamInvalid(0);
+        if (_presetURIs.length == 0) revert ParamInvalid(1);
+
+        Subcollection storage subcollection = subcollections[subcollectionIdx];
+
+        for (uint8 i = 0; i < _presetURIs.length;) {
+            if (bytes(_presetURIs[i]).length == 0) revert ArrayParamInvalid(1, i);
+
+            // Update/set state vars.
+
+            subcollection.presetURIs.push(_presetURIs[i]);
+            unchecked { i++; }
+        }
+
+        // NOTE: No event emitted, because it should be set before the minting (i.e. as part of the subcollection setup) which shouldn't have any real-time direct effects on the users.
+    }
+
+    // This acts as a token reveal mechanism (i.e. the tokens which are assigned to this newly added base URI will from now on return the actual/revealed URI).
+    // NOTE: We don't allow updating the base URI once it's added, hence take extra care the right URI is stored.
+    function setOrUpdateMinter(address _newMinter)
+        external
+        onlyOwner
+    {
+        // Validate input params.
+
+        // NOTE: Minter should be a smart contract, so it, and solely, defines and governs the rules for minting and burning tokens.
+        if(_newMinter == address(0) || _newMinter == owner()) revert ParamInvalid(0);
+
+        // Update/set state vars.
+
+        address oldMinter = minter;
+        minter = _newMinter;
+
+        // Emit events.
+
+        emit MinterSetOrUpdated(oldMinter, _newMinter);
+    }
+    function updateContractURI(string memory _contractURI)
+        public
+        onlyOwner
+    {
+        // Validate input params.
+
+        if (bytes(_contractURI).length == 0) revert ParamInvalid(0);
+
+        // Update/set state vars.
+
+        contractURI = _contractURI;
+
+        // Emit events.
+
+        emit ContractURIUpdated(_contractURI);
+    }
+    function addSubcollection(string[] memory _presetURIs, string memory _baseURIExtension)
+        external
+        onlyOwner
+    {
+        // Validate input params.
+
+        if (_presetURIs.length == 0) revert ParamInvalid(0);
+        if (bytes(_baseURIExtension).length == 0) revert ParamInvalid(1);
+
+        // Update/set state vars.
+
+        Subcollection storage subcollection = subcollections.push();
+        subcollection.baseURIExtension = _baseURIExtension;
+        addpresetURIs(uint16(subcollections.length - 1), _presetURIs);
+
+        // NOTE: No event emitted, because it's a part of a purily operational management which shouldn't have any real-time direct effects on the users.
+    }
+    function deleteLastSubcollection()
+        external
+        onlyOwner
+    {
+        // Validate state vars.
+
+        if (subcollections.length == 0) revert NoSubcollectionExists();
+
+        Subcollection storage lastSubcollection = subcollections[subcollections.length - 1];
+        if (lastSubcollection.used) revert SubcollectionAlreadyUsed();
+
+        // Update/set state vars.
+
+        subcollections.pop();
+
+        // NOTE: No event emitted, because it's a part of a purily operational management which shouldn't have any real-time direct effects on the users.
+    }
+    function addBaseURI(uint16 _subcollectionIdx, string memory _baseURI)
+        external
+        onlyOwner
+    {
+        // Validate input params.
+
+        if (_subcollectionIdx >= subcollections.length) revert ParamInvalid(0);
+        if (bytes(_baseURI).length == 0) revert ParamInvalid(1);
+
+        // Update/set state vars.
+
+        Subcollection storage subcollection = subcollections[_subcollectionIdx];
+
+        subcollection.baseURIs.push(_baseURI);
+
+        // Emit events.
+
+        emit BaseURIAdded(_subcollectionIdx, _baseURI);
+    }
+    function mint(uint16 subcollectionIdx, uint8 _tokenPresetURIIdx, uint8 _tokenBaseURIIdx, address _to)
+        external
+        onlyMinter
+        returns(uint256 _tokenId)
+    {
+        // Validate input params.
+
+        if (subcollectionIdx >= subcollections.length) revert ParamInvalid(0);
+        // NOTE: If the token's base URI isn't set yet (i.e. unrevealed), it uses it's preset base URI until it is (i.e. revealed).
+        // NOTE: Can't validate like this, since it's an index (i.e. it starts from `0`).
+        // if (_tokenPresetURIIdx == 0) revert ParamInvalid(1);
+
+        // Update/set state vars.
+
+        Subcollection storage subcollection = subcollections[subcollectionIdx];
+
+        lastTokenId += 1;
+        subcollection.tokenPresetURIIdxs[lastTokenId] = _tokenPresetURIIdx;
+        hTokenSubcollectionIdx[lastTokenId] = subcollectionIdx;
+
+        if (!subcollection.used) {
+            subcollection.used = true;
+        }
+        // NOTE: The tokens whose IDs are not (put) in this mapping (i.e. the first batch of revealed tokens for the subcollection, excluding its later reveals and potentially swapped tokens), implicitly use the original/first base URI, because `0` is returned for an inexistent mapping key (to save some gas by not re-setting the value to the same one, i.e. `0`).
+        if (_tokenBaseURIIdx > 0) {
+            subcollection.tokenBaseURIIdxs[lastTokenId] = _tokenBaseURIIdx;
+        }
+
+        // NOTE: All the state changes should be done before this comment (e.g. to prevent reentrancy attack).
+
+        _mint(_to, lastTokenId);
+
+        return lastTokenId;
+    }
+
+    // NOTE: We need to override this function, because we inherit from two contracts which implement this function, otherwise we wouldn't have to, since `burn` is already exposed in both of the inherited cotracts (with `external` and `public` visibility, respectively). Otherwise an error would be thrown: `TypeError: Derived contract must override function "burn". Two or more base classes define function with same name and parameter types.`.
+    // NOTE: Function modifier could be `external`, but can't be because we are overriding a function with a `public` (could be also `internal`) modifier (i.e. from `ERC721Burnable` contract).
+    }
+
+Now I want you to help me find new gas-wasting patterns from the above codes and the list of example patterns. Please be creative and think outside the box beyond the patterns listed above. Please put the new gas-wasting patterns in bullet points, using Latex syntax. Also please answer the following questions for each of the found patterns:
+
+1. How did you find this pattern? Could you explain the reasoning process, step by step, behind the discovery?
+2. What should I do, step by step, to fix the found gas-wasting patterns? Could you explain the reasoning process, step by step, behind the reason why such a fix works?
+3. On a score of 0 to 5, please rate this new pattern in terms of how much it is sacrificing readability, security, and maintainability in exchange for gas optimization (5 is the least impacted. For example, "Readability: 5; Security: 4; Maintainability: 1" means no effect on security while maintainability is largely affected.)
+
+Here are some additional requirements:
+1. If you think my prompt to you has any issues (e.g. ambiguity or lack of information), please tell me how I should improve it the next time.
+2. Please reflect on your reasoning process and tell me how you could do better next time in terms of completing the given task. If you found any issues, please also make corresponding improvements to your output this time and tell me what you did and why such improvement is necessary, in a step-by-step manner.

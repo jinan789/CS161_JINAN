@@ -1,0 +1,15 @@
+Function name: _oneInchTrade
+
+Input:
+1. _srcToken: address
+2. _srcAmount: uint256
+3. _destToken: address
+4. _calldata: bytes
+
+Output:
+1. _destPriceInSrc: uint256
+2. _srcPriceInDest: uint256
+3. _actualDestAmount: uint256
+4. _actualSrcAmount: uint256
+
+Summary: This function performs a token trade using 1inch exchange. It takes the source token address, source amount, destination token address, and 1inch calldata as input. The function returns the destination price in source tokens, source price in destination tokens, actual amount of destination tokens received, and actual amount of source tokens sent.

@@ -1,0 +1,35 @@
+Based on the information provided, here is a function called borrowAllowed that should accomplish the task described:
+
+```solidity
+pragma solidity ^0.5.16;
+
+import "./ComptrollerInterface.sol";
+import "./ComptrollerStorage.sol";
+import "./ErrorReporter.sol";
+
+contract BorrowAllowed is ComptrollerV2Storage, ComptrollerErrorReporter {
+    
+    // Check if the account is allowed to borrow the underlying asset of a given market
+    function borrowAllowed(
+        address cToken,
+        address borrower,
+        uint256 borrowAmount
+    ) public view returns (uint) {
+        Market memory market = markets[cToken];
+
+        // Check if borrowing is paused by the borrow guardian contract
+        if (market.borrowGuardianPaused) {
+            return fail(Error.MARKET_BORROW_PAUSED, FailureInfo.BORROW_PAUSED);
+        }
+
+        // Optional: Add additional conditions for borrowing here
+
+        // Return 0 if no error
+        return uint(Error.NO_ERROR);
+    }
+}
+```
+
+This contract imports the necessary interfaces and inherits ComptrollerV2Storage and ComptrollerErrorReporter. The function borrowAllowed takes in the cToken, borrower, and borrowAmount as input parameters. It then checks whether borrowing is paused by the borrow guardian contract, and if so, reports an error using the fail function. If there are no errors, it returns Error.NO_ERROR.
+
+Feel free to modify this code depending on your specific requirements and the rest of your codebase.

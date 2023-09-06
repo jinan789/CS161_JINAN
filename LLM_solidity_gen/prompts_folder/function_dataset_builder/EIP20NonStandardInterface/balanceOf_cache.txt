@@ -1,0 +1,4 @@
+Input: One address variable (owner)
+Output: One uint256 variable (balance)
+
+The balanceOf function is used to fetch the balance of a specific address in terms of tokens. It simply takes in the address (owner) as input and returns the balance (uint256) of tokens that the address owns.

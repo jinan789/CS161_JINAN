@@ -1,0 +1,8 @@
+Function: add
+
+1. Input:
+   - role: A Role storage structure
+   - account: An address variable
+2. Output: None
+
+Summary: The add function aims to add account privileges to the given role. It checks if the account already has the role and, if not, assigns the role to the account.

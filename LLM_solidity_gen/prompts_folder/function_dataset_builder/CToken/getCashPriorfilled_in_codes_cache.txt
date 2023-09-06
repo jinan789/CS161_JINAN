@@ -1,0 +1,9 @@
+<CODE_BEGINNING>
+/**
+ * @notice Returns the cash balance available in the contract prior to the function call
+ * @return The cash balance (uint)
+ */
+function getCashPrior() public view returns (uint) {
+    return getCash();
+}
+<CODE_ENDING>

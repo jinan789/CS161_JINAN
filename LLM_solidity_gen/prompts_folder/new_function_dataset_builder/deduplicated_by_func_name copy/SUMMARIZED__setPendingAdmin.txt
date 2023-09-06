@@ -1,0 +1,9 @@
+Function: _setPendingAdmin
+
+Input: 
+- address payable newPendingAdmin
+
+Output:
+- uint (error code)
+
+Summary: This function changes the pending admin of the contract to a new address, but only the current admin can call this function. It emits a NewPendingAdmin event, logging the old and new pending admin address, and returns an error code.

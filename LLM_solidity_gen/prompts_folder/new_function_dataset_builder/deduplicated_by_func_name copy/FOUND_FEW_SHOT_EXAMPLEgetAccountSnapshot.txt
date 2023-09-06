@@ -1,0 +1,4 @@
+The most similar function signatures to the target function `getAccountSnapshot(address account)` are:
+
+1. function balanceOf(address owner) external view returns (uint256)
+2. function borrowBalanceStored(address account) public view returns (uint)

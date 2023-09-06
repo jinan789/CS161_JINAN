@@ -1,0 +1,10 @@
+Function: _upgradeBeaconToAndCall(address newBeacon, bytes memory data, bool forceCall)
+
+Input:
+1. address newBeacon
+2. bytes memory data
+3. bool forceCall
+
+Output: None. However, it emits a BeaconUpgraded event with the newBeacon address.
+
+Summary: This function updates the beacon to a new address, emits a BeaconUpgraded event, and performs a delegate call to the implementation function of the new beacon with the provided data if the data length is greater than 0 or forceCall is true.

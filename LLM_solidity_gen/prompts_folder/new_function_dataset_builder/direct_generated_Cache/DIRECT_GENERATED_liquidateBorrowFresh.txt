@@ -1,0 +1,38 @@
+<CODE_BEGINNING>
+function liquidateBorrowFresh(address liquidator, address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal returns (uint, uint) {
+    /* Check if the liquidation is allowed according to the Comptroller contract */
+    (uint allowed, uint shortFall) = Comptroller.calcAccountLiquidity(borrower);
+    if (shortFall == 0) {
+        return (fail(Error.INVALID_ACCOUNT_PAIR), 0);
+    }
+
+    /* First ensure that the repay amount is not zero and does not overflow */
+    if (repayAmount == 0 || repayAmount == type(uint).max) {
+        return (fail(Error.INVALID_CLOSE_AMOUNT_REQUESTED), 0);
+    }
+    
+    /* Calculate the number of collateral tokens that'll be seized */
+    (uint collateralTokenAmount, uint actualRepayAmount) = Comptroller.liquidateCalculateSeizeTokens(address(this), cTokenCollateral, repayAmount);
+    if (collateralTokenAmount == 0) {
+        return (fail(Error.ZERO_COLLATERAL_TOKENS_SEIZED), 0);
+    }
+
+    /* Transfer the collateral tokens to liquidator */
+    (uint seizeError,) = cTokenCollateral.seize(liquidator, borrower, collateralTokenAmount);
+    if (seizeError != uint(Error.NO_ERROR)) {
+        return (fail(Error(fromTokenSeizeError(TokenError(seizeError))), actualRepayAmount), 0);
+    }
+
+    /* Emit a LiquidateBorrow event */
+    emit LiquidateBorrow(
+        liquidator,
+        borrower,
+        actualRepayAmount,
+        address(cTokenCollateral),
+        collateralTokenAmount
+    );
+
+    /* Return the success code and actual repay amount */
+    return (uint(Error.NO_ERROR), actualRepayAmount);
+}
+<CODE_ENDING>

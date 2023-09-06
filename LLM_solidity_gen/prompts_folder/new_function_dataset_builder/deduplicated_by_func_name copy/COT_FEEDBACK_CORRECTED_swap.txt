@@ -1,0 +1,48 @@
+Number of steps: 7
+
+Number of branches: 0
+
+Modification needed: YES
+
+NO_LABEL_CODES_BEGINNING
+function swap(
+    address srcToken,
+    uint256 srcAmount,
+    uint256 minPrice,
+    uint256 maxPrice,
+    address destToken,
+    bytes memory oneInchData
+)
+    public
+    onlyAdmin
+    returns (
+        uint256 actualDestAmount,
+        uint256 actualSrcAmount
+    )
+{
+    require(minPrice < maxPrice, "Pool: minPrice should be less than maxPrice");
+    require(srcToken != destToken, "Pool: Source and destination tokens should be different");
+
+    IERC20Detailed(srcToken).safeTransferFrom(_msgSender(), address(this), srcAmount);
+
+    uint256 destPriceInSrc;
+    uint256 srcPriceInDest;
+    (destPriceInSrc, srcPriceInDest, actualDestAmount, actualSrcAmount) = _oneInchTrade(
+        srcToken,
+        srcAmount,
+        destToken,
+        oneInchData
+    );
+
+    require(
+        destPriceInSrc >= minPrice,
+        "Pool: Swap rate is lower than the minimum acceptable price"
+    );
+    require(
+        destPriceInSrc <= maxPrice,
+        "Pool: Swap rate is higher than the maximum acceptable price"
+    );
+
+    emit Swapped(srcToken, destToken, actualSrcAmount, actualDestAmount);
+}
+NO_LABEL_CODES_ENDING

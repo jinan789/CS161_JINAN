@@ -1,0 +1,180 @@
+I want you to help me find new gas-wasting patterns for Solidity. Gas is a unique pricing mechanism in Solidity, which measures the amount of computational resources put into the execution of Solidity codes. The goal of gas optimization is to find an equivalent code instruction sequence that produces the same output while consuming less gas, which may misalign from the way people typically write codes, since code writers aim for readability and maintainability, while gas optimization might seem a little unintuitive to newcomers. For example, storage variables in Solidity are expensive in terms of gas, while memory is not, so storage operations should be avoided whenever possible. Gas is paid in real money, so saving gas is saving money.
+
+First, I will give you a list of known gas-wasting patterns. The list is numbered, with each bullet point specifying one gas-wasting pattern, which is followed by an explanation of why this pattern wastes gas. I want you to read through these and learn how to find new gas-wasting patterns from it. The list is as follows:
+
+1. Repeated computation of the same expression: including repetitive reads of the same expensive storage variable (e.g. Overuse of expensive storage variables). This could be solved by introducing an intermediate variable to hold the value.
+ 
+2. Extractable code chunks: if there are multiple chunks of codes that perform the same/similar functionalities, then we could abstract them into one function (or modifier) to save deployment costs 
+
+3. Variable refactoring: by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+
+4. Redundant operations with same effects: redundant operations that overwrite the effect of the previous operation, making the previous useless
+
+5. Pre-computable operations on constants: performing comparisons (or say other operations) to constants is useless and could be pre-computed
+
+6. Persistent conditional checks: some of the condition checks may always evaluate to true or always evaluate to false, which could be directly replaced by their evaluated values
+
+7. Simplifiable conditional operations: expressions that involve logical operations that could be simplified to reduce the amount of computational workload.
+
+8. "dead codes." codes that are guaranteed not to be executed (e.g. unreachable conditional branch) should be removed.
+9. "Opaque predicate." If the outcome of a predicate could be inferred to be true/false without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+10. "Expensive operations in a loop." If an gas-expensive operation is executed multiple times in a loop, while there is a way to equivalently move it out of the loop to execute only once (e.g. storing a storage variable in a memory variable and performing operations on the memory variable inside the loop), then we should do it to save gas.
+11. "Constant outcome of a loop." If the outcome of a loop could be inferred without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+12. "Loop fusion." If two loops have the same starting and stopping conditions with the same increment steps, then we could consider combining them into one (e.g. delete the second loop, and put its loop body codes into the first one) if they have no dependencies. This way, we save the logical comparisons, conditional jumps, as well as the incremental steps of the second loop, which saves computation and thus gas.
+13. "Repeated computations in a loop." If there are expressions that produce the same outcome in each iteration of a loop, we could move it out of the loop and execute only once, which saves computation.
+14. "Struct variable refactoring." If a struct used in a contract contains some fields that are used more often and some that are less often, then by breaking up the struct into two, where the frequently used fields are now put as a separate struct, we get to avoid unnecessary reads on the less often used fields and save gas.s
+
+Next, I will give you a chunk of Solidity codes from which you will find gas-inefficient patterns; note that I have removed simple functions from the contract and only kept complex ones, with the hope that you could focus on the most complicated function codes
+contract MTMCharactersRendererV3OnChain is Ownable {
+    function _getModelParams(uint256 tokenId_) public view returns (Model memory) {
+        // Prepare the delivery Model
+        Model memory _Model;
+        
+        // Grab the necessary data for TokenId
+        iMarsRulerRegistry.GearConfig memory _RulerGear = 
+            MRR.characterToGearConfig(tokenId_);
+
+        iCS.Character memory _Character = CS.characters(tokenId_);
+        uint256 _spaceCapsuleId = _Character.spaceCapsuleId_;
+
+        bool _HelmetOff = CR.characterToHelmetOff(tokenId_);
+
+        // The model is a MALE
+        if (_Character.race_ == 1 ||
+            _Character.race_ == 3 ||
+            _Character.race_ == 5) {
+
+            // If the helmet is off, use the race head
+            _Model.raceHeadId = _HelmetOff ? (_Character.race_ + 100) : 1;
+
+            _Model.raceBodyId = 1;
+            _Model.raceArmsId = 1;
+        }
+
+        // The model is a FEMALE
+        else if (_Character.race_ == 2 ||
+            _Character.race_ == 4 ||
+            _Character.race_ == 6) {
+
+            // If the helmet is off, use the race head
+            _Model.raceHeadId = _HelmetOff ? (_Character.race_ + 100) : 2;
+
+            _Model.raceBodyId = 2;
+            _Model.raceArmsId = 2;
+        }
+
+        // The model is not MALE or FEMALE
+        else {
+            _Model.raceHeadId = _Character.race_;
+            _Model.raceBodyId = _Character.race_;
+            _Model.raceArmsId = _Character.race_;
+        }
+
+        // Check if RulerGear exists config
+        if (_RulerGear.hasConfig) {
+            _Model.vehicleId    = _RulerGear.vehicleType;
+            _Model.weaponId     = _RulerGear.weaponType;
+            _Model.armsId       = _RulerGear.armsType;
+            _Model.chestId      = _RulerGear.chestType;
+            _Model.artifactId   = _RulerGear.artifactType;
+            _Model.headId       = _RulerGear.headType;
+            // Ring doesn't exist on the image
+        }
+
+        // If RulerGear does not exists config
+        else {
+            _Model.vehicleId    = uint8(SCLib._getVehicleId (_spaceCapsuleId));
+            _Model.weaponId     = uint8(SCLib._getWeaponId  (_spaceCapsuleId));
+            _Model.armsId       = uint8(SCLib._getArmsId    (_spaceCapsuleId));
+            _Model.chestId      = uint8(SCLib._getChestId   (_spaceCapsuleId));
+            _Model.artifactId   = uint8(SCLib._getArtifactId(_spaceCapsuleId));
+            _Model.headId       = uint8(SCLib._getHeadId    (_spaceCapsuleId));
+        }
+
+        // Now, if _HelmetOff is true, or the race is > 6,
+        // override the helmet (head) slot
+        if (_HelmetOff || _Character.race_ > 6) _Model.headId = 99;
+
+        // Return the model
+        return _Model;
+    }
+
+    /////////////////////////
+    ///// SVG Constants ///// 
+    /////////////////////////
+    string private constant _svgHeader = "<svg id='martians' width='100%' height='100%' version='1.1' viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>";
+    string private constant _svgFooter = "<style>#martians{shape-rendering: crispedges; image-rendering: -webkit-crisp-edges; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges; image-rendering: pixelated; -ms-interpolation-mode: nearest-neighbor;}</style></svg>";
+
+    function O_setModels(address[13] calldata modelAddresses_) external onlyOwner {
+        Artifacts   = iModelStorage(modelAddresses_[0] );
+        Weapons     = iModelStorage(modelAddresses_[1] );
+        Vehicle1    = iModelStorage(modelAddresses_[2] );
+        Vehicle2    = iModelStorage(modelAddresses_[3] );
+        RaceHead    = iModelStorage(modelAddresses_[4] );
+        RaceBody    = iModelStorage(modelAddresses_[5] );
+        RaceArms    = iModelStorage(modelAddresses_[6] );
+        MaleHead    = iModelStorage(modelAddresses_[7] );
+        MaleChest   = iModelStorage(modelAddresses_[8] );
+        MaleArms    = iModelStorage(modelAddresses_[9] );
+        FemaleHead  = iModelStorage(modelAddresses_[10]);
+        FemaleChest = iModelStorage(modelAddresses_[11]);
+        FemaleArms  = iModelStorage(modelAddresses_[12]);
+    }
+    function _getVehicleB64(uint8 gearId_) private view returns (string memory) {
+        if (gearId_ < 11) {
+            return Vehicle1.getModel(gearId_); // 1-10
+        }
+        else {
+            return Vehicle2.getModel(gearId_); // 11+
+        }    
+    }
+
+    // Condition Dependant Accessories
+    function _imageWrapper(string memory uri_) private pure 
+    returns (string memory) {
+        string memory _wrapper = string(abi.encodePacked(
+            "<image x='0' y='0' width='64' height='64' image-rendering='pixelated' preserveAspectRatio='xMidYMid' href='data:image/png;base64,",
+            uri_,
+            "'/>"
+        ));
+        return _wrapper;
+    }
+    function renderMartian(uint256 tokenId_) public view returns (string memory) {
+        // Load the Model
+        Model memory _Model = _getModelParams(tokenId_);
+
+        // Render the Model
+        string memory _svg = string(abi.encodePacked(
+            _svgHeader,
+            _imageWrapper(_getVehicleB64(_Model.vehicleId)),
+            _imageWrapper(_getWeaponB64(_Model.weaponId)),
+            _imageWrapper(_getRaceBodyB64(_Model.raceBodyId)),
+            _imageWrapper(_getRaceArmsB64(_Model.raceArmsId)),
+            // Male vs Female Logic. We use raceBodyId as race model
+            _imageWrapper(_getArmsB64(_Model.armsId, _Model.raceBodyId)),
+            _imageWrapper(_getChestB64(_Model.chestId, _Model.raceBodyId))
+        ));
+
+        _svg = string(abi.encodePacked(
+            _svg,
+            _imageWrapper(_getArtifactB64(_Model.artifactId)),
+            _imageWrapper(_getRaceHeadB64(_Model.raceHeadId)),
+            // Helmet, Off, On, Etc ID
+            _imageWrapper(_getHeadB64(_Model.headId, _Model.raceBodyId)),
+            "</svg>"
+        ));
+
+        return _svg;
+    }
+    }
+Now that I have given you the necessary information, I want you to help me find new gas-wasting patterns from the above codes, based on what you learn from the list of patterns. Please be creative and think out of the box beyond the patterns listed above. Please put the new gas wasting patterns in bullet points (in the form of '1.', '2.', etc), and answer the following questions for each of the found patterns (in sub-bullet-points under each bullet point):
+
+1. How did you find this pattern? Could you explain the reasoning process, step by step, behind the discovery?
+
+2. What should I do, step by step, to fix the found gas-wasting patterns? Could you explain the reasoning process, step by step, behind the reason why such a fix works?
+
+3. On a score of 0 to 5, could you please tell me how would you rate this found new pattern, in terms of how much it is sacrificing readability, security, and maintainability in exchange for gas optimization (5 is the least impacted. For example, Security score of 5 means implementing the found gas-optimization pattern would have no effect on security, whereas 1 means it would reduce security)? Please format your answer as in "Readability: 5; Security: 4; Maintainability: 3". Please also provide explanations.
+
+Here are some additional requirements:
+1. If you think my prompt to you has any issues (e.g. ambiguity or lack of information), please tell me how I should improve it in the next time.
+2. please help me format your answer in the form of a Latex section (e.g. \section*{Analysis of Provided Solidity Code}), since I want to assert it to a Latex document.

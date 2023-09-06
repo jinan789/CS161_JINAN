@@ -1,0 +1,10 @@
+Function: borrowVerify
+
+Input:
+1. cToken (address)
+2. borrower (address)
+3. borrowAmount (uint)
+
+Output: None
+
+Summary: The function borrowVerify checks and validates the borrow amount for a given borrower and cToken.

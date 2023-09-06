@@ -1,0 +1,22 @@
+After analyzing the given Solidity code, I haven't found any gas-wasting patterns that match the provided list. Therefore, there seem to be no specific gas-wasting issues in your code based on the given guidelines.
+
+As for Task 1, I haven't found any patterns that match gas-wasting patterns, so I don't have any suggestions for you to improve the code based on the given list.
+
+For Task 2, since I haven't identified any gas-wasting patterns in your code, no modifications are needed. However, I'll provide the code as is with the required tokens:
+
+<CODE_BEGINNING>
+function getAccountSnapshot(address account) view returns (uint, uint, uint, uint) {
+    uint cTokenBal = balanceOf(account);
+
+    uint borrowBal = borrowBalanceStored(account);
+
+    (MathError exchangeRateMathErr, uint exchangeRateMantissa) = exchangeRateStoredInternal();
+    if (exchangeRateMathErr != MathError.NO_ERROR) {
+        return (fail(Error.MATH_ERROR, FailureInfo.EXCHANGE_RATE_MATH_ERROR), 0, 0, 0);
+    }
+    
+    return (uint(Error.NO_ERROR), cTokenBal, borrowBal, exchangeRateMantissa);
+}
+<CODE_ENDING>
+
+Please note that I haven't made any changes to your provided code, as it doesn't seem to have any evident issues related to gas consumption based on the given guidelines.

@@ -1,0 +1,47 @@
+TASK 1:
+
+1. In your code, you define `halfExp` and `expScale` after using them in the method `mul256()`. This will cause a compilation issue.
+
+Fix suggestion: Move the definition of `uint expScale` and `Exp memory halfExp` before the call to `mul256()`. 
+
+2. The constants in the code should be declared and used instead of directly using the values.
+
+Fix suggestion: Declare a constant for `expScale` value and then use it within the contract.
+
+3. The method you referred to as `mulUint` is actually called `mulUInt`.
+
+Fix suggestion: Modify the comment to reflect the proper name of the used method.
+
+TASK 2:
+
+Here is the corrected code with modifications made:
+
+<CODE_BEGINNING>
+function mulExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory) {
+    //CHANGES BASED ON CALLED CODE MADE: Define expScale and halfExp before using them
+    uint constant expScale = 10**18;
+    Exp memory halfExp = Exp({mantissa: expScale / 2});
+
+    //MODIFICATIONS MADE: Replaced mulUint with mul256 from CarefulMath
+    (MathError err0, uint doubleScaledProduct) = mul256(a.mantissa, b.mantissa);
+    if (err0 != MathError.NO_ERROR) {
+        return (err0, Exp({mantissa: 0}));
+    }
+
+    // We add 1/2 to care for rounding instead of truncation. 
+    // Note: this may still overflow, but it would have already done so with the simpler solution.
+    (MathError err1, uint result) = addUint(halfExp.mantissa, doubleScaledProduct);
+    if (err1 != MathError.NO_ERROR) {
+        return (err1, Exp({mantissa: 0}));
+    }
+
+    // now we just need to "unscale" our uint by dividing by scalar one, after carefully rounding.
+    //MODIFICATIONS MADE: Replaced divUint with div256ByExp from ExponentialNoError
+    (MathError err2, uint unscaledResult) = div256ByExp(result, Exp({mantissa: expScale}));
+    if (err2 != MathError.NO_ERROR) {
+        return (err2, Exp({mantissa: 0}));
+    }
+
+    return (MathError.NO_ERROR, Exp({mantissa: unscaledResult}));
+}
+<CODE_ENDING>

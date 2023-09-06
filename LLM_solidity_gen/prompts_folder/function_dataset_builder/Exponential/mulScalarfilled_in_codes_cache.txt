@@ -1,0 +1,14 @@
+<CODE_BEGINNING>
+/**
+ * @dev Multiplies the mantissa of the given Exp struct by a scalar,
+ *      and returns an updated Exp struct with the result, along with a MathError if any.
+ */
+function mulScalar(Exp memory a, uint scalar) pure internal returns (MathError, Exp memory) {
+    (MathError err, uint result) = mulUint(a.mantissa, scalar);
+    if (err != MathError.NO_ERROR) {
+        return (err, Exp({mantissa: 0}));
+    } else {
+        return (MathError.NO_ERROR, Exp({mantissa: result}));
+    }
+}
+<CODE_ENDING>

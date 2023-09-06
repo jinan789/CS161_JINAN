@@ -1,0 +1,5 @@
+Input: None
+
+Output: uint (a single unsigned integer)
+
+The `borrowRatePerBlock` function returns the current borrow interest rate per block for the contract.

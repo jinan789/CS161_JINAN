@@ -1,0 +1,5 @@
+Function: exchangeRateCurrent
+Input: None
+Output: uint (the calculated exchange rate)
+
+Summary: This function accrues interest and then returns the exchange rate from the underlying asset to the CToken, scaled by 1e18.

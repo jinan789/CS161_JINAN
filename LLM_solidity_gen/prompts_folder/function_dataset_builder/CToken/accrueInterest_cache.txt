@@ -1,0 +1,5 @@
+Function: accrueInterest
+Input: None
+Output: uint (Error code)
+
+Summary: This function accrues interest on a Compound platform by calculating the interest accumulated in borrow and reserve pools since the last accrual. It updates the total borrows, total reserves, and borrow index for the money market, emitting an AccrueInterest event with the relevant data.

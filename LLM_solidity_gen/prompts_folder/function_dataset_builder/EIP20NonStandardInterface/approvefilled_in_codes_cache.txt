@@ -1,0 +1,15 @@
+<CODE_BEGINNING>
+
+/**
+ * @notice Approve `spender` to spend a certain `amount` of tokens on behalf of the token owner
+ * @param spender The address of the account which may transfer tokens
+ * @param amount The number of tokens to be approved
+ * @return success True if the approval is successful
+ */
+function approve(address spender, uint256 amount) external returns (bool success) {
+    allowance[msg.sender][spender] = amount;
+    emit Approval(msg.sender, spender, amount);
+    return true;
+}
+
+<CODE_ENDING>

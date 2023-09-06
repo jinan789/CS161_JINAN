@@ -1,0 +1,17 @@
+I will give you solidity contracts, and I want you to give me a summary of each function that is contained in the contract. Write your answer in the form of bullet points. Make sure to start each bullet point with the function signature that you are summarizing, and follow it with the summary. For the last bullet point, please give me a summary of the functions in the previous bullet points as a summary of the entire contract.  Please ignore functions that only have signatures and do not have any actual implementations.
+
+Here is an example of the sample output, where the summary of functions starts with the <START_FUNCTIONS> token and ends with the <END_FUNCTIONS> token, and the summary of contracts starts with the <START_CONTRACTS> token and ends with the <END_CONTRACTS> token. Each bullet point starts at a new line:
+
+<START_FUNCTIONS>
+- constructor(string memory _name, string memory _symbol, uint8 _decimals): Initializes the ERC20 contract with a name, symbol and decimals count.
+- approve(address spender, uint256 amount) public virtual returns (bool): Approves the `spender` to spend `amount` of tokens on behalf of the caller.
+- transfer(address to, uint256 amount) public virtual returns (bool): Transfers `amount` of tokens from the caller to the `to` address.
+<END_FUNCTIONS>
+<START_CONTRACTS>
+Summary of the entire contract:
+The ERC20 contract implementation provides basic functionality for a token, including transferring tokens, approving a spender, and manipulating allowances. It also implements EIP-2612 to allow for off-chain approvals via permit(). The contract provides internal minting and burning functions for managing token supply. The domain separator functions help prevent replay attacks across different chains.
+<END_CONTRACTS>
+
+In addition, for each function, please also include the format of input and output, as well as a brief summary of what the input and output are. This information should be included in their respective bullet points.
+
+Here are the codes: 

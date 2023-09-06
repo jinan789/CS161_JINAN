@@ -1,0 +1,1 @@
+The functionality I want you to write is to collect rewards and distribute them directly to a set of given addresses in a proportional manner. 3 parameters will be given, including the list of addresses to be distributed to, the proportion of each address, and the looksRareClaim amount that is to be distributed. 

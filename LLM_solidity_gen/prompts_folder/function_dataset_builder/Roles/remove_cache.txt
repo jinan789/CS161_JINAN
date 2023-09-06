@@ -1,0 +1,9 @@
+Function: remove
+
+1. Input format:
+   - Role struct (storage reference)
+   - Address (account)
+
+2. Output format: None
+
+Summary: The function removes an account's access to a specific role, if the account has that role assigned.

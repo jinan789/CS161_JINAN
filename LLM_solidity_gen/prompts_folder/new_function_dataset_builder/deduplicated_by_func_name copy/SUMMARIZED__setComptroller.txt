@@ -1,0 +1,5 @@
+Function: _setComptroller
+Input: newComptroller (ComptrollerInterface)
+Output: uint (Error code)
+
+Summary: This function allows the admin to replace the current comptroller with a new one. It checks whether the caller is the admin and the new comptroller passes the "isComptroller" validation. If the conditions are met, the function emits a NewComptroller event and returns an "Error.NO_ERROR" code.

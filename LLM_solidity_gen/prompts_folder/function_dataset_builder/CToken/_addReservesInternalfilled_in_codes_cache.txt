@@ -1,0 +1,24 @@
+<CODE_BEGINNING>
+/**
+ * @notice Add reserves to the CToken
+ * @param addAmount The amount of reserves to add
+ * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+ */
+function _addReservesInternal(uint addAmount) internal returns (uint) {
+    // Accrue interest
+    uint err = accrueInterest();
+    if (err != uint(Error.NO_ERROR)) {
+        return failOpaque(Error(err), FailureInfo.ADD_RESERVES_ACCRUE_INTEREST_FAILED, uint(0));
+    }
+
+    // Perform the transfer in
+    uint actualAddAmount = doTransferIn(msg.sender, addAmount);
+
+    // Update totalReserves
+    totalReserves = add_(totalReserves, actualAddAmount);
+
+    emit ReservesAdded(msg.sender, actualAddAmount, totalReserves);
+
+    return uint(Error.NO_ERROR);
+}
+<CODE_ENDING>

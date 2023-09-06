@@ -1,0 +1,7 @@
+    function transfer(address dst, uint256 amount) external nonReentrant returns (bool) {
+        return transferTokens(msg.sender, msg.sender, dst, amount) == uint(Error.NO_ERROR);
+    }
+
+    function transferFrom(address src, address dst, uint256 amount) external nonReentrant returns (bool) {
+        return transferTokens(msg.sender, src, dst, amount) == uint(Error.NO_ERROR);
+    }

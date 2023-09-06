@@ -1,0 +1,1 @@
+FOUND: Repeated computations in a loop: In your code, you are calling the `_getDecimals(srcToken)` and `_getDecimals(destToken)` twice each when calculating the exchange rates, srcPriceInDest and destPriceInSrc. Instead of calling these functions twice, you could store the decimals in a variable and then use the variable in the calculations.

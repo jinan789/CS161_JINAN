@@ -1,0 +1,42 @@
+    function callAndTransfer721(bytes calldata inputs, address protocol)
+        internal
+        returns (bool success, bytes memory output)
+    {
+        // equivalent: abi.decode(inputs, (uint256, bytes, address, address, uint256))
+        (uint256 value, bytes calldata data) = getValueAndData(inputs);
+        address recipient;
+        address token;
+        uint256 id;
+        assembly {
+            // 0x00 and 0x20 offsets are value and data, above
+            recipient := calldataload(add(inputs.offset, 0x40))
+            token := calldataload(add(inputs.offset, 0x60))
+            id := calldataload(add(inputs.offset, 0x80))
+        }
+        (success, output) = protocol.call{value: value}(data);
+        if (success) ERC721(token).safeTransferFrom(address(this), map(recipient), id);
+    }
+
+
+    function callAndTransfer1155(bytes calldata inputs, address protocol)
+        internal
+        returns (bool success, bytes memory output)
+    {
+        // equivalent: abi.decode(inputs, (uint256, bytes, address, address, uint256, uint256))
+        (uint256 value, bytes calldata data) = getValueAndData(inputs);
+        address recipient;
+        address token;
+        uint256 id;
+        uint256 amount;
+        assembly {
+            // 0x00 and 0x20 offsets are value and data, above
+            recipient := calldataload(add(inputs.offset, 0x40))
+            token := calldataload(add(inputs.offset, 0x60))
+            id := calldataload(add(inputs.offset, 0x80))
+            amount := calldataload(add(inputs.offset, 0xa0))
+        }
+        (success, output) = protocol.call{value: value}(data);
+        if (success) ERC1155(token).safeTransferFrom(address(this), map(recipient), id, amount, new bytes(0));
+    }
+
+

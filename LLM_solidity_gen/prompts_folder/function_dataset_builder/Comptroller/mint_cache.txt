@@ -1,0 +1,5 @@
+Function: mint
+Input: 1 variable - mintAmount (uint)
+Output: 1 variable - uint
+
+Summary: The mint function allows a user to mint, or create, a specified amount of tokens in the specified contract.

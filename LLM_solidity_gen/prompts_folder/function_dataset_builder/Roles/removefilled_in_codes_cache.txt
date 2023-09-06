@@ -1,0 +1,9 @@
+<CODE_BEGINNING>
+/**
+ * @dev Remove an account's access to this role.
+ */
+function remove(Role storage role, address account) internal {
+    require(has(role, account), "Roles: Account does not have this role");
+    role.bearer[account] = false;
+}
+<CODE_ENDING>

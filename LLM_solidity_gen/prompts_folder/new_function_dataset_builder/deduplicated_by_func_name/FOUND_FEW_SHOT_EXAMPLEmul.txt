@@ -1,0 +1,4 @@
+The two function signatures with the most similar functionality to the target function are:
+
+1. function mul(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256)
+2. function mul(uint256 a, uint256 b) internal pure returns (uint256)

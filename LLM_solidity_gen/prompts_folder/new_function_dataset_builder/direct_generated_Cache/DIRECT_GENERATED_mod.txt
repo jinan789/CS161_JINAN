@@ -1,0 +1,13 @@
+<CODE_BEGINNING>
+/**
+ * @dev Computes the modulus (remainder) of a divided by b, and throws an error
+ * with the specified error message if b is zero.
+ * @param a The dividend.
+ * @param b The divisor, must be non-zero.
+ * @return The modulus (remainder) of a divided by b.
+ */
+function modWithError(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    require(b != 0, errorMessage);
+    return a % b;
+}
+<CODE_ENDING>

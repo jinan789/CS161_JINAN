@@ -1,0 +1,3 @@
+This is a function in a smart contract written in Solidity programming language. The function is called liquidateBorrowAllowed and it takes five input parameters: cTokenBorrowed, cTokenCollateral, liquidator, borrower, and repayAmount. The function returns an unsigned integer value.
+
+The purpose of this function is to determine if a liquidation of a borrower's collateral asset is allowed to occur. The function first checks if both the borrowed and collateral assets are listed. If either asset is not listed, the function returns an error code.

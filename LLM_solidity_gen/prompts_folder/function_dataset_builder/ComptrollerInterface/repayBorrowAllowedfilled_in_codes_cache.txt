@@ -1,0 +1,30 @@
+<CODE_BEGINNING>
+function repayBorrowAllowed(address cToken, address payer, address borrower, uint repayAmount) external returns (uint) {
+    
+    // Check if the repayment amount is greater than zero
+    if (repayAmount == 0) {
+        return 1; // Error code 1: Repay amount should be greater than zero
+    }
+    
+    // Check if the payer has enough balance to repay the borrowed amount
+    // This might require an interface to be added for the cToken to check the balance of the payer
+    // Here, I assume the cToken contract has a `balanceOf` function to check the balance
+    ERC20Interface cTokenContract = ERC20Interface(cToken);
+    uint payerBalance = cTokenContract.balanceOf(payer);
+    
+    if (payerBalance < repayAmount) {
+        return 2; // Error code 2: Payer has insufficient balance to repay the borrowed amount
+    }
+    
+    // Check if the borrower has an outstanding borrow amount greater than or equal to the repayAmount
+    // This might require an interface to be added for the cToken to check the total borrowed amount by the borrower
+    // Here, I assume the cToken contract has a `borrowBalance` function to check the total borrowed amount
+    uint borrowerBorrowBalance = cTokenContract.borrowBalance(borrower);
+
+    if (borrowerBorrowBalance < repayAmount) {
+        return 3; // Error code 3: Borrower's outstanding borrow amount is less than the repay amount
+    }
+    
+    return 0; // Success, repayBorrow is allowed
+}
+<CODE_ENDING>

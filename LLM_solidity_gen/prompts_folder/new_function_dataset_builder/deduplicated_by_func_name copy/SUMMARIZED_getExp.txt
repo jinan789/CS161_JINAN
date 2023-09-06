@@ -1,0 +1,4 @@
+Input: Two uint variables, 'num' (numerator) and 'denom' (denominator).
+Output: (1) A MathError indicating success or error type, (2) An Exp struct representing the resulting decimal value.
+
+Summary: The getExp function creates and returns a fixed-precision decimal value (Exp struct) by dividing the given numerator ('num') by the given denominator ('denom'). It first scales the numerator by multiplying it with 10^18 and then divides the scaled numerator by the denominator. The function returns a MathError to indicate success or one of the possible error types, e.g. if the scaled numerator exceeds the maximum integer or if the denominator is zero.

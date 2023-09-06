@@ -1,0 +1,11 @@
+function _setPendingAdmin(address payable newPendingAdmin) external returns (uint) {
+    // Check caller is admin
+    require(msg.sender == admin, "only admin can set pending admin");
+
+    address oldPendingAdmin = pendingAdmin;
+    pendingAdmin = newPendingAdmin;
+
+    emit NewPendingAdmin(oldPendingAdmin, newPendingAdmin);
+
+    return uint(Error.NO_ERROR);
+}

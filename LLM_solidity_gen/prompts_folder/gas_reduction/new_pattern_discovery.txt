@@ -1,0 +1,29 @@
+I want you to help me find new gas-wasting patterns for Solidity at the opcode level. To help you accomplish this task, I will give you two types of information, namely a list of known gas-wasting patterns as a few-shot example for you, as well as a chunk of opcodes from compiled Solidity codes.
+
+Before giving you the information, I want to tell you a high-level idea of gas optimization. Each operation in the opcode sequence consumes a certain amount of gas based on their opcode types, which costs money. If we could find an equivalent opcode sequence that produces the same output while consuming less gas, then this would save money for Solidity users.
+
+Also, here is a list of examples on how the opcodes are used:
+1. dup(X): duplicate the item at the number x position of the stack, and put the duplicated result on the top of the stack
+2. iszero: removes the top item of the stack, compares it to 0, and puts the result (1 if the item was 0, and 0 otherwise) on the top of the stack
+
+Now, the list of known gas-wasting patterns are given below. The list is numbered, with each bullet point starting with a specification of the gas-wasting pattern, enclosed between [// and //]. What follows the specification (i.e. after the "//]" token) is an explanation of why this pattern wastes gas. The list is as follows:
+
+1. [//{swap(X), swap(X)} → delete, 1 ≤ X ≤ 16//]: Swapping on the same data twice is equivalent to doing nothing
+
+2. [//{M consecutive jumpdests} → {jumpdest}, M ≥ 2//]: M consecutive jumpdests is equivalent to one jump
+
+3. [//{OP, pop} → {pop}, OP ∈ {iszero, not, balance, calldataload, extcodesize, blockhash, mload, sload}//]: This OP consumes the top item of the stack, and puts its outcome on the top of the stack, where popping the outcome immediately is equivalent to just popping the top item of the stack
+
+4. [//{OP, pop} → {pop, pop}, OP ∈ {add, sub, mul, div, sdiv, mod, smod, exp, sigextnd, lt, gt, slt, sgt, eq, and, or, xor, byte, sha3}//]: This OP consumes the top two items of the stack, and puts its outcome on the top of the stack, where popping the outcome immediately is equivalent to just popping the top two items of the stack
+
+5. [//{OP, pop} → {pop, pop, pop}, OP ∈ {addmod, mulmod}//]: This OP consumes the top three items of the stack, and puts its outcome on the top of the stack, where popping the outcome immediately is equivalent to just popping the top three items of the stack
+
+6. [//{OP, pop} →  delete, OP ∈ {address, origin, caller, callvalue, calldatasize, codesize, gasprice, coinbase, timestamp, number, difficulty, gaslimit, pc, msize, gas}//]: This OP does not consume any item of the stack, and puts its outcome on the top of the stack, where popping the outcome immediately is equivalent to just doing nothing
+
+7. [//{swap1, swap(X), OP, dup(X), OP} → {dup2, swap(X+1), OP, OP}, 2 ≤ X ≤ 15, OP ∈ {add, mul, and, or, xor}//]: Assume a, b, c are the top 3 items and x is the xth item on the stack.  [swap1, swap(X), and OP] effectively applies OP on x and a, and saves b in the xth position. [dup(X), OP] effectively puts a copy of b on the top of the stack, and then performs OP(OP(a,x), b). This is equivalent to first using [dup2, swap(X+1)] to put [x a b] on the top of the stack, and applying OP to get OP(OP(a,x), b)
+
+8. [//{OP, stop} → {stop}, OP can be any operation except jumpdest, jump, jumpi and all operations that change storage//]: stop halts the execution of the smart contract and then stack and memory are cleared. In this way, Op effectively has no effect on the stack
+
+
+Next, I will give you a chunk of Solidity opcodes, and I want you to help me find gas-wasting patterns similar to the list given above. Please follow a similar format as the list above when introducing the gas-wasting patterns, and be as detailed as possible in your explanation; make sure all the found patterns actually exist in the given codes:
+

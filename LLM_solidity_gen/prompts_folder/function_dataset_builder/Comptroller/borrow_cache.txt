@@ -1,0 +1,10 @@
+Function Name: borrow
+
+Input:
+1. uint borrowAmount
+
+Output:
+1. uint (returning only a single unsigned integer)
+
+Summary:
+The function borrow takes a single unsigned integer as input named borrowAmount. The purpose of this function is to perform a borrowing action with the given borrow amount. It will return an unsigned integer as the result of the borrowing process.

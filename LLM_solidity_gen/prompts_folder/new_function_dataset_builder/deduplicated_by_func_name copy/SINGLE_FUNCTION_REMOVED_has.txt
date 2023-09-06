@@ -1,0 +1,17 @@
+
+The function that I want you to summarize is has(Role storage role, address account, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signatureS, with the purpose of providing richer background information for you. The codes are: 
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/**
+ * @title Roles
+ * @dev Library for managing addresses assigned to a Role.
+ */
+library Roles {
+    struct Role {
+        mapping (address => bool) bearer;
+    }
+
+
+    function add(Role storage role, address account) internal {
+    function remove(Role storage role, address account) internal {

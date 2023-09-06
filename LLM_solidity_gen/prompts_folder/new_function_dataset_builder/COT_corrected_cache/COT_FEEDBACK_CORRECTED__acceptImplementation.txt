@@ -1,0 +1,36 @@
+TASK 1: Step-by-step plan for the functionality
+
+1. Check if the caller (msg.sender) is the same as the pendingComptrollerImplementation and if the pendingComptrollerImplementation address is not the zero address (0x0). If this condition is not met, then return an error for unauthorized access.
+
+2. If the condition is met, store the current comptrollerImplementation address in a temporary variable (oldImplementation).
+
+3. Update the comptrollerImplementation address to the pendingComptrollerImplementation address.
+
+4. Set the pendingComptrollerImplementation address to the zero address (0x0) to clear it.
+
+5. Emit a NewImplementation event with the oldImplementation and the updated comptrollerImplementation address.
+
+6. Return success (NO_ERROR).
+
+Now let's check your provided code and see if it follows the steps in the plan:
+
+function _acceptImplementation() public returns (uint) {
+    // Check that the caller is the pending implementation and not the zero address
+    if (msg.sender != pendingComptrollerImplementation || pendingComptrollerImplementation == address(0)) {
+        return fail(Error.UNAUTHORIZED, FailureInfo.ACCEPT_PENDING_IMPLEMENTATION_ADDRESS_CHECK);
+    }
+
+    // Update the current comptroller implementation
+    address oldImplementation = comptrollerImplementation;
+    comptrollerImplementation = pendingComptrollerImplementation;
+
+    // Clear the pending implementation
+    pendingComptrollerImplementation = address(0);
+
+    // Emit the NewImplementation event
+    emit NewImplementation(oldImplementation, comptrollerImplementation);
+
+    return uint(Error.NO_ERROR);
+}
+
+After the analysis, it appears that your provided code follows the steps outlined in the plan correctly. There are no additional improvements needed. Great job!

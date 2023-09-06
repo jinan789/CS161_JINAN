@@ -1,0 +1,23 @@
+I want to write some Solidity codes and I want you to act as a software engineering designer and tell me how to break down the task by functionality. More specifically, please help break down the task into different functions, and give me a list of the functions to be generated in the form of bullet points, where each bullet point is a function with the following information:
+
+1. Function signature
+2. The input and output format of the function
+3. An overall description of the functionalities of the function, which should be informative enough for an GPT-4 agent to understand and generate the corresponding codes
+
+Here is an example of how your output format should be:
+
+<FUNCTION_SIGNATURE_START>
+The function signature should be put here
+<FUNCTION_SIGNATURE_END>
+
+<INPUT_OUTPUT_START>
+The input and output format should be put here
+<INPUT_OUTPUT_END>
+
+<FUNCTIONS_DESCRIPTION_START>
+1. The description of the first function should be put here
+2. The description of the second function should be put here
+3. ...
+<FUNCTIONS_DESCRIPTION_END>
+
+Here is the task we are trying to accomplish:

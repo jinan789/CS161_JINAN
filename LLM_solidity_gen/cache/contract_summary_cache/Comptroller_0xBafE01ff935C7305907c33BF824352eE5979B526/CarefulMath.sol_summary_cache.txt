@@ -1,0 +1,26 @@
+code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/CarefulMath.sol
+<START_FUNCTIONS>
+- mulUInt(uint a, uint b) internal pure returns (MathError, uint): Multiplies two numbers 'a' and 'b', returns an error on overflow, and the product if no errors.
+  - Input: Two unsigned integers, a and b.
+  - Output: A MathError enum value indicating any errors and an unsigned integer representing the product.
+
+- divUInt(uint a, uint b) internal pure returns (MathError, uint): Performs integer division between 'a' and 'b', returns an error if division by zero, and the quotient if no errors.
+  - Input: Two unsigned integers, a and b.
+  - Output: A MathError enum value indicating any errors and an unsigned integer representing the quotient.
+
+- subUInt(uint a, uint b) internal pure returns (MathError, uint): Subtracts 'b' from 'a', returns an error on underflow (i.e., if b is greater than a), and the result if no errors.
+  - Input: Two unsigned integers, a and b.
+  - Output: A MathError enum value indicating any errors and an unsigned integer representing the result.
+
+- addUInt(uint a, uint b) internal pure returns (MathError, uint): Adds 'a' and 'b', returns an error on overflow, and the result if no errors.
+  - Input: Two unsigned integers, a and b.
+  - Output: A MathError enum value indicating any errors and an unsigned integer representing the result.
+
+- addThenSubUInt(uint a, uint b, uint c) internal pure returns (MathError, uint): Adds 'a' and 'b', then subtracts 'c', returns an error if any arithmetic operation errors, and the result if no errors.
+  - Input: Three unsigned integers, a, b, and c.
+  - Output: A MathError enum value indicating any errors and an unsigned integer representing the result.
+<END_FUNCTIONS>
+<START_CONTRACTS>
+Summary of the entire contract:
+The CarefulMath contract provides basic arithmetic operations such as addition, subtraction, multiplication, and division between unsigned integers with error checking. It returns the result of the operation and a MathError enum value indicating any errors that occurred during the operation. It is derived from OpenZeppelin's SafeMath library and provides additional functionality for chained operations such as adding two numbers and then subtracting a third.
+<END_CONTRACTS>

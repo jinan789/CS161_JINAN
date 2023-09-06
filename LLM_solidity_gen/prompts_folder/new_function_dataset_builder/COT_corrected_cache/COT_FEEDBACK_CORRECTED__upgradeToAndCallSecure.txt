@@ -1,0 +1,42 @@
+TASK 1: Step-by-Step Plan
+
+1. Store the current implementation in a variable, by calling the _getImplementation() function.
+2. Upgrade to the new implementation using the input address parameter by calling the _upgradeTo() function.
+3. Perform a delegate call to the new implementation with the provided data input parameter.
+4. Check the success of the delegate call.
+   a. If the call is successful, simply keep the new implementation.
+   b. If the call is NOT successful, AND forceCall input parameter is true, still keep the new implementation.
+   c. If the call is NOT successful, AND forceCall input parameter is NOT true, then revert the upgrade, restore the previous implementation, and revert the transaction with an error message.
+
+Here is the updated function code that ensures all steps are followed in a logical order:
+
+```solidity
+function _upgradeToAndCallSecure(
+    address newImplementation,
+    bytes memory data,
+    bool forceCall
+) internal {
+    // Step 1: Store the current implementation before upgrading
+    address currentImplementation = _getImplementation();
+
+    // Step 2: Upgrade to the new implementation
+    _upgradeTo(newImplementation);
+
+    // Step 3: Perform a delegate call with the provided data
+    (bool success, bytes memory result) = newImplementation.delegatecall(data);
+
+    // Step 4: Check the success or failure of the delegate call
+    if (success || forceCall) {
+        // Step 4a and 4b: If successful or forceCall is true, keep the new implementation
+        return;
+    } else {
+        // Step 4c: Revert the upgrade and restore the previous implementation if the call fails
+        _upgradeTo(currentImplementation);
+
+        // Revert the transaction and return the error message from the failed delegate call
+        revert(string(abi.encodePacked("Upgrade failed: ", result)));
+    }
+}
+```
+
+With these adjustments, the given function now follows the step-by-step plan and should be correct based on the provided task description.

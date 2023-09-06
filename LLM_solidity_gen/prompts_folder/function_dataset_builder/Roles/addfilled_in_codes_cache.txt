@@ -1,0 +1,10 @@
+<CODE_BEGINNING>
+/**
+ * @dev Give an account access to this role.
+ */
+function add(Role storage role, address account) internal {
+    require(account != address(0), "Roles: account is the zero address");
+    require(!role.bearer[account], "Roles: account already has role");
+    role.bearer[account] = true;
+}
+<CODE_ENDING>

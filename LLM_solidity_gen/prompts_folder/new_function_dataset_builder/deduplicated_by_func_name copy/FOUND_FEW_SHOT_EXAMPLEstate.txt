@@ -1,0 +1,5 @@
+Based on the function signatures in the contract and the target function provided, the most similar functionalities to the target function can be found in the following function signatures:
+
+1. function getActions(uint proposalId) external view returns (address[] memory targets, uint[] memory values, string[] memory signatures, bytes[] memory calldatas)
+
+2. function getReceipt(uint proposalId, address voter) external view returns (Receipt memory)

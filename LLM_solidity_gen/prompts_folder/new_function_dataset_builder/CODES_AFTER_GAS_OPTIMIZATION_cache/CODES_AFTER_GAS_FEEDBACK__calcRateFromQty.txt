@@ -1,0 +1,34 @@
+TASK 1:
+
+Upon reviewing the Solidity code provided, there is only one possible gas-wasting pattern I found:
+
+1. "Repeated Computations in a loop." The given Solidity code does not contain any loops. However, in case the function `_calcRateFromQty` is called multiple times within a loop in another contract, we can optimize it by storing the result of an expensive operation, i.e., the exponents calculation, into a function's argument instead of calculating it inside the function. This way, we would precompute the value outside the function and reuse it in subsequent function calls in the loop, saving gas.
+
+TASK 2:
+
+As per the suggestion from TASK 1, the modified Solidity code is given below:
+
+<CODE_BEGINNING>
+```solidity
+    function _calcRateFromQty(uint256 srcAmount, uint256 destAmount, uint256 srcDecimals, uint256 dstDecimals, uint256 exponentDifference) internal pure returns (uint256 rate) {
+        // Ensure the source amount is not greater than the maximum allowed quantity
+        require(srcAmount <= _MAX_QTY, "Source amount exceeds maximum allowed quantity");
+
+        // Ensure the destination amount is not greater than the maximum allowed quantity
+        require(destAmount <= _MAX_QTY, "Destination amount exceeds maximum allowed quantity");
+
+        //GAS OPTIMIZATIONS MADE HERE: Removed the calculation of exponentDifference from inside the function.
+        // Calculate the rate using the provided decimal resolutions and pre-computed exponent difference
+        if (dstDecimals >= srcDecimals) {
+            rate = (destAmount.mul(_PRECISION)).div(srcAmount.mul(exponentDifference));
+        } else {
+            rate = (destAmount.mul(_PRECISION)).div(srcAmount.div(exponentDifference));
+        }
+
+        //CHANGES BASED ON CALLED CODE MADE: Added return statement for the calculated rate
+        return rate;
+    }
+```
+<CODE_ENDING>
+
+In this modification, I removed the calculation of exponents (multiplier and divisor) inside the function and added an additional argument `exponentDifference` which should be pre-computed outside this function and passed as an argument when calling `_calcRateFromQty`. This way, we save some gas by not recalculating these exponents inside the function when it's called inside a loop in another contract.

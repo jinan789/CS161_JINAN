@@ -1,0 +1,5 @@
+Input: Three Exp memory variables (a, b, and c), where each Exp stores a fixed-precision decimal with 18 decimal places in its mantissa field.
+
+Output: A MathError variable (enumerated type with NO_ERROR or other error values) and an Exp memory variable.
+
+Summary: The function performs multiplication of three exponentials a, b and c, first multiplying a and b, then multiplying the result with c. If any error occurs during the intermediate steps, it returns the error and intermediate result.

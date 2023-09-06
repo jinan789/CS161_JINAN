@@ -1,0 +1,22 @@
+<CODE_BEGINNING>
+
+/**
+ * @notice Divides a scalar by an exponential divisor, and returns the result as an exponential data structure along with any math error status
+ * @param scalar The scalar to be divided
+ * @param divisor The exponential divisor
+ * @return (mathError, expResult) The result as an exponential data structure and any math error status
+ */
+function divScalarByExp(uint scalar, Exp memory divisor) pure internal returns (MathError, Exp memory) {
+    if (divisor.mantissa == 0) {
+        return (MathError.DIVISION_BY_ZERO, Exp({mantissa: 0}));
+    }
+
+    (MathError mathError, uint ratio) = divUInt(scalar, divisor.mantissa);
+    if (mathError != MathError.NO_ERROR) {
+        return (mathError, Exp({mantissa: 0}));
+    }
+
+    Exp memory expResult = Exp({mantissa: ratio});
+    return (MathError.NO_ERROR, expResult);
+}
+<CODE_ENDING>

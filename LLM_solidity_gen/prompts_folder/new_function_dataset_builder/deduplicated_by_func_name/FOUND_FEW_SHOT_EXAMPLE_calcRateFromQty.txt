@@ -1,0 +1,5 @@
+Based on the function names, return types, parameter lists, and the functionality of the target function, the two most similar function signatures from the given Pool contract are:
+
+1. `function swap(address srcToken, uint256 srcAmount, uint256 minPrice, uint256 maxPrice, address destToken, bytes memory oneInchData) public onlyDao returns (uint256 actualDestAmount, uint256 actualSrcAmount)`
+
+2. `function _oneInchTrade(address _srcToken, uint256 _srcAmount, address _destToken, bytes memory _calldata) internal returns (uint256 _destPriceInSrc, uint256 _srcPriceInDest, uint256 _actualDestAmount, uint256 _actualSrcAmount)`

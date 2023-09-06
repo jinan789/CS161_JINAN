@@ -1,0 +1,32 @@
+function getPriorVotes(address account, uint blockNumber) public view returns (uint96) {
+    require(blockNumber < block.number, "INV: blockNumber must be in the past");
+
+    // Most recent balance (last checkpoint)
+    uint32 nCheckpoints = numCheckpoints[account];
+    if (nCheckpoints == 0) {
+        return 0;
+    }
+
+    // Implicit zero balance (no checkpoint)
+    Checkpoint memory cp = checkpoints[account][nCheckpoints - 1];
+    if (cp.fromBlock <= blockNumber) {
+        return cp.votes;
+    }
+
+    // Perform binary search for the vote count at the specified block number
+    uint32 min = 0;
+    uint32 max = nCheckpoints - 1;
+    while (min < max) {
+        uint32 mid = (min + max + 1) / 2;
+        cp = checkpoints[account][mid];
+        if (cp.fromBlock <= blockNumber) {
+            min = mid;
+        } else {
+            max = mid - 1;
+        }
+    }
+    cp = checkpoints[account][min];
+
+    return cp.fromBlock <= blockNumber ? cp.votes : 0;
+}
+

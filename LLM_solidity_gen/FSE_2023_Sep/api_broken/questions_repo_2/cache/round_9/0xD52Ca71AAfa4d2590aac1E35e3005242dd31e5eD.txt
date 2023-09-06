@@ -1,0 +1,184 @@
+I want you to help me find new gas-wasting patterns for Solidity. Gas is a unique pricing mechanism in Solidity, which measures the amount of computational resources put into the execution of Solidity codes. The goal of gas optimization is to find an equivalent code instruction sequence that produces the same output while consuming less gas, which may misalign from the way people typically write codes, since code writers aim for readability and maintainability, while gas optimization might seem a little unintuitive to newcomers. For example, storage variables in Solidity are expensive in terms of gas, while memory is not, so storage operations should be avoided whenever possible. Gas is paid in real money, so saving gas is saving money.
+
+First, I will give you a list of known gas-wasting patterns. The list is numbered, with each bullet point specifying one gas-wasting pattern, which is followed by an explanation of why this pattern wastes gas. I want you to read through these and learn how to find new gas-wasting patterns from it. The list is as follows:
+
+1. Repeated computation of the same expression: including repetitive reads of the same expensive storage variable (e.g. Overuse of expensive storage variables). This could be solved by introducing an intermediate variable to hold the value.
+ 
+2. Extractable code chunks: if there are multiple chunks of codes that perform the same/similar functionalities, then we could abstract them into one function (or modifier) to save deployment costs 
+
+3. Variable refactoring: by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+
+4. Redundant operations with same effects: redundant operations that overwrite the effect of the previous operation, making the previous useless
+
+5. Pre-computable operations on constants: performing comparisons (or say other operations) to constants is useless and could be pre-computed
+
+6. Persistent conditional checks: some of the condition checks may always evaluate to true or always evaluate to false, which could be directly replaced by their evaluated values
+
+7. Simplifiable conditional operations: expressions that involve logical operations that could be simplified to reduce the amount of computational workload.
+
+8. "dead codes." codes that are guaranteed not to be executed (e.g. unreachable conditional branch) should be removed.
+9. "Opaque predicate." If the outcome of a predicate could be inferred to be true/false without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+10. "Expensive operations in a loop." If an gas-expensive operation is executed multiple times in a loop, while there is a way to equivalently move it out of the loop to execute only once (e.g. storing a storage variable in a memory variable and performing operations on the memory variable inside the loop), then we should do it to save gas.
+11. "Constant outcome of a loop." If the outcome of a loop could be inferred without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+12. "Loop fusion." If two loops have the same starting and stopping conditions with the same increment steps, then we could consider combining them into one (e.g. delete the second loop, and put its loop body codes into the first one) if they have no dependencies. This way, we save the logical comparisons, conditional jumps, as well as the incremental steps of the second loop, which saves computation and thus gas.
+13. "Repeated computations in a loop." If there are expressions that produce the same outcome in each iteration of a loop, we could move it out of the loop and execute only once, which saves computation.
+14. "Struct variable refactoring." If a struct used in a contract contains some fields that are used more often and some that are less often, then by breaking up the struct into two, where the frequently used fields are now put as a separate struct, we get to avoid unnecessary reads on the less often used fields and save gas.s
+
+Next, I will give you a chunk of Solidity codes from which you will find gas-inefficient patterns; note that I have removed simple functions from the contract and only kept complex ones, with the hope that you could focus on the most complicated function codes
+contract UnionZap is Ownable, UnionBase {
+    function _balanceSalesAndBuy(
+        bool lock,
+        uint32[] calldata weights,
+        uint32[] calldata adjustOrder,
+        uint256[] calldata minAmounts,
+        uint256[] memory prices,
+        uint256[] memory amounts,
+        uint256 _totalEthBalance
+    ) internal {
+        address _outputToken;
+        uint256 _orderIndex;
+
+        for (uint256 i; i < adjustOrder.length; ++i) {
+            _orderIndex = adjustOrder[i];
+            // if weight == 0, the token would have been swapped already so no balance
+            if (weights[_orderIndex] > 0) {
+                _outputToken = outputTokens[_orderIndex];
+                // amount adjustments
+                uint256 _desired = (_totalEthBalance * weights[_orderIndex]) /
+                    DECIMALS;
+                if (amounts[_orderIndex] > _desired) {
+                    _sell(
+                        _outputToken,
+                        (((amounts[_orderIndex] - _desired) * 1e18) /
+                            prices[_orderIndex])
+                    );
+                } else {
+                    uint256 _swapAmount = _desired - amounts[_orderIndex];
+                    if (i == adjustOrder.length - 1) {
+                        _swapAmount = address(this).balance;
+                    }
+                    _buy(_outputToken, _swapAmount);
+                }
+                // we need an edge case here since it's too late
+                // to update the cvxCRV distributor's stake function
+                if (_outputToken == CRV_TOKEN) {
+                    // convert all CRV to cvxCRV
+                    _toCvxCrv(minAmounts[_orderIndex], lock);
+                } else {
+                    // slippage check
+                    assert(
+                        IERC20(_outputToken).balanceOf(address(this)) >
+                            minAmounts[_orderIndex]
+                    );
+                }
+            }
+        }
+    }
+
+    /// @notice Gets ETH token price from curve pools with edge case for CRV pool
+    /// @param _outputToken the token to get a price for
+    /// @return the ETH price of the token
+    function addCurvePool(address token, curveSwapParams calldata params)
+        external
+        onlyOwner
+    {
+        curveRegistry[token] = params;
+        IERC20(token).safeApprove(params.pool, 0);
+        IERC20(token).safeApprove(params.pool, type(uint256).max);
+        emit CurvePoolUpdated(token, params.pool);
+    }
+    function updateOutputToken(address token, tokenContracts calldata params)
+        external
+        onlyOwner
+    {
+        assert(params.pool != address(0));
+        // if we don't have any pool info, it's an addition
+        if (tokenInfo[token].pool == address(0)) {
+            outputTokens.push(token);
+        }
+        tokenInfo[token] = params;
+        emit OutputTokenUpdated(
+            token,
+            params.pool,
+            params.swapper,
+            params.distributor
+        );
+    }
+
+    /// @notice Remove a pool from the registry
+    /// @param token - Address of token associated with the pool
+    function retrieveTokens(address[] calldata tokens, address to)
+        external
+        onlyOwner
+        notToZeroAddress(to)
+    {
+        for (uint256 i; i < tokens.length; ++i) {
+            address token = tokens[i];
+            uint256 tokenBalance = IERC20(token).balanceOf(address(this));
+            IERC20(token).safeTransfer(to, tokenBalance);
+            emit FundsRetrieved(token, to, tokenBalance);
+        }
+    }
+
+    /// @notice Execute calls on behalf of contract in case of emergency
+    function execute(
+        address _to,
+        uint256 _value,
+        bytes calldata _data
+    ) external onlyOwner returns (bool, bytes memory) {
+        (bool success, bytes memory result) = _to.call{value: _value}(_data);
+        return (success, result);
+    }
+
+    /// @notice Set approvals for the tokens used when swapping
+    function setApprovals() external onlyOwner {
+        IERC20(CRV_TOKEN).safeApprove(CURVE_CVXCRV_CRV_POOL, 0);
+        IERC20(CRV_TOKEN).safeApprove(CURVE_CVXCRV_CRV_POOL, type(uint256).max);
+
+        IERC20(CRV_TOKEN).safeApprove(CURVE_TRICRV_POOL, 0);
+        IERC20(CRV_TOKEN).safeApprove(CURVE_TRICRV_POOL, type(uint256).max);
+
+        IERC20(CRV_TOKEN).safeApprove(CVXCRV_DEPOSIT, 0);
+        IERC20(CRV_TOKEN).safeApprove(CVXCRV_DEPOSIT, type(uint256).max);
+
+        IERC20(CVXCRV_TOKEN).safeApprove(CURVE_CVXCRV_CRV_POOL, 0);
+        IERC20(CVXCRV_TOKEN).safeApprove(
+            CURVE_CVXCRV_CRV_POOL,
+            type(uint256).max
+        );
+
+        IERC20(CVXCRV_TOKEN).safeApprove(CVXCRV_STAKING_CONTRACT, 0);
+        IERC20(CVXCRV_TOKEN).safeApprove(
+            CVXCRV_STAKING_CONTRACT,
+            type(uint256).max
+        );
+    }
+    }
+
+    receive() external payable {
+        emit Received(msg.sender, msg.value);
+    }
+
+    modifier validWeights(uint32[] calldata _weights) {
+        require(
+            _weights.length == outputTokens.length,
+            "Invalid weight length"
+        );
+        uint256 _totalWeights;
+        for (uint256 i; i < _weights.length; ++i) {
+            _totalWeights += _weights[i];
+        }
+        require(_totalWeights == DECIMALS, "Invalid weights");
+        _;
+    }
+Now that I have given you the necessary information, I want you to help me find new gas-wasting patterns from the above codes, based on what you learn from the list of patterns. Please be creative and think out of the box beyond the patterns listed above. Please put the new gas wasting patterns in bullet points (in the form of '1.', '2.', etc), and answer the following questions for each of the found patterns (in sub-bullet-points under each bullet point):
+
+1. How did you find this pattern? Could you explain the reasoning process, step by step, behind the discovery?
+
+2. What should I do, step by step, to fix the found gas-wasting patterns? Could you explain the reasoning process, step by step, behind the reason why such a fix works?
+
+3. On a score of 0 to 5, could you please tell me how would you rate this found new pattern, in terms of how much it is sacrificing readability, security, and maintainability in exchange for gas optimization (5 is the least impacted. For example, Security score of 5 means implementing the found gas-optimization pattern would have no effect on security, whereas 1 means it would reduce security)? Please format your answer as in "Readability: 5; Security: 4; Maintainability: 3". Please also provide explanations.
+
+Here are some additional requirements:
+1. If you think my prompt to you has any issues (e.g. ambiguity or lack of information), please tell me how I should improve it in the next time.
+2. please help me format your answer in the form of a Latex section (e.g. \section*{Analysis of Provided Solidity Code}), since I want to assert it to a Latex document.

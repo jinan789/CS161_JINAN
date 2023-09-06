@@ -1,0 +1,4 @@
+The two function signatures that have the most similar functionality to the given target function are:
+
+1. function dispatch(bytes1 commandType, bytes calldata inputs) internal returns (bool success, bytes memory output)
+2. function callAndTransfer1155(bytes calldata inputs, address protocol) internal returns (bool success, bytes memory output)

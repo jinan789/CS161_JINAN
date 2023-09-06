@@ -1,0 +1,67 @@
+After incorporating the expert's feedback and analyzing the different runs, the combined and improved versions of the gas-wasting patterns are as follows:
+
+1. "Repeated computations in a loop." In the `addThenSubUInt` function:
+
+```solidity
+function addThenSubUInt(uint a, uint b, uint c) internal pure returns (MathError, uint) {
+    uint sum = a + b;
+    uint result = sum - c;
+
+    if (sum < a || result > sum) {
+        return (MathError.INTEGER_OVERFLOW, 0);
+    } else if (result > sum) {
+        return (MathError.INTEGER_UNDERFLOW, 0);
+    } else {
+        return (MathError.NO_ERROR, result);
+    }
+}
+```
+Optimization includes maintaining the same functionality while reducing gas consumption.
+
+2. "Constant outcome of a loop." In the improved `mulUInt` function:
+
+```solidity
+function mulUInt(uint a, uint b) internal pure returns (MathError, uint) {
+    if (a == 0) {
+        return (MathError.NO_ERROR, 0);
+    }
+
+    uint c = a * b;
+
+    if (c / a != b) {
+        return (MathError.INTEGER_OVERFLOW, 0);
+    } else {
+        return (MathError.NO_ERROR, c);
+    }
+}
+```
+Optimization includes considering the Solidity version, use-case, and requirements to save gas.
+
+3. "Custom error handling in simple arithmetic operations." To save gas, use Solidity's built-in SafeMath library or 'assert'/'require' functions for error checks.
+
+4. "Redundant error checks in addThenSubUInt." Remove error checks in subUInt in certain cases to reduce gas consumption.
+
+5. "Using unnecessary storage operations." Utilize memory variables within functions and reduce storage operations to save gas.
+
+6. "Excessive function visibility." Use appropriate visibility modifiers (private and internal) to restrict access and reduce gas costs.
+
+7. "Extraneous loops." Improve loop structures, and consider using mappings for data storage and lookups.
+
+8. "Using inefficient data types." Use smaller data types and optimize data by packing them together.
+
+9. "Unoptimized math operations." Utilize built-in functions such as SafeMath or shifting operations for multiplication and division.
+
+10. "Repeated calls to external contracts." Minimize gas costs by batching multiple external calls or fetching necessary data once and processing it within the contract.
+
+11. "Ignoring gas refunds." Take advantage of gas refunds by optimizing code for easy deletion or reduction of stored data.
+
+12. "Excess use of events and logs." Limit the number and complexity of events and logs to reduce gas consumption.
+
+13. "Overuse of inheritance." Minimize excessive gas usage due to inheritance by considering alternative design patterns or marking inherited functions as "internal."
+
+14. "Not using view or pure functions when applicable." Utilize functions marked as "view" or "pure" to save gas on external calls.
+
+Please note that these gas-wasting patterns are general recommendations to help you optimize your Solidity code. Thorough testing and analysis should be performed to ensure gas efficiency in your individual projects, as specific use cases may require different solutions.
+*****&&&&&^^^^^%%%%%$$$$$
+
+

@@ -1,0 +1,17 @@
+<CODE_BEGINNING>
+/**
+ * @notice Approve a spender to spend tokens on behalf of the message sender
+ * @param spender The address of the spender
+ * @param rawAmount The amount of tokens to be allowed
+ * @return bool indicating whether the approval was successful or not
+ */
+function approve(address spender, uint rawAmount) public returns (bool) {
+    require(spender != address(0), "INV: approve to the zero address");
+    uint96 amount = safe96(rawAmount, "INV: amount exceeds 96 bits");
+    allowances[msg.sender][spender] = amount;
+
+    emit Approval(msg.sender, spender, rawAmount);
+
+    return true;
+}
+<CODE_ENDING>

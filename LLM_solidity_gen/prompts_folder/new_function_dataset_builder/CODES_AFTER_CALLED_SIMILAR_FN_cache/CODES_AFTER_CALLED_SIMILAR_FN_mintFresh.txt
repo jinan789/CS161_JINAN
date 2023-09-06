@@ -1,0 +1,45 @@
+TASK 1:
+
+1. Misuse of `isFresh()` function:
+   - In your code, you have used the function `isFresh()` to check for market freshness, but it's not defined in the provided code samples. You should use `accrueInterest()` function to update market state right before checking if mint operation is allowed.
+   Suggestion: Remove the if block checking for `isFresh()` and call `accrueInterest()` before the current mint operation check.
+
+TASK 2:
+
+<CODE_BEGINNING>
+function mintFreshInternal(address minter, uint mintAmount) internal returns (uint, uint) {
+    // Update market state
+    uint error = accrueInterest(); //CHANGES BASED ON CALLED CODE MADE: Added accrueInterest() call to update market state
+    if (error != uint(Error.NO_ERROR)) {
+        return (uint(Error.MARKET_NOT_FRESH), 0);
+    }
+
+    // Check if the mint operation is allowed
+    (Error err, uint allowed) = comptroller.mintAllowed(address(this), minter, mintAmount); //MODIFICATIONS MADE: Changed controller.allowMint to comptroller.mintAllowed
+    if (err != Error.NO_ERROR) {
+        return (uint(err), 0);
+    }
+
+    // Calculate exchange rate and the number of cTokens to mint
+    (MathError mathErr, uint exchangeRateMantissa) = exchangeRateStoredInternal();
+    if (mathErr != MathError.NO_ERROR) {
+        return (uint(Error.MATH_ERROR), 0);
+    }
+    (mathErr, uint cTokensToMint) = divScalarByExpTruncate(mintAmount, Exp({mantissa: exchangeRateMantissa}));
+    if (mathErr != MathError.NO_ERROR) {
+        return (uint(Error.MATH_ERROR), 0);
+    }
+
+    // Update minter's token balance
+    accountTokens[minter] = add_(accountTokens[minter], cTokensToMint);
+
+    // Update total supply
+    totalSupply = add_(totalSupply, cTokensToMint); //MODIFICATIONS MADE: Moved this line after updating the minter's token balance
+
+    // Emit Mint and Transfer events
+    emit Mint(minter, mintAmount, cTokensToMint, exchangeRateMantissa);
+    emit Transfer(address(0), minter, cTokensToMint); //MODIFICATIONS MADE: Changed address(this) to address(0)
+
+    return (uint(Error.NO_ERROR), cTokensToMint);
+}
+<CODE_ENDING>

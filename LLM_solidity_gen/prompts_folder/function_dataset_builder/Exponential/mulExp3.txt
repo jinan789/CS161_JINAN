@@ -1,0 +1,47 @@
+
+The function that I want you to summarize is mulExp3, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signature, with the purpose of providing richer background information for you. The codes are: 
+pragma solidity ^0.5.16;
+
+import "./CarefulMath.sol";
+import "./ExponentialNoError.sol";
+
+/**
+ * @title Exponential module for storing fixed-precision decimals
+ * @author Compound
+ * @dev Legacy contract for compatibility reasons with existing contracts that still use MathError
+ * @notice Exp is a struct which stores decimals with a fixed precision of 18 decimal places.
+ *         Thus, if we wanted to store the 5.1, mantissa would store 5.1e18. That is:
+ *         `Exp({mantissa: 5100000000000000000})`.
+ */
+contract Exponential is CarefulMath, ExponentialNoError {
+    /**
+     * @dev Creates an exponential from numerator and denominator values.
+     *      Note: Returns an error if (`num` * 10e18) > MAX_INT,
+     *            or if `denom` is zero.
+     */
+    function getExp(uint num, uint denom) pure internal returns (MathError, Exp memory) {
+    function addExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory) {
+    function subExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory) {
+    function mulScalar(Exp memory a, uint scalar) pure internal returns (MathError, Exp memory) {
+    function mulScalarTruncate(Exp memory a, uint scalar) pure internal returns (MathError, uint) {
+    function mulScalarTruncateAddUInt(Exp memory a, uint scalar, uint addend) pure internal returns (MathError, uint) {
+    function divScalar(Exp memory a, uint scalar) pure internal returns (MathError, Exp memory) {
+    function divScalarByExp(uint scalar, Exp memory divisor) pure internal returns (MathError, Exp memory) {
+    function divScalarByExpTruncate(uint scalar, Exp memory divisor) pure internal returns (MathError, uint) {
+    function mulExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory) {
+    function mulExp(uint a, uint b) pure internal returns (MathError, Exp memory) {
+    function mulExp3(Exp memory a, Exp memory b, Exp memory c) pure internal returns (MathError, Exp memory) {
+        (MathError err, Exp memory ab) = mulExp(a, b);
+        if (err != MathError.NO_ERROR) {
+            return (err, ab);
+        }
+        return mulExp(ab, c);
+    }
+
+    /**
+     * @dev Divides two exponentials, returning a new exponential.
+     *     (a/scale) / (b/scale) = (a/scale) * (scale/b) = a/b,
+     *  which we can scale as an Exp by calling getExp(a.mantissa, b.mantissa)
+     */
+    function divExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory) {
+}

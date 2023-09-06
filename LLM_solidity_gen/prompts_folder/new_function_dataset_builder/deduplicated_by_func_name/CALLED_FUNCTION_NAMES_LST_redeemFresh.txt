@@ -1,0 +1,4 @@
+<FUNCTIONS CALLED>: fail, mulScalarTruncate, divScalarByExpTruncate, comptroller.redeemAllowed, sub_, doTransferOut
+
+
+

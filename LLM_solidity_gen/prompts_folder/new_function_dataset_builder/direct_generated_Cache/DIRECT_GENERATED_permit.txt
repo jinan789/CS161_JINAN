@@ -1,0 +1,24 @@
+<CODE_BEGINNING>
+/**
+ * @notice Allows the owner of tokens to grant permission to a spender to spend a specific rawAmount up to the deadline, validated using EIP-712 signature (v,r,s)
+ * @param _owner The address of the token owner granting the permission
+ * @param spender The address of the spender
+ * @param rawAmount The amount of tokens the spender is allowed to spend
+ * @param deadline The timestamp until which the permission is valid
+ * @param v The EIP-712 signature v parameter
+ * @param r The EIP-712 signature r parameter
+ * @param s The EIP-712 signature s parameter
+ */
+function permit(address _owner, address spender, uint rawAmount, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
+    require(deadline >= block.timestamp, "INV: permit expired");
+    uint96 amount = safe96(rawAmount, "INV: amount exceeds 96 bits");
+    bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), getChainId(), address(this)));
+    bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, _owner, spender, rawAmount, nonces[_owner]++, deadline));
+    bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+    address recoveredAddress = ecrecover(digest, v, r, s);
+    require(recoveredAddress != address(0) && recoveredAddress == _owner, "INV: invalid signature");
+
+    allowances[_owner][spender] = amount;
+    emit Approval(_owner, spender, amount);
+}
+<CODE_ENDING>

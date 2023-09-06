@@ -1,0 +1,17 @@
+<CODE_BEGINNING>
+function redeemAllowed(address cToken, address redeemer, uint redeemTokens) external returns (uint result) {
+    // Your logic for checking if the redeemer is allowed to redeem a specific amount of tokens of a certain cToken type.
+
+    // For example, you could check if the redeemer has enough balance of the cToken to cover the redemption:
+    // uint256 redeemerBalance = cToken.balanceOf(redeemer);
+    // if (redeemerBalance < redeemTokens) {
+    //     result = 1; // Error: not enough balance
+    // } else {
+    //     result = 0; // Success: can redeem
+    // }
+
+    // Note: The above logic is just an example. You should implement your own logic to determine if the redeemer is allowed to redeem the given amount of tokens.
+
+    return result;
+}
+<CODE_ENDING>

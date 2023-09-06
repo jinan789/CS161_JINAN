@@ -1,0 +1,33 @@
+TASK 1:
+Upon analyzing your provided code, I could not find any strict matches with the gas-wasting patterns listed. However, there are some minor optimizations that can be done in the code, although they might not save a significant amount of gas.
+
+1. One-time cast of rawAmount to uint96: Since rawAmount is cast to uint96 multiple times as mintAmount and used in the code, it would save some amount of gas to perform this cast only once at the beginning and then use the mintAmount for all other operations. You have already introduced mintAmount for this purpose, but it should be moved up right after the function declaration.
+
+TASK 2:
+Based on the suggestion in TASK 1, here is the modified code.
+
+<CODE_BEGINNING>
+```
+function mint(address dst, uint rawAmount) external onlyOwner {
+    //GAS OPTIMIZATIONS MADE HERE: Cast rawAmount to uint96 one time and use this mintAmount variable throughout the code
+    uint96 mintAmount = safe96(rawAmount, "INV:: transfer amount overflows"); 
+
+    require(dst != address(0), "INV:: cannot mint tokens to the zero address");
+
+    // Update total supply of tokens
+    //CHANGES BASED ON CALLED CODE MADE: Replaced SafeMath.add with add96 for consistency
+    totalSupply = add96(totalSupply, mintAmount, "INV:: total supply overflows");
+
+    // Transfer the newly minted tokens to the specified address
+    
+    balances[dst] = add96(balances[dst], mintAmount, "INV:: transfer amount overflows");
+
+    // Update the delegates of the recipient address
+    _moveDelegates(address(0), delegates[dst], mintAmount); 
+
+    // Emit the transfer event
+    emit Transfer(address(0), dst, rawAmount);
+}
+<CODE_ENDING>
+```
+The only change made is moving the declaration and assignment of `mintAmount` right after the `function` declaration and before the `require` statement.

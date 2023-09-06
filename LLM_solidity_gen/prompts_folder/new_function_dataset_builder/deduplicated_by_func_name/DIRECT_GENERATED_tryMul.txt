@@ -1,0 +1,12 @@
+    function tryMul(uint256 a, uint256 b) internal pure returns (bool success, uint256 result) {
+        if (a == 0 || b == 0) {
+            return (true, 0);
+        }
+        
+        uint256 c = a * b;
+        if (c / a == b) {
+            return (true, c);
+        } else {
+            return (false, 0);
+        }
+    }

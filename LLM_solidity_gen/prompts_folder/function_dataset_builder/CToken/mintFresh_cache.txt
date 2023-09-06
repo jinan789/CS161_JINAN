@@ -1,0 +1,11 @@
+Function: mintFresh
+Input: 
+- address minter (address of the user who wants to mint tokens)
+- uint mintAmount (amount of underlying tokens to mint)
+
+Output:
+- uint (Error code indicating success or failure of the function)
+- uint (Actual mintAmount after considering any fees if applicable)
+
+Summary:
+This function attempts to mint cTokens for the minter by exchanging their underlying tokens. It checks if the mint operation is allowed and that the market is fresh, calculates the proper exchange rate to determine how many cTokens should be minted, and updates the total supply and minter's token balance. Finally, it emits Mint and Transfer events.

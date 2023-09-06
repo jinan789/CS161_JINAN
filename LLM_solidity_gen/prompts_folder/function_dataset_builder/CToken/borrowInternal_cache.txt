@@ -1,0 +1,10 @@
+Function: borrowInternal
+
+Input:
+- uint borrowAmount
+
+Output:
+- uint
+
+Summary:
+The borrowInternal function allows a user to borrow an amount of the underlying asset. Before proceeding, it first calls the accrueInterest function to update the interest and in case of an error, it logs that the attempt to borrow has failed.

@@ -1,0 +1,32 @@
+
+The function that I want you to summarize is repayBorrowAllowed, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signature, with the purpose of providing richer background information for you. The codes are: 
+pragma solidity ^0.5.16;
+
+contract ComptrollerInterface {
+    /// @notice Indicator that this is a Comptroller contract (for inspection)
+    bool public constant isComptroller = true;
+
+    /*** Assets You Are In ***/
+
+    function enterMarkets(address[] calldata cTokens) external returns (uint[] memory);
+    function exitMarket(address cToken) external returns (uint);
+    function mintAllowed(address cToken, address minter, uint mintAmount) external returns (uint);
+    function mintVerify(address cToken, address minter, uint mintAmount, uint mintTokens) external;
+    function redeemAllowed(address cToken, address redeemer, uint redeemTokens) external returns (uint);
+    function redeemVerify(address cToken, address redeemer, uint redeemAmount, uint redeemTokens) external;
+    function borrowAllowed(address cToken, address borrower, uint borrowAmount) external returns (uint);
+    function borrowVerify(address cToken, address borrower, uint borrowAmount) external;
+    function repayBorrowAllowed(
+        address cToken,
+        address payer,
+        address borrower,
+        uint repayAmount) external returns (uint);
+    function repayBorrowVerify(
+    function liquidateBorrowAllowed(
+    function liquidateBorrowVerify(
+    function seizeAllowed(
+    function seizeVerify(
+    function transferAllowed(address cToken, address src, address dst, uint transferTokens) external returns (uint);
+    function transferVerify(address cToken, address src, address dst, uint transferTokens) external;
+    function liquidateCalculateSeizeTokens(
+}

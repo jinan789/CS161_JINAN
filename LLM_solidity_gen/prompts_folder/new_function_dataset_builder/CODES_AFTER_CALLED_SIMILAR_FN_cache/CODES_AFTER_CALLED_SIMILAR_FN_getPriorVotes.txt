@@ -1,0 +1,43 @@
+TASK 1:
+I have analyzed your implementation, and it looks good overall. However, there is a single issue that needs to be resolved:
+
+1. Missing function and variable definitions
+- Your code refers to variables `numCheckpoints` and `checkpoints` and a struct called `Checkpoint`. These variables and the struct must be defined in the contract for the code to work properly.
+
+Now, let's move on to TASK 2.
+
+TASK 2:
+<CODE_BEGINNING>
+function getPriorVotes(address account, uint blockNumber) public view returns (uint96) {
+    require(blockNumber < block.number, "INV: blockNumber must be in the past");
+
+    // Most recent balance (last checkpoint)
+    uint32 nCheckpoints = numCheckpoints[account];
+    if (nCheckpoints == 0) {
+        return 0;
+    }
+
+    // Implicit zero balance (no checkpoint)
+    Checkpoint memory cp = checkpoints[account][nCheckpoints - 1];
+    if (cp.fromBlock <= blockNumber) {
+        return cp.votes;
+    }
+
+    // Perform binary search for the vote count at the specified block number
+    uint32 min = 0;
+    uint32 max = nCheckpoints - 1;
+    while (min < max) {
+        uint32 mid = (min + max + 1) / 2;
+        cp = checkpoints[account][mid];
+        if (cp.fromBlock <= blockNumber) {
+            min = mid;
+        } else {
+            max = mid - 1;
+        }
+    }
+    cp = checkpoints[account][min];
+
+    return cp.fromBlock <= blockNumber ? cp.votes : 0;
+}
+
+<CODE_ENDING>

@@ -1,0 +1,7 @@
+Some relevant functions to the task you described are:
+
+- liquidateCalculateSeizeTokens(address cTokenBorrowed, address cTokenCollateral, uint repayAmount) external view returns (uint, uint): Calculates the amount of collateral tokens to be seized and the amount of borrowed tokens to be repaid when liquidating a loan. From code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/ComptrollerInterface.sol
+- function getUnderlyingPrice(CToken cToken) external view returns (uint): Retrieves the underlying price of a cToken asset. From code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/PriceOracle.sol
+- Input: cToken (CToken) - The cToken for which to get the underlying price. From code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/PriceOracle.sol
+- Output: uint - The underlying asset price mantissa, scaled by 1e18. If the output is zero, it means the price is unavailable. From code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/PriceOracle.sol
+- fail(Error err, FailureInfo info) internal returns (uint): Reports a known error from the money market or a non-upgradeable collaborator and emits a Failure event with error, info and 0 as detail. Returns the error code as a uint. From code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/ErrorReporter.sol

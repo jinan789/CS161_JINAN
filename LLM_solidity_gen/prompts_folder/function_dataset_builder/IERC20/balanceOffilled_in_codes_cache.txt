@@ -1,0 +1,16 @@
+<CODE_BEGINNING>
+
+/**
+ * @dev Returns the balance of tokens held by the given account address.
+ *
+ * @param account The address of the account to check its balance.
+ * @return uint256 The balance of tokens held by the given account address.
+ */
+function balanceOf(address account) external view returns (uint256) {
+    return _balances[account];
+}
+
+// Please add the following variable to keep track of balances within your contract:
+mapping(address => uint256) private _balances;
+
+<CODE_ENDING>

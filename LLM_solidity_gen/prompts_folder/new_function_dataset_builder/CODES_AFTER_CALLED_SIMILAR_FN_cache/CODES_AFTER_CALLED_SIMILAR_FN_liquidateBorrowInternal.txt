@@ -1,0 +1,44 @@
+Based on my review of your code and the provided context, I did not find any misuse of functions, variables, etc. in your `liquidateBorrowInternal` function and the `liquidateBorrow` function. Both functions seem to be implemented correctly, based on the context provided.
+
+However, the provided context did not include some important elements to fully validate your code. For example:
+
+- The `liquidateBorrowFresh` function implementation is missing but it's used in your code. It's hard to determine if it's being used correctly without seeing its implementation.
+- The definition of `CTokenInterface` is not provided. It's hard to guarantee that `cTokenCollateral.accrueInterest()` is a valid operation.
+- The definition of the `Error` enum is not provided. It's hard to guarantee that `Error.NO_ERROR` is a valid value.
+
+If you want a more thorough review, please provide these missing elements.
+
+Here is your code anyway with the requested format:
+
+```solidity
+<CODE_BEGINNING>
+
+
+function liquidateBorrowInternal(address liquidator, address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal returns (uint, uint) {
+    // Accrue interest on the borrowed asset and the collateral asset
+    uint errorCode = accrueInterest();
+    if (errorCode != 0) {
+        return (errorCode, 0);
+    }
+    errorCode = cTokenCollateral.accrueInterest();
+    if (errorCode != 0) {
+        return (errorCode, 0);
+    }
+
+    // Call liquidateBorrowFresh function to perform the process of repaying borrowed amount and seizing collateral
+    (uint err, uint actualRepayAmount) = liquidateBorrowFresh(liquidator, borrower, repayAmount, cTokenCollateral);
+    if (err != 0) {
+        return (err, 0);
+    }
+
+    return (uint(Error.NO_ERROR), actualRepayAmount);
+}
+
+function liquidateBorrow(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) external nonReentrant returns (uint, uint) {
+    return liquidateBorrowInternal(msg.sender, borrower, repayAmount, cTokenCollateral);
+}
+
+<CODE_ENDING>
+```
+
+Please note that you should still do thorough testing to validate the correctness of your code.

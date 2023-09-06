@@ -1,0 +1,17 @@
+<CODE_BEGINNING>
+/**
+ * @notice Get the current per-block borrow interest rate
+ * @return uint representing the current borrow rate per block
+ */
+function borrowRatePerBlock() external view returns (uint) {
+    // Get the current cash, total borrows, and total reserves of the contract
+    uint cashPrior = getCashPrior();
+    uint totalBorrows = totalBorrowsCurrent();
+    uint totalReserves = totalReserves;
+
+    // Calculate the borrow rate per block using the interest rate model
+    (, uint borrowRate) = interestRateModel.getBorrowRate(cashPrior, totalBorrows, totalReserves);
+
+    return borrowRate;
+}
+<CODE_ENDING>

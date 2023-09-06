@@ -1,0 +1,4 @@
+Input: `address account`, `uint blockNumber`
+Output: `uint96`
+
+The function `getPriorVotes` returns the number of votes an account had as of a specific block number, by searching through the account's checkpoints. If the block number is invalid or the account has no checkpoints, the function returns 0.

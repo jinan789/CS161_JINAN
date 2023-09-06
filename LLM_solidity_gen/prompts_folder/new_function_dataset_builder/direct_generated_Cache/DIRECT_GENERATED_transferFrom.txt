@@ -1,0 +1,31 @@
+<CODE_BEGINNING>
+    /**
+     * @dev Transfer a specified amount of tokens from a source address to a destination address
+     * considering the allowance of the msg.sender
+     * Emits an Approval event if the spender's allowance is adjusted
+     * @param src The source address
+     * @param dst The destination address
+     * @param rawAmount Transfer amount in uint format
+     * @return bool True if the transfer was successful, false otherwise
+     */
+    function transferFrom(address src, address dst, uint rawAmount) external returns (bool) {
+        uint96 amount = safe96(rawAmount, "INV::transferFrom: invalid amount");
+        require(delegates[src] != address(0), "INV::transferFrom: invalid source address");
+        require(delegates[dst] != address(0), "INV::transferFrom: invalid destination address");
+
+        // Check if msg.sender has an allowance to transfer from src.
+        uint96 spenderAllowance = allowances[src][msg.sender];
+        require(spenderAllowance >= amount, "INV::transferFrom: not enough allowance for transfer");
+
+        // Update the spender's allowance if needed
+        if (spenderAllowance != uint96(-1)) {
+            uint newAllowance = sub96(spenderAllowance, amount, "INV::transferFrom: allowance overflow");
+            allowances[src][msg.sender] = newAllowance;
+            emit Approval(src, msg.sender, newAllowance);
+        }
+
+        // Transfer tokens from src to dst
+        _transferTokens(src, dst, amount);
+        return true;
+    }
+<CODE_ENDING>

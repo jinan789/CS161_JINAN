@@ -1,0 +1,12 @@
+Function Summary: repayBorrowAllowed
+
+Input:
+- cToken (address): the token address associated with the borrowing.
+- payer (address): the address of the person paying back the borrowed amount.
+- borrower (address): the address of the borrower.
+- repayAmount (uint): the amount to be repaid.
+
+Output:
+- result (uint): return value indicating success or failure (0 for success, otherwise error code).
+
+Purpose: Determine if the repayment of borrowed amount is allowed, given the token, payer, borrower, and the amount to be repaid.

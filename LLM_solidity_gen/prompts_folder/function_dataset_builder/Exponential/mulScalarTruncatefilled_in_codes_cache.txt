@@ -1,0 +1,25 @@
+<CODE_BEGINNING>
+    /**
+     * @dev Multiplies a fixed-precision decimal value by a scalar,
+     *      then truncates the result and returns the error status and the truncated product.
+     * @param a Fixed-precision decimal value with 18 decimal places (Exp memory struct)
+     * @param scalar An unsigned integer to multiply with the fixed-precision decimal value
+     * @return error MathError represents error status (enum)
+     * @return result The truncated product of the multiplication operation (uint)
+     */
+    function mulExpTruncate(Exp memory a, uint scalar) pure internal returns (MathError, uint) {
+        // Calculate the product of a and scalar
+        (MathError error, Exp memory product) = mulScalar(a, scalar);
+
+        // Check for any errors during the multiplication
+        if (error != MathError.NO_ERROR) {
+            return (error, 0);
+        }
+
+        // Truncate the product's mantissa, effectively removing the 18 decimal places
+        uint result = truncate(product);
+
+        // Return the error status (NO_ERROR) and the truncated product
+        return (MathError.NO_ERROR, result);
+    }
+<CODE_ENDING>

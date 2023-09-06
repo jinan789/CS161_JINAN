@@ -1,0 +1,41 @@
+TASK 1: Step-by-step plan of how the _oneInchTrade function should perform
+
+1. Check and ensure `_srcToken`, `_srcAmount`, `_destToken`, and `_calldata` are valid according to the provided summaries and contract.
+2. Approve the 1inch exchange to use the specified amount of source tokens.
+3. Call the 1inch exchange's `swap` function by providing the `_calldata`.
+4. If the `swap` function's execution is successful, parse the returned data to get the actual amount of destination tokens received (`_actualDestAmount`) and actual amount of source tokens sent (`_actualSrcAmount`).
+5. Calculate the source price in destination tokens (`_srcPriceInDest`) by calling the `_calcRateFromQty` function with input parameters: `_srcAmount`, `_actualDestAmount`, source token decimals, and destination token decimals.
+6. Calculate the destination price in source tokens (`_destPriceInSrc`) by calling the `_calcRateFromQty` function with parameters: `_actualDestAmount`, `_srcAmount`, destination token decimals, and source token decimals.
+7. Return the calculated prices and the actual token amounts.
+
+As I review your provided codes, the steps flow logically and coherently according to the plan. However, there's a minor error with the naming of the `_calldata` variable. Solidity doesn't allow the naming of variables with an underscore before a reserved keyword (e.g., calldata). Therefore, you need to change the variable name. An updated version of your code is given below:
+
+```solidity
+function _oneInchTrade(
+    address _srcToken,
+    uint256 _srcAmount,
+    address _destToken,
+    bytes memory _oneInchCalldata
+) internal returns (
+    uint256 _destPriceInSrc,
+    uint256 _srcPriceInDest,
+    uint256 _actualDestAmount,
+    uint256 _actualSrcAmount
+) {
+    // Approve 1inch exchange to use src tokens
+    IERC20Detailed(_srcToken).safeApprove(oneInchAddr, _srcAmount);
+
+    // Call 1inch exchange's `swap` function using the provided calldata
+    (bool success, bytes memory returnData) = oneInchAddr.call(_oneInchCalldata);
+    require(success, "1inch swap failed");
+
+    // Parse return data
+    (_actualDestAmount, _actualSrcAmount) = abi.decode(returnData, (uint256, uint256));
+
+    // Calculate prices
+    _srcPriceInDest = _calcRateFromQty(_srcAmount, _actualDestAmount, _getDecimals(_srcToken), _getDecimals(_destToken));
+    _destPriceInSrc = _calcRateFromQty(_actualDestAmount, _srcAmount, _getDecimals(_destToken), _getDecimals(_srcToken));
+}
+```
+
+Now the code should work as intended by following the step-by-step plan and function summaries provided.

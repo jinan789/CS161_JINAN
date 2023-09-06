@@ -1,0 +1,50 @@
+TASK 1:
+
+1. There is an issue with keeping the block number in sync in the `repayBorrowFresh` function. The `accrueInterest` function should return an error which should be handled and logged.
+
+TASK 2:
+
+<CODE_BEGINNING>
+function repayBorrowFresh(address payer, address borrower, uint repayAmount) internal returns (uint, uint) {
+    uint allowed = comptroller.repayBorrowAllowed(address(this), payer, borrower, repayAmount);
+    if (allowed != 0) {
+        return (failOpaque(Error.COMPTROLLER_REJECTION, FailureInfo.REPAY_BORROW_COMPTROLLER_REJECTION, allowed), 0);
+    }
+
+    //MODIFICATIONS MADE: Check for accrueInterest error and handle it accordingly
+    uint error = accrueInterest();
+    if (error != uint(Error.NO_ERROR)) {
+        return (fail(Error(error), FailureInfo.REPAY_BORROW_ACCRUE_INTEREST_FAILED), 0);
+    }
+
+    // Fetch borrower's outstanding borrow balance and accumulated interest
+    (MathError mathErr, uint accountBorrows, uint accountBorrowsNew) = borrowBalanceStoredInternal(borrower);
+    require(mathErr == MathError.NO_ERROR, "borrow balance calculation failed");
+
+    // Calculate the actual repay amount
+    uint actualRepayAmount;
+    if (repayAmount == uint(-1)) {
+        actualRepayAmount = accountBorrowsNew;
+    } else {
+        actualRepayAmount = repayAmount;
+    }
+
+    // Ensure the actual repay amount is less than or equal to the borrower's outstanding borrow balance
+    require(actualRepayAmount <= accountBorrowsNew, "too much repay");
+
+    // Perform the transfer, reverting on failure
+    require(doTransferIn(payer, actualRepayAmount) == actualRepayAmount, "token transfer_in failed");
+
+    // Update borrower's principal and the overall borrow amount
+    accountBorrowsNew = sub_(accountBorrows, actualRepayAmount);
+    totalBorrows = sub_(totalBorrows, actualRepayAmount);
+
+    // Store the updated borrower's principal balance
+    accountBorrowsMap[borrower] = accountBorrowsNew;
+
+    // Emit a RepayBorrow event
+    emit RepayBorrow(payer, borrower, actualRepayAmount, accountBorrowsNew, totalBorrows);
+
+    return (uint(Error.NO_ERROR), actualRepayAmount);
+}
+<CODE_ENDING>

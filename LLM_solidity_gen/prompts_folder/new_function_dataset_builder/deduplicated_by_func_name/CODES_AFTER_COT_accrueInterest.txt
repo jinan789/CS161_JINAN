@@ -1,0 +1,51 @@
+function accrueInterest() public returns (uint) {
+    /* Calculate the current block number */
+    uint currentBlockNumber = getBlockNumber();
+
+    /* Calculate the number of blocks elapsed since the last accrual */
+    uint blockDelta = sub_(currentBlockNumber, accrualBlockNumber);
+
+    if (blockDelta == 0) {
+        // No blocks have elapsed, simply return success
+        return uint(Error.NO_ERROR);
+    }
+
+    /* Calculate the current borrow interest rate */
+    uint interestRateMantissa = interestRateModel.getBorrowRate(keys.cash, borrows, reserves);
+    require(Error(interestRateMantissa) == Error.NO_ERROR, "INTEREST_RATE_MODEL_ERROR");
+
+    /* Calculate the interest accumulated on borrows */
+    uint interestAccumulated = mul_(borrows, interestRateMantissa);
+    interestAccumulated = div_(interestAccumulated, expScale);
+    interestAccumulated = mul_(interestAccumulated, blockDelta);
+
+    /* Update the total borrows */
+    uint totalBorrowsNew = add_(borrows, interestAccumulated);
+    require(totalBorrowsNew >= borrows, "MATH_ERROR");
+
+    /* Calculate the reserves accumulated */
+    uint reserveFactorMantissa = reserveFactorMantissa;
+    uint reservesAccumulated = mul_(interestAccumulated, reserveFactorMantissa);
+    reservesAccumulated = div_(reservesAccumulated, expScale);
+
+    /* Update the total reserves */
+    uint totalReservesNew = add_(reserves, reservesAccumulated);
+    require(totalReservesNew >= reserves, "MATH_ERROR");
+
+    /* Update the borrow index */
+    uint borrowIndexNew = mul_(borrowIndex, interestRateMantissa);
+    borrowIndexNew = div_(borrowIndexNew, blocksPerYear);
+    borrowIndexNew = mul_(borrowIndexNew, blockDelta);
+    borrowIndexNew = add_(borrowIndex, borrowIndexNew);
+
+    /* Set the market's updated state variables */
+    accrualBlockNumber = currentBlockNumber;
+    borrowIndex = borrowIndexNew;
+    borrows = totalBorrowsNew;
+    reserves = totalReservesNew;
+
+    /* Emit an AccrueInterest event */
+    emit AccrueInterest(interestAccumulated, borrowIndexNew, totalBorrowsNew, totalReservesNew);
+
+    return uint(Error.NO_ERROR);
+}

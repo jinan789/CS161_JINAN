@@ -1,0 +1,63 @@
+TASK 1:
+
+1. Issue: In step 9, the calculation of the accruedBorrowAmount is incorrect.
+   Fix: Replace the use of mulScalar function with mulExp function to calculate the accruedBorrowAmount.
+
+TASK 2:
+
+<CODE_BEGINNING>
+function borrowFresh(address payable borrower, uint borrowAmount) internal nonReentrant returns (uint) {
+    // Step 1: Update the interest rates
+    accrueInterest();
+
+    // Step 2: Get the borrower's account liquidity
+    (uint allowed, uint liquidity, uint shortfall) = comptroller.getAccountLiquidity(borrower);
+
+    // Step 3: Check if the borrower is allowed to borrow
+    if (allowed != 0 || shortfall != 0) {
+        return fail(Error.BORROW_COMPTROLLER_REJECTION, FailureInfo.BORROW_COMPTROLLER_REJECTION);
+    }
+
+    // Step 4: Check the contract's cash balance
+    uint cash = getCash();
+
+    // Step 5: Check if the contract has enough cash
+    if (cash < borrowAmount) {
+        return fail(Error.TOKEN_INSUFFICIENT_CASH, FailureInfo.BORROW_INSUFFICIENT_CASH);
+    }
+
+    // Step 6: Get the current block number
+    uint currentBlockNumber = getBlockNumber();
+
+    // Step 7: Validate the current block number
+    BorrowSnapshot storage borrowSnapshot = accountBorrows[borrower];
+    if (borrowSnapshot.interestIndex == currentBlockNumber) {
+        return fail(Error.BORROW_ACCUMULATED_BALANCE_CALCULATION_FAILED, FailureInfo.BORROW_ACCUMULATED_BALANCE_CALCULATION_FAILED);
+    }
+
+    // Step 8: Transfer the requested amount to the borrower
+    doTransferOut(borrower, borrowAmount);
+
+    // Step 9: Update the borrower's borrow balance
+    uint principalBefore = borrowSnapshot.principal;
+    MathError mathErr;
+    uint accruedBorrowAmount;
+    //CHANGES BASED ON CALLED CODE MADE: Using mulExp instead of mulScalar to calculate accruedBorrowAmount
+    (mathErr, accruedBorrowAmount) = mulExp(borrowSnapshot.interestIndex, borrowAmount);
+    if (mathErr != MathError.NO_ERROR) {
+        return failOpaque(Error.MATH_ERROR, FailureInfo.BORROW_ACCUMULATED_BALANCE_CALCULATION_FAILED, uint(mathErr));
+    }
+    uint principalAfter = principalBefore.add(accruedBorrowAmount);
+    borrowSnapshot.principal = principalAfter;
+    borrowSnapshot.interestIndex = borrowIndex;
+
+    // Step 10: Update the total borrows
+    totalBorrows = totalBorrows.add(borrowAmount);
+
+    // Step 11: Emit a Borrow event
+    emit Borrow(borrower, borrowAmount, principalBefore, principalAfter);
+
+    // Step 12: Return no error
+    return uint(Error.NO_ERROR);
+}
+<CODE_ENDING>

@@ -1,0 +1,34 @@
+## Gas-Wasting Patterns
+
+1. **Unnecessary Boolean Flag**
+
+    In the `rebalanceVault` function, there is a boolean variable `success` that is initially undefined, then set to true at the end of the function. It does not seem to serve any purpose, as it is not used elsewhere in the function.
+
+    - **How This Was Found**: It was noticed that the `success` variable doesn't have any effect on the function's logic, it's simply assigned a value of true at the end of the function and returned.
+    - **How to Fix**: Remove the `success` variable and have the function return true directly. This will save gas by eliminating the unnecessary storage operation.
+    - **Impact**: Readability: 5; Security: 5; Maintainability: 5
+
+2. **Redundant Revert Statements**
+
+    In the `allowExecutor` function, there is a revert statement if the new permission setting is the same as the existing setting. This is not necessarily a gas-wasting issue, but it's a consideration for contract design where it could be more efficient to allow such no-op transactions.
+
+    - **How This Was Found**: By analyzing the conditions for revert statements, it was noticed that one of them is not strictly necessary.
+    - **How to Fix**: Remove the revert statement and allow the function to complete normally, even if the new permission setting is the same as the existing one. This will save gas for no-op transactions that would otherwise fail.
+    - **Impact**: Readability: 5; Security: 4; Maintainability: 5
+
+3. **Repeated External Calls**
+
+    In the `_checkLtvChange` function, the following external calls are made twice: `from.getDepositBalance(address(bvault), bvault)` and `from.getBorrowBalance(address(bvault), bvault)`. These calls could be replaced with a local variable to save gas.
+
+    - **How This Was Found**: By examining the function, it was noticed that the same external calls are made multiple times.
+    - **How to Fix**: Store the return value of the first call in a local variable, then use that variable instead of making the call again. This will save gas by reducing the number of external calls.
+    - **Impact**: Readability: 4; Security: 5; Maintainability: 4
+
+## Improvement Suggestions for the Prompt
+
+- This prompt asks for new gas-wasting patterns, but the provided code is quite well-optimized. It may be more helpful to provide a less optimized code sample to analyze.
+
+## Reflection on Reasoning Process
+
+- When looking for gas-wasting patterns, I started by examining the existing patterns and looking for similar issues in the code. Then, I looked for other potential issues not covered by the existing patterns.
+- In future, I might try to think outside the box more to identify potential issues that are not immediately apparent. I might also try to look at the code from different perspectives, such as from a security perspective or a usability perspective, to identify potential improvements.

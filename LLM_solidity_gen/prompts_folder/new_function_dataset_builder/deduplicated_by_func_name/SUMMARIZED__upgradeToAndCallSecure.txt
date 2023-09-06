@@ -1,0 +1,7 @@
+Function: _upgradeToAndCallSecure
+Input:
+- address newImplementation
+- bytes memory data
+- bool forceCall
+
+The function performs a secure implementation upgrade while calling the specified data. It tests for potential upgrade rollback issues before finalizing the new implementation. If the test fails, it reverts the changes to the previous implementation.

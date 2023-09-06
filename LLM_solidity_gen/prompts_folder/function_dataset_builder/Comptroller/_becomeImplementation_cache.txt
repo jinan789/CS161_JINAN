@@ -1,0 +1,7 @@
+Function: _becomeImplementation(bytes memory data)
+
+Inputs: 1 variable (data) of type bytes memory
+
+Outputs: None
+
+Purpose: The function is essentially used when a delegate is being initialized or upgraded, allowing the implementation to act on the storage of the delegator. This function is called after the storage of the implementation contract has been updated with the storage of the delegator contract.

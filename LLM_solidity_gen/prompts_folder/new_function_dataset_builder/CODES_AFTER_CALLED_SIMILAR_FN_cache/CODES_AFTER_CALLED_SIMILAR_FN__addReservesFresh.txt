@@ -1,0 +1,25 @@
+TASK 1:
+
+1. Misuse of Error enum: The Error enum should be prefixed by the contract name for proper usage. To fix this, change "uint(Error.NOT_FRESH)" and "uint(Error.NO_ERROR)" to "uint(ContractName.Error.NOT_FRESH)" and "uint(ContractName.Error.NO_ERROR)" respectively, where "ContractName" should be the name of the contract.
+
+TASK 2:
+
+<CODE_BEGINNING>
+function _addReservesFresh(uint addAmount) internal nonReentrant returns (uint, uint) { // MODIFICATIONS MADE: Added nonReentrant modifier to prevent reentrancy attacks
+    // Check for fresh block number
+    if (accrualBlockNumber != getBlockNumber()) {
+        return (uint(ContractName.Error.NOT_FRESH), 0); // CHANGES BASED ON CALLED CODE MADE: Added contract name before Error enum for proper usage
+    }
+
+    // Transfer tokens from msg.sender to the contract
+    uint actualAddAmount = doTransferIn(msg.sender, addAmount); // MODIFICATIONS MADE: Implementation of doTransferIn is not given in the provided context, depending on its implementation this line might have issues.
+
+    // Increase total reserves by the actual transferred amount
+    totalReserves = add_(totalReserves, actualAddAmount);
+
+    // Emit the ReservesAdded event
+    emit ReservesAdded(msg.sender, addAmount, actualAddAmount);
+
+    return (uint(ContractName.Error.NO_ERROR), actualAddAmount); // CHANGES BASED ON CALLED CODE MADE: Added contract name before Error enum for proper usage
+}
+<CODE_ENDING>

@@ -1,0 +1,32 @@
+function callAndTransfer1155(bytes calldata inputs, address protocol)
+    internal
+    returns (bool success, bytes memory output)
+{
+    // Extract value, data, recipient, token, id, and amount from inputs
+    uint256 value;
+    bytes calldata data;
+    address recipient;
+    address token;
+    uint256 id;
+    uint256 amount;
+    (value, data, recipient, token, id, amount) = getValueAndData1155(inputs);
+
+    // Perform the function call to the given protocol
+    (success, output) = protocol.call{value: value}(data);
+
+    // If the function call is successful, transfer the specified amount of ERC1155 tokens
+    if (success) {
+        require(ERC1155(token).balanceOf(address(this), id) >= amount, "BalanceTooLow");
+        ERC1155(token).safeTransferFrom(address(this), recipient, id, amount, "");
+    }
+}
+
+function getValueAndData1155(bytes calldata inputs)
+    internal
+    pure
+    returns (uint256 value, bytes calldata data, address recipient, address token, uint256 id, uint256 amount)
+{
+    // Decode the inputs to get value, data, recipient, token, id, and amount
+    (value, data) = inputs.splitFirst32Bytes();
+    (recipient, token, id, amount) = abi.decode(data[4:], (address, address, uint256, uint256));
+}

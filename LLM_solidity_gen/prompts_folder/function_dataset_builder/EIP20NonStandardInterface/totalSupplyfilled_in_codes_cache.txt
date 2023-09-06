@@ -1,0 +1,42 @@
+To implement the `totalSupply` function, you can add it to the `EIP20NonStandardInterface` interface and then provide its implementation in a contract that implements this interface. Here's how you can do it:
+
+1. Add the `totalSupply` function to the `EIP20NonStandardInterface`:
+
+```solidity
+pragma solidity ^0.5.16;
+
+interface EIP20NonStandardInterface {
+    ...
+    function totalSupply() external view returns (uint256);
+    ...
+}
+```
+
+2. Create a new contract that implements the `EIP20NonStandardInterface` and implements the `totalSupply` function.
+
+```solidity
+pragma solidity ^0.5.16;
+
+import "./EIP20NonStandardInterface.sol";
+
+contract MyToken is EIP20NonStandardInterface {
+    uint256 private _totalSupply;
+
+    // You can add a constructor to set the initial supply
+    constructor(uint256 initialSupply) public {
+        _totalSupply = initialSupply;
+    }
+
+    ...
+    
+    function totalSupply() external view returns (uint256) {
+        return _totalSupply;
+    }
+
+    ...
+}
+```
+
+In this example, I've created a new contract called `MyToken` which implements the `EIP20NonStandardInterface`. The contract has a private variable `_totalSupply` to store the total supply of tokens. The constructor allows you to set an initial supply when the contract is deployed. The `totalSupply` function is implemented to return the value of `_totalSupply`.
+
+Please note that you'll also need to implement the other functions from the `EIP20NonStandardInterface` in your `MyToken` contract.

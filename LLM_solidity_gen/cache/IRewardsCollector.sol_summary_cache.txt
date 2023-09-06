@@ -1,0 +1,8 @@
+interfaces/IRewardsCollector.sol
+<START_FUNCTIONS>
+- collectRewards(bytes calldata looksRareClaim) external: Fetches users' LooksRare rewards from the Universal Router and sends them to an external rewards distributor contract, using the provided `looksRareClaim` data.
+<END_FUNCTIONS>
+<START_CONTRACTS>
+Summary of the entire contract:
+The LooksRare Rewards Collector contract provides a permissionless function to collect LooksRare rewards earned by Universal Router users. It allows anyone to call the `collectRewards` function with the required data, and transfers these rewards to an external rewards distributor contract.
+<END_CONTRACTS>

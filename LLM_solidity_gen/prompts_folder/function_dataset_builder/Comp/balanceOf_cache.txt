@@ -1,0 +1,7 @@
+Function: balanceOf
+
+Input: 1 variable (address account)
+
+Output: 1 variable (uint)
+
+Summary: This function returns the token balance of a given account.

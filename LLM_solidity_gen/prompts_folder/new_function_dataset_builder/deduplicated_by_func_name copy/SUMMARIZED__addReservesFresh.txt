@@ -1,0 +1,4 @@
+Inputs: (1) uint addAmount
+Outputs: (1) uint error, (2) uint actualAddAmount
+
+The _addReservesFresh function checks if the market is fresh (the market's block number equals the current block number). If fresh, the function transfers the input amount (addAmount) to the contract and increases the total reserves by the actual transferred amount (actualAddAmount). The function then emits an event (ReservesAdded) to indicate successful addition of reserves.

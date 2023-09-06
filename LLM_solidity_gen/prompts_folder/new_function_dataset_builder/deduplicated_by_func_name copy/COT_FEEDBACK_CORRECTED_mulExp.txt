@@ -1,0 +1,32 @@
+Number of steps: 8
+
+Number of branches: 0
+
+Modification needed: NO
+
+
+CODES_BEGINNING
+    function mulExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory) {
+        (MathError err0, uint doubleScaledProduct) = mulUint(a.mantissa, b.mantissa);
+        if (err0 != MathError.NO_ERROR) {
+            return (err0, Exp({mantissa: 0}));
+        }
+
+        //MODIFICATION_BEGINNING
+        (MathError err1, uint result) = addUint(halfExp().mantissa, doubleScaledProduct); // add halfExp() function to get the struct.
+        //MODIFICATION_ENDING
+        if (err1 != MathError.NO_ERROR) {
+            return (err1, Exp({mantissa: 0}));
+        }
+
+        (MathError err2, uint unscaledResult) = divUint(result, expScale);
+        if (err2 != MathError.NO_ERROR) {
+            return (err2, Exp({mantissa: 0}));
+        }
+
+        return (MathError.NO_ERROR, Exp({mantissa: unscaledResult}));
+    }
+
+    // ... (other functions)
+}
+CODES_ENDING

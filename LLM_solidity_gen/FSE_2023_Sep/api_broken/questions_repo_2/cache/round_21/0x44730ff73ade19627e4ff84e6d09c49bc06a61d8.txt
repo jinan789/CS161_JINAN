@@ -1,0 +1,170 @@
+I want you to help me find new gas-wasting patterns for Solidity. Gas is a unique pricing mechanism in Solidity, which measures the amount of computational resources put into the execution of Solidity codes. The goal of gas optimization is to find an equivalent code instruction sequence that produces the same output while consuming less gas, which may misalign from the way people typically write codes, since code writers aim for readability and maintainability, while gas optimization might seem a little unintuitive to newcomers. For example, storage variables in Solidity are expensive in terms of gas, while memory is not, so storage operations should be avoided whenever possible. Gas is paid in real money, so saving gas is saving money.
+
+First, I will give you a list of known gas-wasting patterns. The list is numbered, with each bullet point specifying one gas-wasting pattern, which is followed by an explanation of why this pattern wastes gas. I want you to read through these and learn how to find new gas-wasting patterns from it. The list is as follows:
+
+1. Repeated computation of the same expression: including repetitive reads of the same expensive storage variable (e.g. Overuse of expensive storage variables). This could be solved by introducing an intermediate variable to hold the value.
+ 
+2. Extractable code chunks: if there are multiple chunks of codes that perform the same/similar functionalities, then we could abstract them into one function (or modifier) to save deployment costs 
+
+3. Variable refactoring: by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+
+4. Redundant operations with same effects: redundant operations that overwrite the effect of the previous operation, making the previous useless
+
+5. Pre-computable operations on constants: performing comparisons (or say other operations) to constants is useless and could be pre-computed
+
+6. Persistent conditional checks: some of the condition checks may always evaluate to true or always evaluate to false, which could be directly replaced by their evaluated values
+
+7. Simplifiable conditional operations: expressions that involve logical operations that could be simplified to reduce the amount of computational workload.
+
+8. "dead codes." codes that are guaranteed not to be executed (e.g. unreachable conditional branch) should be removed.
+9. "Opaque predicate." If the outcome of a predicate could be inferred to be true/false without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+10. "Expensive operations in a loop." If an gas-expensive operation is executed multiple times in a loop, while there is a way to equivalently move it out of the loop to execute only once (e.g. storing a storage variable in a memory variable and performing operations on the memory variable inside the loop), then we should do it to save gas.
+11. "Constant outcome of a loop." If the outcome of a loop could be inferred without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+12. "Loop fusion." If two loops have the same starting and stopping conditions with the same increment steps, then we could consider combining them into one (e.g. delete the second loop, and put its loop body codes into the first one) if they have no dependencies. This way, we save the logical comparisons, conditional jumps, as well as the incremental steps of the second loop, which saves computation and thus gas.
+13. "Repeated computations in a loop." If there are expressions that produce the same outcome in each iteration of a loop, we could move it out of the loop and execute only once, which saves computation.
+14. "Struct variable refactoring." If a struct used in a contract contains some fields that are used more often and some that are less often, then by breaking up the struct into two, where the frequently used fields are now put as a separate struct, we get to avoid unnecessary reads on the less often used fields and save gas.s
+
+Next, I will give you a chunk of Solidity codes from which you will find gas-inefficient patterns; note that I have removed simple functions from the contract and only kept complex ones, with the hope that you could focus on the most complicated function codes
+contract Token1984 is ERC20, Ownable {
+    function withdrawLockedTokens(address[] memory wallets) external onlyOwner {
+        require(lockedTokens > 0, "No Locked Tokens");
+        require(wallets.length > 0, "No wallets provided");
+        require(
+            block.timestamp >= endTime,
+            "There is still time left to withdraw tokens, Please Wait."
+        );
+        uint256 totalAmountShare = lockedTokens.div(wallets.length);
+        for (uint256 i = 0; i < wallets.length; i++) {
+            require(
+                wallets[i] != address(0),
+                "Withdraw: Invalid wallet address"
+            );
+            _transfer(address(this), wallets[i], totalAmountShare);
+            emit Transfer(address(this), wallets[i], totalAmountShare);
+        }
+        lockedTokens = 0;
+    }
+
+    /**
+     * @dev Blacklists multiple wallets to prevent them from participating in the airdrop.
+     * @param wallets An array of addresses to be blacklisted.
+     *
+     * Requirements:
+     * - The caller must be the owner of the contract.
+     * - At least one wallet address must be provided.
+     * - Each wallet address must be valid and not already blacklisted.
+     *
+     * Effects:
+     * - Adds each wallet address to the airdrop blacklist.
+     * - Appends each wallet address to the array of all blacklisted wallets.
+     * - Emits a `WalletBlacklisted` event for each blacklisted wallet address.
+     */
+    function blacklistWallets(address[] memory wallets) external onlyOwner {
+        require(wallets.length > 0, "No wallets provided");
+
+        for (uint256 i = 0; i < wallets.length; i++) {
+            address wallet = wallets[i];
+            require(wallet != address(0), "Invalid wallet address");
+            require(
+                !airdropBlacklistedWallets[wallet],
+                "Wallet is already blacklisted"
+            );
+
+            airdropBlacklistedWallets[wallet] = true;
+            allLotteryBlacklistedWallets.push(wallet);
+            emit WalletBlacklisted(wallet);
+        }
+    }
+
+    /**
+     * @notice Blacklists multiple exchange wallets to restrict their access and participation.
+     * @param wallets An array of exchange wallet addresses to be blacklisted.
+     *
+     * Requirements:
+     * - The caller must be the owner of the contract.
+     * - At least one wallet address must be provided.
+     * - Each wallet address must be valid and not already blacklisted.
+     *
+     * Effects:
+     * - Adds each exchange wallet address to the blacklist.
+     * - Appends each wallet address to the array of all blacklisted exchange wallets.
+     * - Emits an `ExchangeWalletBlacklisted` event for each blacklisted exchange wallet address.
+     */
+    function blacklistExchangeWallets(address[] memory wallets)
+        external
+        onlyOwner
+    {
+        require(wallets.length > 0, "No wallets provided");
+
+        for (uint256 i = 0; i < wallets.length; i++) {
+            address wallet = wallets[i];
+            require(wallet != address(0), "Invalid wallet address");
+            require(
+                !blacklistedExchangeWallets[wallet],
+                "Wallet is already blacklisted"
+            );
+
+            blacklistedExchangeWallets[wallet] = true;
+            allBlacklistedExchangeWallets.push(wallet);
+            emit ExchangeWalletBlacklisted(wallet);
+        }
+    }
+
+    /**
+     * @notice Removes a wallet from the blacklist.
+     * @param wallet The address of the wallet to be removed from the blacklist.
+     *
+     * Requirements:
+     * - The caller must be the owner of the contract.
+     * - The array of blacklisted wallets must not be empty.
+     *
+     * Effects:
+     * - Finds the provided wallet address in the array of all blacklisted wallets.
+     * - Replaces the found wallet address with the last address in the array.
+     * - Removes the last element from the array of all blacklisted wallets.
+     * - Sets the `airdropBlacklistedWallets` mapping value for the removed wallet address to `false`.
+     */
+    function removeBlacklistWallet(address wallet) external onlyOwner {
+        require(
+            allLotteryBlacklistedWallets.length > 0,
+            "No blacklisted wallet to remove"
+        );
+
+        for (uint256 i = 0; i < allLotteryBlacklistedWallets.length; i++) {
+            if (allLotteryBlacklistedWallets[i] == wallet) {
+                allLotteryBlacklistedWallets[i] = allLotteryBlacklistedWallets[
+                    allLotteryBlacklistedWallets.length - 1
+                ];
+                allLotteryBlacklistedWallets.pop();
+                airdropBlacklistedWallets[wallet] = false;
+                emit RemovedWalletBlacklisted(wallet);
+            }
+        }
+    }
+
+    /**
+     * @notice Removes a wallet from the blacklist for exchange wallets.
+     * @param wallet The address of the wallet to be removed from the blacklist.
+     *
+     * Requirements:
+     * - The caller must be the owner of the contract.
+     * - The array of blacklisted exchange wallets must not be empty.
+     *
+     * Effects:
+     * - Finds the provided wallet address in the array of all blacklisted exchange wallets.
+     * - Replaces the found wallet address with the last address in the array.
+     * - Removes the last element from the array of all blacklisted exchange wallets.
+     * - Sets the `blacklistedExchangeWallets` mapping value for the removed wallet address to `false`.
+     */
+    }
+Now that I have given you the necessary information, I want you to help me find new gas-wasting patterns from the above codes, based on what you learn from the list of patterns. Please be creative and think out of the box beyond the patterns listed above. Please put the new gas wasting patterns in bullet points (in the form of '1.', '2.', etc), and answer the following questions for each of the found patterns (in sub-bullet-points under each bullet point):
+
+1. How did you find this pattern? Could you explain the reasoning process, step by step, behind the discovery?
+
+2. What should I do, step by step, to fix the found gas-wasting patterns? Could you explain the reasoning process, step by step, behind the reason why such a fix works?
+
+3. On a score of 0 to 5, could you please tell me how would you rate this found new pattern, in terms of how much it is sacrificing readability, security, and maintainability in exchange for gas optimization (5 is the least impacted. For example, Security score of 5 means implementing the found gas-optimization pattern would have no effect on security, whereas 1 means it would reduce security)? Please format your answer as in "Readability: 5; Security: 4; Maintainability: 3". Please also provide explanations.
+
+Here are some additional requirements:
+1. If you think my prompt to you has any issues (e.g. ambiguity or lack of information), please tell me how I should improve it in the next time.
+2. please help me format your answer in the form of a Latex section (e.g. \section*{Analysis of Provided Solidity Code}), since I want to assert it to a Latex document.

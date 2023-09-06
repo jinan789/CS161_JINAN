@@ -1,0 +1,36 @@
+Based on the suggestions provided, here's the improved and optimized version of the Solidity function `borrowAllowed`:
+
+```solidity
+pragma solidity ^0.5.16;
+
+import "./ComptrollerInterface.sol";
+import "./ComptrollerStorage.sol";
+import "./ErrorReporter.sol";
+
+contract BorrowAllowed is ComptrollerV2Storage, ComptrollerErrorReporter {
+    
+    // Check if the account is allowed to borrow the underlying asset of a given market
+    function borrowAllowed(
+        address cToken,
+        address borrower,
+        uint256 borrowAmount
+    ) external view returns (uint) {
+        Market storage market = markets[cToken];
+
+        // Check if borrowing is paused by the borrow guardian contract
+        if (market.borrowGuardianPaused) {
+            return fail(Error.MARKET_BORROW_PAUSED, FailureInfo.BORROW_PAUSED);
+        }
+
+        // Optional: Add additional conditions for borrowing here
+
+        // Return 0 if no error
+        return uint(Error.NO_ERROR);
+    }
+}
+```
+
+Changes made:
+
+1. Changed the visibility of the function `borrowAllowed` from `public` to `external` to save gas since this function is probably only called from external contracts.
+2. Changed the variable `market` from `memory` to `storage` as using memory might require unnecessary copying of data.

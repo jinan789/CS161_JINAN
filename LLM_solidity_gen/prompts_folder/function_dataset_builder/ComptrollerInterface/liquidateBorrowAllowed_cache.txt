@@ -1,0 +1,14 @@
+Function: liquidateBorrowAllowed
+
+Input:
+1. address cTokenBorrowed
+2. address cTokenCollateral
+3. address liquidator
+4. address borrower
+5. uint repayAmount
+
+Output: 
+1. uint errorCode
+
+Summary:
+This function checks if a liquidation attempt for a borrower's debt is allowed. It takes in the addresses of the borrowed and collateral tokens, the liquidator, and the borrower, as well as the repay amount. It returns an error code specifying the success or failure of the liquidation allowance check.

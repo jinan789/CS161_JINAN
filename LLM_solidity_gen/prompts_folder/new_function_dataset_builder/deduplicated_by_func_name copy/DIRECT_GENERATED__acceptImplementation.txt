@@ -1,0 +1,18 @@
+function _acceptImplementation() public returns (uint) {
+    // Check that the caller is the pending implementation and not the zero address
+    if (msg.sender != pendingComptrollerImplementation || pendingComptrollerImplementation == address(0)) {
+        return fail(Error.UNAUTHORIZED, FailureInfo.ACCEPT_PENDING_IMPLEMENTATION_ADDRESS_CHECK);
+    }
+
+    // Update the current comptroller implementation
+    address oldImplementation = comptrollerImplementation;
+    comptrollerImplementation = pendingComptrollerImplementation;
+
+    // Clear the pending implementation
+    pendingComptrollerImplementation = address(0);
+
+    // Emit the NewImplementation event
+    emit NewImplementation(oldImplementation, comptrollerImplementation);
+
+    return uint(Error.NO_ERROR);
+}

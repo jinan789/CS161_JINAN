@@ -1,0 +1,15 @@
+// MODIFICATIONS MADE: Made the function `view` instead of `public view` for consistency with few-shot examples
+function getAccountSnapshot(address account) view returns (uint, uint, uint, uint) {
+    uint cTokenBal = balanceOf(account);
+
+    // CHANGES BASED ON CALLED CODE MADE: Using borrowBalanceStored instead of borrowBalanceStoredInternal
+    uint borrowBal = borrowBalanceStored(account);
+
+    (MathError exchangeRateMathErr, uint exchangeRateMantissa) = exchangeRateStoredInternal();
+    if (exchangeRateMathErr != MathError.NO_ERROR) {
+        // CHANGES BASED ON CALLED CODE MADE: Emitting an event instead of returning Error.MATH_ERROR
+        return (fail(Error.MATH_ERROR, FailureInfo.EXCHANGE_RATE_MATH_ERROR), 0, 0, 0);
+    }
+    
+    return (uint(Error.NO_ERROR), cTokenBal, borrowBal, exchangeRateMantissa);
+}

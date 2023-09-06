@@ -1,0 +1,55 @@
+Here's the step-by-step plan to achieve the functionality described in the swap function:
+
+1. Check the input arguments to make sure they are valid:
+   - Ensure that the minPrice is less than maxPrice.
+   - Ensure the source token and destination token are not the same.
+2. Transfer the source tokens from the caller to the contract. This is done using the `safeTransferFrom` function of the ERC20 token.
+3. Perform the swap operation using the `_oneInchTrade` function. This function takes the source token, source amount, destination token, and 1inch protocol data as arguments, and returns the prices of the source and destination tokens in terms of each other and the actual amounts of source and destination tokens used and received in the trade.
+4. Check the price of the destination token in terms of the source token obtained from the swap operation. Make sure it is greater than or equal to the minPrice and less than or equal to the maxPrice.
+5. Emit an event to log the swap operation. This event should include the source and destination tokens and the actual amounts of source and destination tokens used and received in the trade.
+
+The given code seems to be following these steps in the correct order. However, one potential improvement could be to add more detailed error messages in the `require` statements to give more context to the caller when an operation fails. Here's an updated version of the `swap` function:
+
+```solidity
+function swap(
+    address srcToken,
+    uint256 srcAmount,
+    uint256 minPrice,
+    uint256 maxPrice,
+    address destToken,
+    bytes memory oneInchData
+)
+    public
+    onlyAdmin
+    returns (
+        uint256 actualDestAmount,
+        uint256 actualSrcAmount
+    )
+{
+    require(minPrice < maxPrice, "Pool: minPrice should be less than maxPrice");
+    require(srcToken != destToken, "Pool: Source and destination tokens should be different");
+
+    IERC20Detailed(srcToken).safeTransferFrom(_msgSender(), address(this), srcAmount);
+
+    uint256 destPriceInSrc;
+    uint256 srcPriceInDest;
+    (destPriceInSrc, srcPriceInDest, actualDestAmount, actualSrcAmount) = _oneInchTrade(
+        srcToken,
+        srcAmount,
+        destToken,
+        oneInchData
+    );
+
+    require(
+        destPriceInSrc >= minPrice,
+        "Pool: Swap rate is lower than the minimum acceptable price"
+    );
+    require(
+        destPriceInSrc <= maxPrice,
+        "Pool: Swap rate is higher than the maximum acceptable price"
+    );
+
+    emit Swapped(srcToken, destToken, actualSrcAmount, actualDestAmount);
+}
+```
+This version of the code includes more detailed error messages in the `require` statements which check the swap rate against the minimum and maximum acceptable prices. This makes it clearer to the caller why a swap operation might have failed.

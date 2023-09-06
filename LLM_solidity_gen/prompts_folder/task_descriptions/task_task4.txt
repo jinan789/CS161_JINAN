@@ -1,0 +1,3 @@
+This is a function in a smart contract written in Solidity programming language. The function is called repayBorrowAllowed and it takes four input parameters: cToken, payer, borrower, and repayAmount. The function returns an unsigned integer value.
+
+The purpose of this function is to determine if an account is allowed to repay a borrow in the given market. The function first checks if the market is listed. If it is not listed, the function returns an error code.

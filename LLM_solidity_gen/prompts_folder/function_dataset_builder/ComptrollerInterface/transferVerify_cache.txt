@@ -1,0 +1,10 @@
+Input: 
+1. address cToken
+2. address src
+3. address dst
+4. uint transferTokens
+
+Output: None
+
+Summary:
+The function 'transferVerify' checks and verifies the transfer of tokens between two addresses in a Comptroller contract.

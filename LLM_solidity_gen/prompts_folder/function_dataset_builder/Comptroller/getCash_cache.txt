@@ -1,0 +1,5 @@
+Function: getCash()
+Input: None
+Output: uint
+
+The function returns the cash balance of the contract.

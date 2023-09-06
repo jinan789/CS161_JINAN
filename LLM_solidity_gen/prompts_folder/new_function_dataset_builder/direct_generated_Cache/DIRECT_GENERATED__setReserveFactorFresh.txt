@@ -1,0 +1,31 @@
+<CODE_BEGINNING>
+    /**
+     * @notice Administratively set a fresh reserve factor for this CToken, only if the market is fresh
+     * @param newReserveFactorMantissa The new reserve factor, scaled by 1e18
+     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+     */
+    function _setReserveFactorFresh(uint newReserveFactorMantissa) internal returns (uint) {
+        // Check caller is admin
+        if (msg.sender != admin) {
+            return fail(Error.UNAUTHORIZED, FailureInfo.SET_RESERVE_FACTOR_ADMIN_CHECK);
+        }
+
+        // Check market is fresh
+        if (accrualBlockNumber != getBlockNumber()) {
+            return fail(Error.MARKET_NOT_FRESH, FailureInfo.SET_RESERVE_FACTOR_FRESH_CHECK);
+        }
+
+        // Check reserve factor is within bounds
+        if (newReserveFactorMantissa > maxMantissa) {
+            return fail(Error.BAD_INPUT, FailureInfo.SET_RESERVE_FACTOR_BOUNDS_CHECK);
+        }
+
+        // Update reserve factor
+        reserveFactorMantissa = newReserveFactorMantissa;
+
+        // Emit NewReserveFactor event
+        emit NewReserveFactor(newReserveFactorMantissa);
+
+        return uint(Error.NO_ERROR);
+    }
+<CODE_ENDING>

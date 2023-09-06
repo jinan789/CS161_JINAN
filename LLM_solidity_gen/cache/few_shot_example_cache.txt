@@ -1,0 +1,1 @@
+collectRewards(bytes calldata looksRareClaim) external: Collects rewards from the LooksRare rewards distributor, and then transfers the collected tokens to the router rewards distributor. Emits a RewardsSent event with the transferred amount. From input_codes/RewardsCollector.sol

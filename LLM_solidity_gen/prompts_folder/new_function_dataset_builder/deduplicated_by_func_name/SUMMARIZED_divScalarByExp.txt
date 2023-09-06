@@ -1,0 +1,10 @@
+Function: divScalarByExp
+Input:
+1. uint scalar
+2. Exp memory divisor (struct with uint mantissa)
+
+Output:
+- MathError (enum)
+- Exp memory (struct with uint mantissa)
+
+Summary: This function divides a scalar by an exponential divisor and returns the result as an exponential data structure along with any math error status.

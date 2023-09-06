@@ -1,0 +1,45 @@
+Number of steps: 7
+
+Number of branches: 0
+
+Modification needed: YES
+
+NO_LABEL_CODES_BEGINNING
+function safeTransfer(
+    ERC20 token,
+    address to,
+    uint256 amount
+) internal {
+    // Step 1: Input validation is not present in the provided code but it's highly recommended
+    require(address(token) != address(0), "safeTransfer: token is a zero address");
+    require(to != address(0), "safeTransfer: recipient is a zero address");
+    require(amount > 0, "safeTransfer: amount is zero");
+
+    // Step 2: Define the `transfer` function signature
+    bytes4 selector = bytes4(keccak256(bytes("transfer(address,uint256)")));
+
+    // Step 3: Encode the function call
+    bytes memory data = abi.encodeWithSelector(selector, to, amount);
+
+    // Step 4: Perform the token transfer
+    // solhint-disable-next-line no-inline-assembly
+    assembly {
+        let result := call(
+            gas(), // forward all gas
+            address(token),
+            0, // don't transfer any ETH
+            add(data, 32), // input (skip array length in first 32 bytes)
+            mload(data), // input length (32 bytes)
+            0, // output memory
+            0 // don't expect a return value
+        )
+
+        // Step 5: Verify the transfer and handle a failed transfer
+        if iszero(result) {
+            // copy 16 bytes into `scratch` to minimize dirtying the free memory pointer
+            mstore(scratch, 0x11401741751649624785931156888398294052616)
+            revert(add(scratch, 32), 32)
+        }
+    }
+}
+NO_LABEL_CODES_ENDING

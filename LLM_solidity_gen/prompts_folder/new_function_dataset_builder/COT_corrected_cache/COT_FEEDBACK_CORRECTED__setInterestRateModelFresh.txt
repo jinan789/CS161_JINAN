@@ -1,0 +1,17 @@
+TASK 1: Step-by-step plan to perform the functionality described in the summary under the context of the contract from Information 1.
+
+Step 1: Check if the caller of the function is the admin of the contract. If not, return an unauthorized error, along with the failure information.
+
+Step 2: Check if the contract is in a fresh state, i.e., the accrual block number is equal to the current block number. If not, return a not fresh error, along with the failure information.
+
+Step 3: Check if the provided new interest rate model is valid by calling the isInterestRateModel() function. If not valid, return an invalid interest rate model error along with the failure information.
+
+Step 4: If all checks pass, set the old interest rate model to the current interest rate model. Update the interest rate model to the new interest rate model.
+
+Step 5: Emit an event about the new market interest rate model being set, providing information on the old and new interest rate models.
+
+Step 6: Return a success error code (no error).
+
+Now, I will check your provided code to see if it follows the above step-by-step plan and make any necessary corrections or updates.
+
+The code you provided does, in fact, follow the step-by-step plan above correctly. No corrections or updates are needed for this function. Your code successfully implements the desired functionality according to the provided summary, and the steps are present in the correct order, as outlined in the step-by-step plan above. Great job!

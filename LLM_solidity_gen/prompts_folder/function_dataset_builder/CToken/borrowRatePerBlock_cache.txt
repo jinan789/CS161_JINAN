@@ -1,0 +1,4 @@
+Input: None
+Output: uint (1 variable)
+
+The function borrowRatePerBlock returns the current per-block borrow interest rate, calculated by the interest rate model with given cash prior, total borrows, and total reserves.

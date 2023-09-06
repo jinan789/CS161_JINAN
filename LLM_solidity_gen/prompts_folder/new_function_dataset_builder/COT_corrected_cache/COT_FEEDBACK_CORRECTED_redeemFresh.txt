@@ -1,0 +1,24 @@
+TASK 1: Step-by-step plan for the "redeemFresh" function
+
+1. Check if either redeemTokensIn or redeemAmountIn is specified (not both); if not, return appropriate error code.
+2. Calculate the current exchange rate (in the form of exchangeRateMantissa) using the contract's "exchangeRateStoredInternal" function.
+3. If redeemTokensIn is specified (non-zero), calculate the redeemAmount using the exchangeRateMantissa.
+4. If redeemAmountIn is specified (non-zero), calculate the redeemTokens using the exchangeRateMantissa.
+5. Call the "redeemAllowed" function from the comptroller to check if the redemption is allowed; if not, return appropriate error code.
+6. Check if the contract has enough cash for the redemption; if not, return appropriate error code.
+7. Update the total supply and the redeemer's token balance.
+8. Transfer the redeemAmount to the redeemer using the "doTransferOut" function.
+9. Emit a "Redeem" event.
+10. Return success (error code 0).
+
+Based on the step-by-step plan, I can see that the code you provided follows the plan closely. However, there is a small issue in the code where you overwrite the "vars.redeemTokens" value when calling "comptroller.redeemAllowed" function. This should be assigned to "vars.err" instead. Here's the corrected section of the code:
+
+```solidity
+/* Verify redemption allowed on this market */
+(vars.err, ) = comptroller.redeemAllowed(address(this), redeemer, vars.redeemTokens);
+if (vars.err != Error.NO_ERROR) {
+    return fail(vars.err, FailureInfo.REDEEM_FRESH_COMPTROLLER_REJECTION);
+}
+```
+
+After this change, your "redeemFresh" function code correctly follows the step-by-step plan and should work as intended.

@@ -1,0 +1,54 @@
+
+The function that I want you to summarize is add, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signature, with the purpose of providing richer background information for you. The codes are: 
+pragma solidity ^0.5.16;
+
+// From https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/math/Math.sol
+// Subject to the MIT license.
+
+/**
+ * @dev Wrappers over Solidity's arithmetic operations with added overflow
+ * checks.
+ *
+ * Arithmetic operations in Solidity wrap on overflow. This can easily result
+ * in bugs, because programmers usually assume that an overflow raises an
+ * error, which is the standard behavior in high level programming languages.
+ * `SafeMath` restores this intuition by reverting the transaction when an
+ * operation overflows.
+ *
+ * Using this library instead of the unchecked operations eliminates an entire
+ * class of bugs, so it's recommended to use it always.
+ */
+library SafeMath {
+    /**
+     * @dev Returns the addition of two unsigned integers, reverting on overflow.
+     *
+     * Counterpart to Solidity's `+` operator.
+     *
+     * Requirements:
+     * - Addition cannot overflow.
+     */
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+    function add(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, errorMessage);
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the subtraction of two unsigned integers, reverting on underflow (when the result is negative).
+     *
+     * Counterpart to Solidity's `-` operator.
+     *
+     * Requirements:
+     * - Subtraction cannot underflow.
+     */
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+    function mul(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+}

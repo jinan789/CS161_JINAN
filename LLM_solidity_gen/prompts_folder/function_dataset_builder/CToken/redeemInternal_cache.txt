@@ -1,0 +1,4 @@
+Input: 1 variable of type uint (redeemTokens)
+Output: 1 variable of type uint (either success as 0 or a failure code)
+
+The redeemInternal function allows a user to redeem cTokens in exchange for underlying assets. It first tries to accrue interest, and if successful, it proceeds to redeem the underlying tokens. Any errors during the process will be reported through the output failure code.

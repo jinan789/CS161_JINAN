@@ -1,0 +1,10 @@
+I want you to help me combine some gas-wasting patterns for Solidity. Those patterns are what I have found, and I have made several rounds of improvements on them. Each round has one output set of patterns, and now I want you to help me combine those patterns into one report that serves as a one point of summary.
+
+Please note that the output in each run is separated by the [*****&&&&&^^^^^%%%%%$$$$$] deliminator, where they may have duplicate across different runs.
+
+Overall, here are the requirements of the summarization:
+1. The input patterns could have duplicates, please combine duplicates into one.
+2. The input patterns might not have the same format. Make sure your output contains the same layout format.
+
+Here are a list of the patterns I found:
+

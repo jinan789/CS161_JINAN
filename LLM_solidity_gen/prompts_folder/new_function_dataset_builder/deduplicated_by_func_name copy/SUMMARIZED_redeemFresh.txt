@@ -1,0 +1,11 @@
+Function: redeemFresh
+Input:
+- address redeemer (address of the redeemer)
+- uint redeemTokensIn (number of redeem tokens, can be 0)
+- uint redeemAmountIn (amount of underlying asset to be redeemed, can be 0)
+
+Output: 
+- uint (error code, 0 means success)
+
+Summary:
+The function "redeemFresh" calculates the redeem amount or the redeem tokens based on the provided input, verifies whether a redemption is allowed or not, performs checks on market freshness and cash availability, and then transfers the redeemed underlying asset to the redeemer while updating the total supply and account tokens. It emits relevant events in the process.

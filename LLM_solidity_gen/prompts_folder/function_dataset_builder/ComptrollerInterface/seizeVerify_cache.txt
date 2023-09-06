@@ -1,0 +1,14 @@
+Summary of the seizeVerify function:
+
+Input:
+- address cTokenCollateral
+- address cTokenBorrowed
+- address liquidator
+- address borrower
+- uint seizeTokens
+
+Output:
+- None
+
+Purpose:
+- The seizeVerify function checks the validity of a seize action where a user's collateral is being taken by a liquidator, after a failed loan repayment scenario.

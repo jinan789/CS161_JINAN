@@ -1,0 +1,261 @@
+
+The function that I want you to summarize is mul_ScalarTruncateAddUInt, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signature, with the purpose of providing richer background information for you. The codes are: 
+pragma solidity ^0.5.16;
+
+contract ComptrollerInterface {
+    /// @notice Indicator that this is a Comptroller contract (for inspection)
+    bool public constant isComptroller = true;
+
+    /*** Assets You Are In ***/
+
+    function enterMarkets(address[] calldata cTokens) external returns (uint[] memory);
+    function exitMarket(address cToken) external returns (uint);
+    function mintAllowed(address cToken, address minter, uint mintAmount) external returns (uint);
+    function mintVerify(address cToken, address minter, uint mintAmount, uint mintTokens) external;
+    function redeemAllowed(address cToken, address redeemer, uint redeemTokens) external returns (uint);
+    function redeemVerify(address cToken, address redeemer, uint redeemAmount, uint redeemTokens) external;
+    function borrowAllowed(address cToken, address borrower, uint borrowAmount) external returns (uint);
+    function borrowVerify(address cToken, address borrower, uint borrowAmount) external;
+    function repayBorrowAllowed(
+    function repayBorrowVerify(
+    function liquidateBorrowAllowed(
+    function liquidateBorrowVerify(
+    function seizeAllowed(
+    function seizeVerify(
+    function transferAllowed(address cToken, address src, address dst, uint transferTokens) external returns (uint);
+    function transferVerify(address cToken, address src, address dst, uint transferTokens) external;
+    function liquidateCalculateSeizeTokens(
+    function getBorrowRate(uint cash, uint borrows, uint reserves) external view returns (uint);
+    function getSupplyRate(uint cash, uint borrows, uint reserves, uint reserveFactorMantissa) external view returns (uint);
+    function transfer(address dst, uint amount) external returns (bool);
+    function transferFrom(address src, address dst, uint amount) external returns (bool);
+    function approve(address spender, uint amount) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint);
+    function balanceOf(address owner) external view returns (uint);
+    function balanceOfUnderlying(address owner) external returns (uint);
+    function getAccountSnapshot(address account) external view returns (uint, uint, uint, uint);
+    function borrowRatePerBlock() external view returns (uint);
+    function supplyRatePerBlock() external view returns (uint);
+    function totalBorrowsCurrent() external returns (uint);
+    function borrowBalanceCurrent(address account) external returns (uint);
+    function borrowBalanceStored(address account) public view returns (uint);
+    function exchangeRateCurrent() public returns (uint);
+    function exchangeRateStored() public view returns (uint);
+    function getCash() external view returns (uint);
+    function accrueInterest() public returns (uint);
+    function seize(address liquidator, address borrower, uint seizeTokens) external returns (uint);
+    function _setPendingAdmin(address payable newPendingAdmin) external returns (uint);
+    function _acceptAdmin() external returns (uint);
+    function _setComptroller(ComptrollerInterface newComptroller) public returns (uint);
+    function _setReserveFactor(uint newReserveFactorMantissa) external returns (uint);
+    function _reduceReserves(uint reduceAmount) external returns (uint);
+    function _setInterestRateModel(InterestRateModel newInterestRateModel) public returns (uint);
+    function mint(uint mintAmount) external returns (uint);
+    function redeem(uint redeemTokens) external returns (uint);
+    function redeemUnderlying(uint redeemAmount) external returns (uint);
+    function borrow(uint borrowAmount) external returns (uint);
+    function repayBorrow(uint repayAmount) external returns (uint);
+    function repayBorrowBehalf(address borrower, uint repayAmount) external returns (uint);
+    function liquidateBorrow(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) external returns (uint);
+    function _addReserves(uint addAmount) external returns (uint);
+    function _setImplementation(address implementation_, bool allowResign, bytes memory becomeImplementationData) public;
+    function _becomeImplementation(bytes memory data) public;
+    function _resignImplementation() public;
+    function fail(Error err, FailureInfo info) internal returns (uint256) {
+    function failOpaque(
+    function fail(Error err, FailureInfo info) internal returns (uint256) {
+    function failOpaque(
+    function mulUInt(uint a, uint b) internal pure returns (MathError, uint) {
+    function divUInt(uint a, uint b) internal pure returns (MathError, uint) {
+    function subUInt(uint a, uint b) internal pure returns (MathError, uint) {
+    function addUInt(uint a, uint b) internal pure returns (MathError, uint) {
+    function addThenSubUInt(uint a, uint b, uint c) internal pure returns (MathError, uint) {
+    function truncate(Exp memory exp) pure internal returns (uint) {
+    function mul_ScalarTruncate(Exp memory a, uint scalar) pure internal returns (uint) {
+    function mul_ScalarTruncateAddUInt(Exp memory a, uint scalar, uint addend) pure internal returns (uint) {
+        Exp memory product = mul_(a, scalar);
+        return add_(truncate(product), addend);
+    }
+
+    /**
+     * @dev Checks if first Exp is less than second Exp.
+     */
+    function lessThanExp(Exp memory left, Exp memory right) pure internal returns (bool) {
+    function lessThanOrEqualExp(Exp memory left, Exp memory right) pure internal returns (bool) {
+    function greaterThanExp(Exp memory left, Exp memory right) pure internal returns (bool) {
+    function isZeroExp(Exp memory value) pure internal returns (bool) {
+    function safe224(uint n, string memory errorMessage) pure internal returns (uint224) {
+    function safe32(uint n, string memory errorMessage) pure internal returns (uint32) {
+    function add_(Exp memory a, Exp memory b) pure internal returns (Exp memory) {
+    function add_(Double memory a, Double memory b) pure internal returns (Double memory) {
+    function add_(uint a, uint b) pure internal returns (uint) {
+    function add_(uint a, uint b, string memory errorMessage) pure internal returns (uint) {
+    function sub_(Exp memory a, Exp memory b) pure internal returns (Exp memory) {
+    function sub_(Double memory a, Double memory b) pure internal returns (Double memory) {
+    function sub_(uint a, uint b) pure internal returns (uint) {
+    function sub_(uint a, uint b, string memory errorMessage) pure internal returns (uint) {
+    function mul_(Exp memory a, Exp memory b) pure internal returns (Exp memory) {
+    function mul_(Exp memory a, uint b) pure internal returns (Exp memory) {
+    function mul_(uint a, Exp memory b) pure internal returns (uint) {
+    function mul_(Double memory a, Double memory b) pure internal returns (Double memory) {
+    function mul_(Double memory a, uint b) pure internal returns (Double memory) {
+    function mul_(uint a, Double memory b) pure internal returns (uint) {
+    function mul_(uint a, uint b) pure internal returns (uint) {
+    function mul_(uint a, uint b, string memory errorMessage) pure internal returns (uint) {
+    function div_(Exp memory a, Exp memory b) pure internal returns (Exp memory) {
+    function div_(Exp memory a, uint b) pure internal returns (Exp memory) {
+    function div_(uint a, Exp memory b) pure internal returns (uint) {
+    function div_(Double memory a, Double memory b) pure internal returns (Double memory) {
+    function div_(Double memory a, uint b) pure internal returns (Double memory) {
+    function div_(uint a, Double memory b) pure internal returns (uint) {
+    function div_(uint a, uint b) pure internal returns (uint) {
+    function div_(uint a, uint b, string memory errorMessage) pure internal returns (uint) {
+    function fraction(uint a, uint b) pure internal returns (Double memory) {
+    function getExp(uint num, uint denom) pure internal returns (MathError, Exp memory) {
+    function addExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory) {
+    function subExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory) {
+    function mulScalar(Exp memory a, uint scalar) pure internal returns (MathError, Exp memory) {
+    function mulScalarTruncate(Exp memory a, uint scalar) pure internal returns (MathError, uint) {
+    function mulScalarTruncateAddUInt(Exp memory a, uint scalar, uint addend) pure internal returns (MathError, uint) {
+    function divScalar(Exp memory a, uint scalar) pure internal returns (MathError, Exp memory) {
+    function divScalarByExp(uint scalar, Exp memory divisor) pure internal returns (MathError, Exp memory) {
+    function divScalarByExpTruncate(uint scalar, Exp memory divisor) pure internal returns (MathError, uint) {
+    function mulExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory) {
+    function mulExp(uint a, uint b) pure internal returns (MathError, Exp memory) {
+    function mulExp3(Exp memory a, Exp memory b, Exp memory c) pure internal returns (MathError, Exp memory) {
+    function divExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory) {
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function decimals() external view returns (uint8);
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address owner) external view returns (uint256 balance);
+    function transfer(address dst, uint256 amount) external returns (bool success);
+    function transferFrom(address src, address dst, uint256 amount) external returns (bool success);
+    function approve(address spender, uint256 amount) external returns (bool success);
+    function allowance(address owner, address spender) external view returns (uint256 remaining);
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address owner) external view returns (uint256 balance);
+    function transfer(address dst, uint256 amount) external;
+    function transferFrom(address src, address dst, uint256 amount) external;
+    function approve(address spender, uint256 amount) external returns (bool success);
+    function allowance(address owner, address spender) external view returns (uint256 remaining);
+    function initialize(
+    function transferTokens(
+    function transfer(address dst, uint256 amount)
+    function transferFrom(
+    function approve(address spender, uint256 amount) external returns (bool) {
+    function allowance(address owner, address spender)
+    function balanceOf(address owner) external view returns (uint256) {
+    function balanceOfUnderlying(address owner) external returns (uint256) {
+    function getAccountSnapshot(address account)
+    function getBlockNumber() internal view returns (uint256) {
+    function borrowRatePerBlock() external view returns (uint256) {
+    function supplyRatePerBlock() external view returns (uint256) {
+    function totalBorrowsCurrent() external nonReentrant returns (uint256) {
+    function borrowBalanceCurrent(address account)
+    function borrowBalanceStored(address account)
+    function borrowBalanceStoredInternal(address account)
+    function exchangeRateCurrent() public nonReentrant returns (uint256) {
+    function exchangeRateStored() public view returns (uint256) {
+    function exchangeRateStoredInternal()
+    function getCash() external view returns (uint256) {
+    function accrueInterest() public returns (uint256) {
+    function mintInternal(uint256 mintAmount)
+    function mintFresh(address minter, uint256 mintAmount)
+    function redeemInternal(uint256 redeemTokens)
+    function redeemUnderlyingInternal(uint256 redeemAmount)
+    function redeemFresh(
+    function borrowInternal(uint256 borrowAmount)
+    function borrowFresh(address payable borrower, uint256 borrowAmount)
+    function repayBorrowInternal(uint256 repayAmount)
+    function repayBorrowBehalfInternal(address borrower, uint256 repayAmount)
+    function repayBorrowFresh(
+    function liquidateBorrowInternal(
+    function liquidateBorrowFresh(
+    function seize(
+    function seizeInternal(
+    function _setPendingAdmin(address payable newPendingAdmin)
+    function _acceptAdmin() external returns (uint256) {
+    function _setComptroller(ComptrollerInterface newComptroller)
+    function _setReserveFactor(uint256 newReserveFactorMantissa)
+    function _setReserveFactorFresh(uint256 newReserveFactorMantissa)
+    function _addReservesInternal(uint256 addAmount)
+    function _addReservesFresh(uint256 addAmount)
+    function _reduceReserves(uint256 reduceAmount)
+    function _reduceReservesFresh(uint256 reduceAmount)
+    function _setInterestRateModel(InterestRateModel newInterestRateModel)
+    function _setInterestRateModelFresh(InterestRateModel newInterestRateModel)
+    function getCashPrior() internal view returns (uint256);
+    function doTransferIn(address from, uint256 amount)
+    function doTransferOut(address payable to, uint256 amount) internal;
+    function getUnderlyingPrice(CToken cToken) external view returns (uint);
+    function _setPendingImplementation(address newPendingImplementation) public returns (uint) {
+    function _acceptImplementation() public returns (uint) {
+    function _setPendingAdmin(address newPendingAdmin) public returns (uint) {
+    function _acceptAdmin() public returns (uint) {
+    function () payable external {
+    function balanceOf(address) external view returns (uint);
+    function transfer(address,uint) external returns (bool);
+    function transferFrom(address,address,uint) external returns (bool);
+    function allowance(address,address) external view returns (uint);
+    function delegates(address) external view returns (address);
+    function delegate(address) external;
+    function getAssetsIn(address account)
+    function checkMembership(address account, CToken cToken)
+    function enterMarkets(address[] memory cTokens)
+    function addToMarketInternal(CToken cToken, address borrower)
+    function exitMarket(address cTokenAddress) external returns (uint256) {
+    function mintAllowed(
+    function mintVerify(
+    function redeemAllowed(
+    function redeemAllowedInternal(
+    function redeemVerify(
+    function borrowAllowed(
+    function borrowVerify(
+    function repayBorrowAllowed(
+    function repayBorrowVerify(
+    function liquidateBorrowAllowed(
+    function liquidateBorrowVerify(
+    function seizeAllowed(
+    function seizeVerify(
+    function transferAllowed(
+    function transferVerify(
+    function getAccountLiquidity(address account)
+    function getAccountLiquidityInternal(address account)
+    function getHypotheticalAccountLiquidity(
+    function getHypotheticalAccountLiquidityInternal(
+    function liquidateCalculateSeizeTokens(
+    function _setPriceOracle(PriceOracle newOracle) public returns (uint256) {
+    function _setCloseFactor(uint256 newCloseFactorMantissa)
+    function _setCollateralFactor(
+    function _setLiquidationIncentive(uint256 newLiquidationIncentiveMantissa)
+    function _supportMarket(CToken cToken) external returns (uint256) {
+    function _addMarketInternal(address cToken) internal {
+    function _setMarketBorrowCaps(
+    function _setBorrowCapGuardian(address newBorrowCapGuardian) external {
+    function _setPauseGuardian(address newPauseGuardian)
+    function _setMintPaused(CToken cToken, bool state) public returns (bool) {
+    function _setBorrowPaused(CToken cToken, bool state) public returns (bool) {
+    function _setTransferPaused(bool state) public returns (bool) {
+    function _setSeizePaused(bool state) public returns (bool) {
+    function _setCollateralPaused(CToken cToken, bool state)
+    function _become(Unitroller unitroller) public {
+    function adminOrInitializing() internal view returns (bool) {
+    function setCompSpeedInternal(CToken cToken, uint256 compSpeed) internal {
+    function updateCompSupplyIndex(address cToken) internal {
+    function distributeSupplierComp(address cToken, address supplier) internal {
+    function distributeBorrowerComp(
+    function updateContributorRewards(address contributor) public {
+    function claimComp(address holder) public {
+    function claimComp(address holder, CToken[] memory cTokens) public {
+    function claimComp(
+    function grantCompInternal(address user, uint256 amount)
+    function _grantComp(address recipient, uint256 amount) public {
+    function _setCompSpeed(CToken cToken, uint256 compSpeed) public {
+    function _setContributorCompSpeed(address contributor, uint256 compSpeed)
+    function getAllMarkets() public view returns (CToken[] memory) {
+    function getBlockNumber() public view returns (uint256) {
+    function getCompAddress() public view returns (address) {
+    function getTreasuryAddress() public view returns (address) {
+    function getXinvAddress() public view returns (address) {
+}

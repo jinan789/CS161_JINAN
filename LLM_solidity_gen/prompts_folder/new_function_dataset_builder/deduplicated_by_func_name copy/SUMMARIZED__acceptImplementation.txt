@@ -1,0 +1,6 @@
+Function: _acceptImplementation()
+
+Input: None
+Output: uint
+
+Summary: This function updates the current comptroller implementation if the caller is the pending implementation and not the zero address. It also emits events with the old and new implementation addresses.

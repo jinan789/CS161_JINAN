@@ -1,0 +1,5 @@
+Function: totalSupply
+
+1. Input: None
+2. Output: One output variable, a uint256 representing the total supply of tokens
+3. Summary: The totalSupply function returns the total number of tokens in circulation.

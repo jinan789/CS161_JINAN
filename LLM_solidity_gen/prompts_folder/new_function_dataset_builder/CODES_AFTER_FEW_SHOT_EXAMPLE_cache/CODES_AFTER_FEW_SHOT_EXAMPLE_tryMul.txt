@@ -1,0 +1,24 @@
+TASK 1:
+1. There is a potential issue with the overflow check, as you are using combined checks in an `if` statement within the `tryMul()` function. This method does not follow the style used by other functions within the SafeMath library.
+2. The `unchecked` block is missing in your `tryMul()` function. It should be added to prevent unnecessary overflow checks.
+
+TASK 2:
+<CODE_BEGINNING>
+    function tryMul(uint256 a, uint256 b) internal pure returns (bool success, uint256 result) {
+        if (a == 0 || b == 0) {
+            return (true, 0);
+        }
+        
+        // MODIFICATIONS MADE: We add an `unchecked` block to prevent unnecessary overflow checks and follow the standard style employed within the SafeMath library.
+        unchecked {
+            uint256 c = a * b;
+            
+            // MODIFICATIONS MADE: Refactor the condition for success to follow the style used in the `tryAdd()` function.
+            if (c / a != b) {
+                return (false, 0);
+            }
+            
+            return (true, c);
+        }
+    }
+<CODE_ENDING>

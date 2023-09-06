@@ -1,0 +1,4 @@
+The most similar function signatures to the given target function are:
+
+1. function _acceptAdmin() external returns (uint) {
+2. function _setComptroller(ComptrollerInterface newComptroller) public returns (uint) {

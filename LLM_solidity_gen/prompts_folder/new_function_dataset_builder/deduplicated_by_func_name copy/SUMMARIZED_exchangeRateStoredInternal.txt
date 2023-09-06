@@ -1,0 +1,10 @@
+Function Name: exchangeRateStoredInternal
+
+Input:
+- None
+
+Output:
+- MathError (enum)
+- uint (exchangeRate)
+
+Summary: The function returns the current exchange rate for the token. If no tokens are minted, it returns the initial exchange rate. Otherwise, it calculates the exchange rate using the total cash, total borrows, total reserves, and total supply.

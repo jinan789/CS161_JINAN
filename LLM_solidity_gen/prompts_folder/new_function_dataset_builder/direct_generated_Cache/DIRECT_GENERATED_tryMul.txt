@@ -1,0 +1,25 @@
+<CODE_BEGINNING>
+    /**
+     * @dev Attempts to multiply two input uint256 values 'a' and 'b'.
+     * Handles the zero case and checks for multiplication overflow.
+     * If successful, returns true and the product of 'a' and 'b'.
+     * If there is an overflow, returns false and 0.
+     *
+     * @param a First uint256 value
+     * @param b Second uint256 value
+     * @return success True if multiplication is successful, false otherwise
+     * @return result The product of 'a' and 'b' if successful, 0 if overflow occurs
+     */
+    function tryMul(uint256 a, uint256 b) internal pure returns (bool success, uint256 result) {
+        if (a == 0 || b == 0) {
+            return (true, 0);
+        }
+        
+        uint256 c = a * b;
+        if (c / a == b) {
+            return (true, c);
+        } else {
+            return (false, 0);
+        }
+    }
+<CODE_ENDING>

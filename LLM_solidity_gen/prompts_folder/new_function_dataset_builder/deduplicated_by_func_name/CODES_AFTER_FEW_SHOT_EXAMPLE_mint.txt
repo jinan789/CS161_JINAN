@@ -1,0 +1,16 @@
+function mint(address dst, uint rawAmount) external onlyOwner {
+    require(dst != address(0), "INV: cannot mint tokens to the zero address");
+
+    // Update total supply of tokens
+    totalSupply = SafeMath.add(totalSupply, rawAmount);
+
+    // Transfer the newly minted tokens to the specified address
+    uint96 mintAmount = safe96(rawAmount, "INV: transfer amount overflows"); //MODIFICATIONS MADE: Introduced new variable mintAmount since it is used multiple times in the function
+    balances[dst] = add96(balances[dst], mintAmount, "INV: transfer amount overflows");
+
+    // Update the delegates of the recipient address
+    _moveDelegates(address(0), delegates[dst], mintAmount); //MODIFICATIONS MADE: Replaced rawAmount with mintAmount (Already cast to uint96) to avoid repetitive casting
+
+    // Emit the transfer event
+    emit Transfer(address(0), dst, rawAmount);
+}

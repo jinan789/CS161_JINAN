@@ -1,0 +1,28 @@
+<CODE_BEGINNING>
+/**
+* @notice Liquidate a borrower's collateral
+* @param borrower The borrower's address
+* @param repayAmount The amount to be repaid
+* @param cTokenCollateral The CToken contract of the collateral to be liquidated
+* @return uint (error code), uint (actual repayment amount)
+*/
+function liquidateBorrowInternal(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal returns (uint, uint) {
+    // Accrue interest on the borrowed asset and the collateral asset
+    uint errorCode = accrueInterest();
+    if (errorCode != 0) {
+        return (errorCode, 0);
+    }
+    errorCode = cTokenCollateral.accrueInterest();
+    if (errorCode != 0) {
+        return (errorCode, 0);
+    }
+
+    // Call liquidateBorrowFresh function to perform the process of repaying borrowed amount and seizing collateral
+    (uint err, uint actualRepayAmount) = liquidateBorrowFresh(msg.sender, borrower, repayAmount, cTokenCollateral);
+    if (err != 0) {
+        return (err, 0);
+    }
+
+    return (uint(Error.NO_ERROR), actualRepayAmount);
+}
+<CODE_ENDING>

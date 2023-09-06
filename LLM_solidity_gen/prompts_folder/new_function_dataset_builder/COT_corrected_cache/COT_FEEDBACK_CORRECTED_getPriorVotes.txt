@@ -1,0 +1,18 @@
+TASK 1: Step-by-step plan of `getPriorVotes(address account, uint blockNumber)`
+1. Verify that the provided `blockNumber` is less than the current block number. Otherwise, throw an error.
+2. Retrieve the number of checkpoints (`numCheckpoints[account]`) for the given account.
+3. If there are no checkpoints (numCheckpoints == 0), return 0.
+4. Get the most recent balance by retrieving the last checkpoint.
+5. Check if the most recent balance's `fromBlock` is less than or equal to the given `blockNumber`. If true, return the associated `votes` of the checkpoint.
+6. Initialize the binary search variables: `min` and `max`.
+7. Perform a binary search to find the vote count at the specified `blockNumber`. 
+   a. Calculate the midpoint `mid`.
+   b. Get the checkpoint associated with the midpoint.
+   c. Check if this checkpoint's `fromBlock` is less than or equal to the `blockNumber`.
+      i. If true, update `min` as `mid`.
+      ii. If false, update `max` as `mid - 1`.
+   d. Repeat the binary search until `min` is equal to or greater than `max`.
+8. After the binary search is complete, retrieve the checkpoint for the updated `min` value.
+9. Check if the `fromBlock` of the retrieved checkpoint is less than or equal to the `blockNumber` and return the associated `votes` if true, otherwise return 0.
+
+The step-by-step plan matches the provided code for the `getPriorVotes` function. As a result, there should be no need to make any updates. It seems the code you provided is correct and follows all the necessary steps to solve the problem. It checks the most recent balance, implicit zero balance, and performs a binary search for the vote count at the specified block number, as described in the summaries.

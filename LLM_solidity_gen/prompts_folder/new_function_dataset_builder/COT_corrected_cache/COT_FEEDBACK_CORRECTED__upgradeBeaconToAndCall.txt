@@ -1,0 +1,35 @@
+Based on the Information 1 and 2, here is the step-by-step plan to implement the required functionality:
+
+1. Check if the newBeacon address is non-zero.
+2. Update the beacon address to newBeacon using _setBeacon() function.
+3. Emit the BeaconUpgraded event with the newBeacon address.
+4. Check if data length is greater than 0 or forceCall is true.
+5. If the condition mentioned in step 4 is true, perform a delegate call using _functionDelegateCall().
+    a. Get the implementation address using IBeaconUpgradeable(newBeacon).implementation().
+    b. Call _functionDelegateCall() with the implementation address obtained in step 5a and the provided data.
+
+Now, let's check your code implementation and compare it with the step-by-step plan:
+
+function _upgradeBeaconToAndCall(address newBeacon, bytes memory data, bool forceCall) internal {
+    // Step 1: Check if the newBeacon address is non-zero.
+    require(newBeacon != address(0), "ERC1967Upgrade: new beacon is the zero address");
+    
+    // Step 2: Update the beacon address
+    _setBeacon(newBeacon);
+
+    // Step 3: Emit the BeaconUpgraded event
+    emit BeaconUpgraded(newBeacon);
+
+    // Step 4: Check if data length is greater than 0 or forceCall is true
+    if (data.length > 0 || forceCall) {
+        // Step 5a: Get the implementation address
+        address implementation = IBeaconUpgradeable(newBeacon).implementation();
+
+        // Step 5b: Perform the delegate call
+        _functionDelegateCall(implementation, data);
+    }
+}
+
+event BeaconUpgraded(address indexed newBeacon);
+
+Your code implementation aligns with the step-by-step plan, and I don't see any issues or improvements needed. It looks well-written and should perform the required functionality as specified in the given summary.

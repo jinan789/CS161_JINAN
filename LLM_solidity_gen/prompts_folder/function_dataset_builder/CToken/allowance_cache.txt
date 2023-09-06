@@ -1,0 +1,5 @@
+Function: allowance
+Input: 2 variables - address owner, address spender
+Output: 1 variable - uint256 (token allowance)
+
+Summary: This function returns the number of tokens that the "spender" is allowed to transfer or withdraw from the "owner" account.

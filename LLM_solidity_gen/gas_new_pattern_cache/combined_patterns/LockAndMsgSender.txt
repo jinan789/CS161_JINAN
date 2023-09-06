@@ -1,0 +1,66 @@
+In this report, we have summarized the gas-wasting patterns you discovered in Solidity, along with their corresponding improvements. We have combined duplicates and ensured a consistent format for the descriptions and code examples.
+
+Gas-wasting patterns and improvements:
+
+1. **Redundant state variable assignments**
+
+   Removing redundant state variable assignments and placing them outside conditional blocks can help save gas. Here is an example of the improvement:
+
+   ```solidity
+   modifier isNotLocked() {
+       if (msg.sender != address(this)) {
+           if (lockedBy != NOT_LOCKED_FLAG) revert ContractLocked();
+           lockedBy = msg.sender;
+           _;
+       } else {
+           _;
+       }
+       lockedBy = NOT_LOCKED_FLAG;
+   }
+   ```
+
+2. **Inefficient recipient handling**
+
+   Optimizing the conditions when deciding the recipient address can potentially save gas. A more efficient implementation can be achieved with a custom structure and optimized if-else branching. Consider the following example with a mapping of recipients and their respective conditions:
+
+   ```solidity
+   mapping(address => Recipient) public recipients;
+
+   struct Recipient {
+       uint256 condition1;
+       uint256 condition2;
+       uint256 condition3;
+   }
+   ```
+
+   An optimized implementation could directly access the specific condition value for decrement, as shown below:
+
+   ```solidity
+   function map(address _recipient, uint256 _conditionId) public {
+       require(_conditionId >= 1 && _conditionId <= 3, "Invalid condition id");
+       require(conditionValue(_recipient, _conditionId) > 0, "Condition value is zero");
+
+       if (_conditionId == 1) {
+           recipients[_recipient].condition1--;
+       } else if (_conditionId == 2) {
+           recipients[_recipient].condition2--;
+       } else {
+           recipients[_recipient].condition3--;
+       }
+   }
+
+   function conditionValue(address _recipient, uint256 _conditionId) private view returns (uint256) {
+       if (_conditionId == 1) {
+           return recipients[_recipient].condition1;
+       } else if (_conditionId == 2) {
+           return recipients[_recipient].condition2;
+       } else {
+           return recipients[_recipient].condition3;
+       }
+   }
+   ```
+
+This report contains an overview of the gas optimization patterns you observed, highlighting the potential improvements with concise examples and explanations. By implementing these suggested changes, the overall gas consumption of a smart contract can be reduced, resulting in savings for users.
+*****&&&&&^^^^^%%%%%$$$$$
+
+

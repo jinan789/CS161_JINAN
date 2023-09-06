@@ -1,0 +1,141 @@
+\begin{enumerate}
+    \item \textbf{1. Repeated computation of the same expression:} (including repetitive reads of the same expensive storage variable (e.g. Overuse of expensive storage variables)). This could be solved by introducing an intermediate variable to hold the value. 
+    (detection: examine if there are repeated function calls)
+    \item \textbf{2. Extractable code chunks:} if there are multiple chunks of codes that perform the same/similar functionalities, then we could abstract them into one function (or modifier) to save deployment costs (detection: examine if there are huge chunks of resembling codes)
+    \item \textbf{3. Variable refactoring:} by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+    \item \textbf{4. Redundant operations with same effects:} redundant operations that overwrite the effect of the previous operation, making the previous useless
+    \item \textbf{5. Pre-computable operations on constants:} performing comparisons (or say other operations) to constants is useless and could be pre-computed
+    \item \textbf{6. Persistent conditional checks:} some of the condition checks may always evaluate to true or always evaluate to false
+    \item \textbf{7. Simplifiable conditional operations:} expressions that involve logical operations that could be simplified to reduce the amount of computational workload.
+    \item \textbf{8. Refactorable function:} by refactoring a function codes into two or more, functionalities are simplified and gas consumption overall is reduced.
+    \item \textbf{9. Replacing a loop (or other expensive operations) by a map:} if a chunk of loop takes multiple turns (i.e. O(N) to find a result, and yet this could be replaced by an equivalent loop, then that would save a lot of gas.
+    \item \textbf{10. Conditionally execute unnecessary operations:} by adding some conditional checks, we could reduce universally performed operations to conditionally performed, such that when not needed, we could save the computation
+    \item \textbf{11. Repeated security checks across functions:} the caller and callee performs the same security checks, where the caller could just remove such checks.
+\end{enumerate}
+
+
+
+\begin{enumerate}
+    \item \textbf{A1.} misunderstanding of operations that do not exist in Solidity (e.g. mixing with other programming languages) 
+    \item \textbf{A2.} misunderstanding of expensive storage operations with flawed logic
+    \item \textbf{A3.} the found pattern is conditioned on some not-so-likely premises
+    \item \textbf{A4.} direct misunderstanding of the codes
+    \item \textbf{A5.} misunderstanding of the execution sequence of function codes (e.g. not all the defined functions would be called at once)
+    \item \textbf{A6.} unrelated to gas optimization
+    \item \textbf{A7.} misunderstanding of complex condition checks
+    \item \textbf{A8.} a suggestion that does not reduce gas consumption once implemented, but still keeps the same code logic (no harm but no help) (e.g. a refactorization of functions that does not change anything)
+    \item \textbf{A9.} misunderstanding of the transient nature of function variables, which changes across different calls and should not be cached.
+    \item \textbf{A10.} misunderstanding of the gas mechanism
+    \item \textbf{A11.} misunderstanding due to trivial reasons (e.g. the input contracts has truncated some functions)
+    \item \textbf{A12.} misunderstanding of the changing nature of arguments across different function calls
+
+\end{enumerate}
+
+
+
+\begin{table}
+\centering
+\footnotesize
+\caption{\small{ROUND 6: statistics of the found gas-wasting patterns (to be added: gas saved)}}
+\begin{tabular}{c|cccl} 
+
+% \toprule
+\textbf{Pattern name}   & \textbf{Location num}       & \textbf{Categorization}  & \textbf{Verified}  & \textbf{Comments}  \\
+\hline \hline 
+Repeated computation of the same expression        & 6.1   &  1 &   Y     &   \\
+Redundant operations with same effects        & 6.1   &  8 &   Y     &  idea: instead of checking for the type of MKR each time, a more gas-efficient suggestion of improvement would be to refactor such a check out of the function into a different function specifically for MKR \\
+Pre-computable operations on constants        & 6.1   &  A3 &   N    &   \\
+\hline 
+\hline 
+
+
+Overuse of storage variables in the `_transfer` function        & 6.2   &  A2 &   N    &   \\
+Redundant checks in the `setStructure` function      & 6.2   &  A2 &   N    &   \\
+Repeated multiplication in `swapAndLiquify` function      & 6.2   &  1 &   Y    &  \textit{unitBalance.mul(2)} is repeated \\
+Inefficient conditions in `setBuyMultiplier` function      & 6.2   &  1 &   Y    &  \textit{sender == pair} is repeated \\
+
+\hline 
+\hline 
+
+
+
+Redundant Storage Reads        & 6.3   &  1 &   Y    &  \textit{excludedFromFees[sender]} and \textit{excludedFromFees[recipient]} are read multiple times \\
+Repeated Computation of `address(this).balance`        & 6.3   &  1 &   Y    & \textit{address(this).balance}  \\
+Overuse of `sendValue`        & 6.3   &  A10 &   N    &   \\
+
+\hline 
+\hline 
+
+
+
+Redundant Condition Check        & 6.4   &  A8 &   N    &   \\
+Repeated Fetching of hWETH token        & 6.4   &  A8 &   N    &   \\
+Overuse of Storage Variables       & 6.4   &  A8 &   N    &   \\
+
+\hline 
+\hline 
+
+
+
+Redundant Ownership Checks        & 6.5   &  2 &   Y    &  by introducing a modifier, a highly repeated code chunk could be removed \\
+Loop for Search        & 6.5   &  9 &   Y    &  The functions `gen1IndividualUnstake` and `gen2IndividualUnstake` use a loop to search for a token's index in the `gen1StakedArray[msg.sender]` and `gen2StakedArray[msg.sender]` arrays, respectively. This operation has a time complexity of O(n) and can consume significant gas in the worst-case scenario when the token is not present in the array. \\
+Array Resizing        & 6.5   &  10 &   Y    &   \textit{Add a condition to check whether the element being removed is the last one. If it is, skip the swap operation.} this helps avoid some unnecessary swaps \\
+Unnecessary State Variable   & 6.5   &  A11 &   N    &   \textit{Add a condition to check whether the element being removed is the last one. If it is, skip the swap operation.} this helps avoid some unnecessary swaps \\
+
+\hline 
+\hline 
+
+
+
+Repetitive Conditional Checks       & 6.6   &  A5 &   N    &   \\
+Persistent Storage Access       & 6.6   &  A2 &   N    &   \\
+Wasteful Assembly Code       & 6.6   &  A6 &   N    &  the pattern regards the readibility of codes \\
+Unnecessary use of `try-catch`    & 6.6   &  A6 &   N    &   \\
+\hline 
+\hline 
+
+
+
+
+Redundant Conditional Checks in Transfer Functions       & 6.7   &  11 &   Y    & In the `\_transferFrom` function, there are redundant checks for whether `sender` and `recipient` are not the zero address. This same check is performed in the `transferFrom` function, which calls `\_transferFrom`. Thus, if the transfer originates from `transferFrom`, the same condition is checked twice, wasting gas.   \\
+Repeated Computation in tokenSwap Function       & 6.7   &  1 &   Y    &  In the `tokenSwap` function, the expression `\_devBuyTax + \_devSellTax` is calculated multiple times. Similarly, the expression `\_liquidityBuyTax + \_liquiditySellTax` and `\_marketingBuyTax + \_marketingSellTax` are calculated more than once \\
+Overuse of Storage Variables in takeFee Function       & 6.7   &  A3 &   N    &   \\
+Pre-computable Operations in setTaxes Function   & 6.7   &  A3 &   N    &   \\
+\hline 
+\hline 
+
+
+Repeated Calls to totalSupply       & 6.8   &  A5 &   N    &   \\
+Expensive storage writes      & 6.8   &  1 &   Y    &   \\
+\hline 
+\hline 
+
+
+
+Redundant conditional checks       & 6.9   &  A3 &   N    &   \\
+Repeated computation of the same expression       & 6.9   &  A2 &   N    &   \\
+Extractable code chunks       & 6.9   &  A8 &   N    &   \\
+\hline 
+\hline 
+
+Unnecessary Keccak256 Hash Computations       & 6.10   &  A12 &   N    &   \\
+Redundant Check in `_creditTo` function       & 6.10   &  7 &   Y    &   \\
+\hline 
+\hline 
+
+
+
+\hline 
+\hline 
+
+
+
+
+
+
+% \textbf{Average Number}  & \textbf{2.9025}    & \textbf{2.1572}    & \textbf{5.0597}             \\
+% \bottomrule
+\end{tabular}
+\label{tab:num_modified_lines}
+\vspace{-2mm}
+\end{table}

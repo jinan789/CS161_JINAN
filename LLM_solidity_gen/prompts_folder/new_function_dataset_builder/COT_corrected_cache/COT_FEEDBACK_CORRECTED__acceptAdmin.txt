@@ -1,0 +1,47 @@
+TASK 1: Step-by-Step Plan
+
+1. Check if the caller (msg.sender) is the pending admin and the pending admin is not the zero address.
+2. If any condition is not met, return an error code for the unauthorized access (error and failure info).
+3. If both conditions are satisfied, proceed with the update.
+4. Store the current admin in a temporary variable (oldAdmin) for later use in the event emission.
+5. Update the admin to the value of the pending admin.
+6. Store the current pending admin in a temporary variable (oldPendingAdmin) for later use in the event emission.
+7. Clear the pending admin value by setting it to the zero address.
+8. Emit the NewAdmin event, passing the oldAdmin and updated admin values.
+9. Emit the NewPendingAdmin event, passing the oldPendingAdmin and updated pending admin (zero address) values.
+10. Return the success code (Error.NO_ERROR).
+
+Now let's check if your code follows the above plan and make improvements if necessary:
+
+```
+function _acceptAdmin() public returns (uint) {
+    // Step 1: Check if the caller is the pending admin and that the pending admin is not the zero address
+    if (msg.sender != pendingAdmin || msg.sender == address(0)) {
+        // Step 2: Return failure code
+        return fail(Error.UNAUTHORIZED, FailureInfo.ACCEPT_ADMIN_PENDING_ADMIN_CHECK);
+    }
+
+    // Step 4: Store the current admin in a temporary variable
+    address oldAdmin = admin;
+
+    // Step 5: Update the admin to the value of the pending admin
+    admin = pendingAdmin;
+    
+    // Step 6: Store the current pending admin in a temporary variable
+    address oldPendingAdmin = pendingAdmin;
+
+    // Step 7: Clear the pending admin value
+    pendingAdmin = address(0);
+
+    // Step 8: Emit events for the updated admin
+    emit NewAdmin(oldAdmin, admin);
+
+    // Step 9: Emit events for the pending admin
+    emit NewPendingAdmin(oldPendingAdmin, pendingAdmin);
+
+    // Step 10: Return success code
+    return uint(Error.NO_ERROR);
+}
+```
+
+Your code follows all the steps in the provided plan correctly. Great job! No improvements are needed for this function.

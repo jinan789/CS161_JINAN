@@ -1,0 +1,35 @@
+TASK 1: Step-by-step plan to implement the propose function
+
+1. Check whether the proposer's voting power (CULT balance) is above the proposal threshold.
+
+2. Verify if the arrays `targets`, `values`, `signatures`, and `calldatas` have matching lengths.
+
+3. Check if the number of actions in the proposal is within the allowed range (greater than 0 and less than or equal to proposalMaxOperations).
+
+4. Calculate the starting block for voting by adding the current block number to the votingDelay.
+
+5. Calculate the end block for voting by adding the starting block to the votingPeriod.
+
+6. Generate a unique proposal ID by incrementing the proposer's latestProposalId.
+
+7. Create a new Proposal struct with the specified parameters (ID, proposer, startBlock, endBlock, etc.) and initialize its votes.
+
+8. Iterate through the actions provided in the `targets`, `values`, `signatures`, and `calldatas` arrays, and store them in the new Proposal struct. Optionally, validate the target and signature during this process.
+
+9. Update the proposer's latestProposalId to reflect the new proposal ID.
+
+10. Emit a ProposalCreated event with the related information (ID, proposer, targets, values, signatures, calldatas, startBlock, endBlock, description, investee).
+
+11. Return the new proposal ID.
+
+
+Improvements on the provided code:
+
+The provided code mostly follows the step-by-step plan and implement the function correctly. However, there's a missing function _validateTargetAndSignature which needs to be implemented. The rest of the code is in good shape, and the steps are executed in the correct order. To improve the proposed solution, you can define and implement the _validateTargetAndSignature function as follows:
+
+```solidity
+function _validateTargetAndSignature(address target, string memory signature, bytes memory calldata) internal pure {
+    // Here we can include any additional validations for the target, signature, and calldata
+    // For example, we could check for known malicious contract addresses, or certain with blacklisted functions
+}
+```

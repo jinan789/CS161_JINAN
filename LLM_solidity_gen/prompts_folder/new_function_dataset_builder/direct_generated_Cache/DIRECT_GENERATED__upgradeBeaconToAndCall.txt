@@ -1,0 +1,27 @@
+<CODE_BEGINNING>
+/**
+ * @dev This function updates the beacon to a new address, emits a BeaconUpgraded event,
+ * and performs a delegate call to the implementation function of the new beacon with the
+ * provided data if the data length is greater than 0 or forceCall is true.
+ *
+ * @param newBeacon The address of the new beacon
+ * @param data The data to be used in the delegate call to the new beacon's implementation
+ * @param forceCall Forces the function to perform the delegate call regardless of data length
+ */
+function _upgradeBeaconToAndCall(address newBeacon, bytes memory data, bool forceCall) internal {
+    require(newBeacon != address(0), "ERC1967Upgrade: new beacon is the zero address");
+    
+    // Update the beacon address
+    _setBeacon(newBeacon);
+
+    // Emit the BeaconUpgraded event
+    emit BeaconUpgraded(newBeacon);
+
+    // Perform the delegate call if data length is greater than 0 or forceCall is true
+    if (data.length > 0 || forceCall) {
+        _functionDelegateCall(IBeaconUpgradeable(newBeacon).implementation(), data);
+    }
+}
+
+event BeaconUpgraded(address indexed newBeacon);
+<CODE_ENDING>

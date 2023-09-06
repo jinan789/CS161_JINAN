@@ -1,0 +1,6 @@
+The function to summarize is borrowFresh, with the following specifications:
+
+1. Input: 2 variables - (address payable) borrower and (uint) borrowAmount
+2. Output: 1 variable - (uint) error code
+
+Brief summary: This function allows a borrower to borrow tokens from the contract. It ensures the borrow request is allowed by calling the comptroller and validates the current block number. It then checks if the contract has enough underlying cash to fulfill the borrow request. If all the conditions are met, the function then transfers the requested amount to the borrower and updates their borrow balance, the total borrows, and emits a Borrow event.

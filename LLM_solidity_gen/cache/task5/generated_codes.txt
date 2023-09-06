@@ -1,0 +1,51 @@
+Based on the task and additional information given, here is a possible implementation of the `liquidateBorrowAllowed` function:
+
+```solidity
+pragma solidity ^0.6.12;
+import "./CToken.sol";
+import "./ComptrollerInterface.sol";
+import "./PriceOracle.sol";
+import "./ErrorReporter.sol";
+
+contract Liquidator is ErrorReporter {
+    ComptrollerInterface public comptroller;
+    PriceOracle public priceOracle;
+
+    constructor(ComptrollerInterface _comptroller, PriceOracle _priceOracle) public {
+        comptroller = _comptroller;
+        priceOracle = _priceOracle;
+    }
+
+    function liquidateBorrowAllowed(
+        address cTokenBorrowed,
+        address cTokenCollateral,
+        address liquidator,
+        address borrower,
+        uint repayAmount
+    ) external returns (uint) {
+        CToken borrowed = CToken(cTokenBorrowed);
+        CToken collateral = CToken(cTokenCollateral);
+
+        if (!comptroller.isListed(address(borrowed)) || !comptroller.isListed(address(collateral))) {
+            return fail(Error.MARKET_NOT_LISTED, FailureInfo.LIQUIDATE_BORROW_ALLOWED);
+        }
+
+        // Verify that repayAmount is not too low
+        (, uint errorCode) = comptroller.liquidateCalculateSeizeTokens(s),
+            address(cTokenCollateral),
+            repayAmount
+        );
+        if (errorCode != uint(Error.NO_ERROR)) {
+            return fail(Error(err), FailureInfo.LIQUIDATE_BORROW_ALLOWED);
+        }  
+
+        //Additional checks can be added here as per your requirements
+
+        return uint(Error.NO_ERROR);
+    }
+}
+```
+
+The `liquidateBorrowAllowed` function checks if the borrowed and collateral assets are listed and calculates the amounts to be seized and repaid during the liquidation. If the function encounters any issues, it returns an error using the `fail` function as given in the information. Otherwise, it returns `NO_ERROR`, indicating that liquidation is allowed to proceed.
+
+Please note that additional checks can be added to the function depending on your specific requirements.

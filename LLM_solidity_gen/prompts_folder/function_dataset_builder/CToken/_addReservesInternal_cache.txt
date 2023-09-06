@@ -1,0 +1,10 @@
+Function: _addReservesInternal
+
+Input:
+- uint addAmount
+
+Output:
+- uint error
+
+Summary:
+This function adds reserves by first accruing interest and then transferring the specified amount of reserves from the caller. It returns an error code for any failure encountered during the process or a success code if the operation is successful.

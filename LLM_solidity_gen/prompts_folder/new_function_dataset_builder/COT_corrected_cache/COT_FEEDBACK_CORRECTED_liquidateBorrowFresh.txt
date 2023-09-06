@@ -1,0 +1,13 @@
+TASK 1: Step-by-step plan for liquidateBorrowFresh function
+
+1. Ensure that the repayAmount is not equal to 0 or the maximum allowed uint value.
+2. Check if the liquidation is allowed by calling the Comptroller.calcAccountLiquidity function for the borrower's account.
+3. If the liquidation is not allowed (shortFall == 0), return an error (INVALID_ACCOUNT_PAIR).
+4. Calculate the number of collateral tokens to be seized by calling the Comptroller.liquidateCalculateSeizeTokens function with the repayment amount, current token, and the collateral token.
+5. Check if the calculated collateralTokenAmount is not 0. If it is, return an error (ZERO_COLLATERAL_TOKENS_SEIZED).
+6. Transfer the calculated collateral tokens from the borrower's account to the liquidator's account using the cTokenCollateral.seize function.
+7. If there's an error during the token transfer, convert the error to the appropriate Error type and return it.
+8. Emit a LiquidateBorrow event with the relevant details: liquidator, borrower, actualRepayAmount, collateral token contract, and the number of collateral tokens seized.
+9. Return the success code (NO_ERROR) and actualRepayAmount.
+
+Upon reviewing your provided code, it seems that you have implemented all the steps mentioned in the plan above. The code is logically coherent and follows the given instructions. Good job!

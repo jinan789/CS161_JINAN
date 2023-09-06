@@ -1,0 +1,22 @@
+<CODE_BEGINNING>
+/**
+ * @notice Updates the interest rate model used in the contract. Requires prior interest accrual.
+ * @param newInterestRateModel The new interest rate model to set
+ * @return uint 0 = success, otherwise a failure
+ */
+function _setInterestRateModel(InterestRateModel newInterestRateModel) external returns (uint) {
+    // Accrue interest before setting the new interest rate model
+    uint err = accrueInterest();
+    if (err != uint(Error.NO_ERROR)) {
+        return failOpaque(Error(err), FailureInfo.SET_INTEREST_RATE_MODEL_ACCRUE_INTEREST_FAILED, err);
+    }
+
+    // Set the new interest rate model
+    err = _setInterestRateModelFresh(newInterestRateModel);
+    if (err != uint(Error.NO_ERROR)) {
+        return failOpaque(Error(err), FailureInfo.SET_INTEREST_RATE_MODEL_FRESH_FAILED, err);
+    }
+
+    return uint(Error.NO_ERROR);
+}
+<CODE_ENDING>

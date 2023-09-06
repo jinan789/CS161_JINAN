@@ -1,0 +1,33 @@
+Number of steps: 4
+
+Number of branches: 0
+
+Modification needed: YES
+
+
+CODES_BEGINNING
+function functionCallWithValue(
+    address target,
+    bytes memory data,
+    uint256 value,
+    string memory errorMessage
+) internal returns (bytes memory) {
+    //MODIFICATION_BEGINNING
+    // Remove this section as the Solidity 'call' function will check the balance automatically
+    //require(
+    //    address(this).balance >= value,
+    //    "Address: insufficient balance for call"
+    //);
+    //MODIFICATION_ENDING
+
+    require(
+        isContract(target),
+        "Address: target is not a contract"
+    );
+
+    (bool success, bytes memory returndata) = target.call{value: value}(data);
+    return verifyCallResult(success, returndata, errorMessage);
+}
+CODES_ENDING
+
+This updated code follows the step-by-step plan and looks correct. The balance check has been removed, as the built-in call function already provides a check for insufficient funds.

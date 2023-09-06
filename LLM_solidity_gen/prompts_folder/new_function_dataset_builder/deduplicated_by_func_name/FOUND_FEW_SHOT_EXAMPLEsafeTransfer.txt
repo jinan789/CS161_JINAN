@@ -1,0 +1,6 @@
+Based on the function signatures and the target function implementation, the two most similar functions are:
+
+1. `function safeTransferETH(address to, uint256 amount) internal`
+2. `function safeTransferFrom(ERC20 token, address from, address to, uint256 amount) internal`
+
+Both of these functions involve transferring a token or ETH to a specified address with a specific amount. The target function `safeTransfer` also deals with transferring a token to an address with a specified amount. The main difference is the target function uses a lower-level implementation with assembly code.

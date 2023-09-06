@@ -1,0 +1,13 @@
+<CODE_BEGINNING>
+/**
+ * @notice Determine if the minter is allowed to mint the specified amount of cTokens
+ * @param cToken The cToken to be minted
+ * @param minter The address of the minter
+ * @param mintAmount The amount of cTokens to be minted
+ * @return uint 0 if the mint is allowed, otherwise a result code indicating the reason for rejection
+ */
+function mintAllowed(address cToken, address minter, uint mintAmount) external returns (uint) {
+    // Your implementation logic here
+
+}
+<CODE_ENDING>

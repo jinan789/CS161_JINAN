@@ -1,0 +1,37 @@
+TASK 1:
+
+1. The state function uses `timelock.getPending(bytes32(proposalId))` and `timelock.getTimestamp(bytes32(proposalId))` which are not existing functions in the Timelock contract (at least it's not provided). You might need to provide the correct functions or implement them in the contract.
+2. The condition for ProposalState.Pending in the last else if block should compare `timelock.getTimestamp(bytes32(proposalId))` with `proposal.endBlock` instead of `block.timestamp`. 
+3. In the same else if block, the calculation for ProposalState.Expired should use Etheruem block number (assuming block.number) instead of the timestamp (block.timestamp).
+4. There is no definition of proposalCount variable in the contract or in the provided information.
+
+TASK 2:
+
+<CODE_BEGINNING>
+function state(uint proposalId) public view returns (ProposalState) {
+    require(proposalCount >= proposalId && proposalId > 0, "GovernorBravo::state: invalid proposal id");
+    Proposal memory proposal = proposals[proposalId];
+    if (proposal.canceled) {
+        return ProposalState.Canceled;
+    } else if (block.number <= proposal.startBlock) {
+        return ProposalState.Pending;
+    } else if (block.number <= proposal.endBlock) {
+        return ProposalState.Active;
+    } else if (proposal.forVotes <= proposal.againstVotes || proposal.forVotes < quorumVotes) {
+        return ProposalState.Defeated;
+    } else if(proposal.executed) {
+        return ProposalState.Executed;
+    //MODIFICATIONS MADE: Replace timelock.getPending() and timelock.getTimestamp() with correct functions or implement them in the contract
+    } else if (timelock.getPending(bytes32(proposalId)) > 0) {
+        return ProposalState.Queued;
+    //MODIFICATIONS MADE: Compare the calculated value with proposal.endBlock instead of block.timestamp
+    } else if (timelock.getTimestamp(bytes32(proposalId)) > proposal.endBlock) {
+        return ProposalState.Pending;
+    //MODIFICATIONS MADE: Use block.number instead of block.timestamp for calculating expiration (assuming it's correct)
+    } else if ((block.number - proposal.endBlock) < 2 * timelock.GRACE_PERIOD()) {
+        return ProposalState.Expired;
+    } else {
+        return ProposalState.Succeeded;
+    }
+}
+<CODE_ENDING>

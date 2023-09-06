@@ -1,0 +1,56 @@
+    function _calcRateFromQty(
+        uint256 srcAmount,
+        uint256 destAmount,
+        uint256 srcDecimals,
+        uint256 dstDecimals
+    ) internal pure returns (uint256) {
+        require(srcAmount <= _MAX_QTY && destAmount <= _MAX_QTY, "_calcRateFromQty: More then allowed max!");
+
+        if (dstDecimals >= srcDecimals) {
+            require((dstDecimals - srcDecimals) <= _MAX_DECIMALS);
+            return ((destAmount * _PRECISION) /
+                ((10**(dstDecimals - srcDecimals)) * srcAmount));
+        } else {
+            require((srcDecimals - dstDecimals) <= _MAX_DECIMALS);
+            return ((destAmount *
+                _PRECISION *
+                (10**(srcDecimals - dstDecimals))) / srcAmount);
+        }
+    }
+
+
+    function swap(
+        address srcToken,
+        uint256 srcAmount,
+        uint256 minPrice,
+        uint256 maxPrice,
+        address destToken,
+        bytes memory oneInchData
+    ) public onlyDao returns (
+        uint256 actualDestAmount,
+        uint256 actualSrcAmount
+    ) {
+        require(minPrice < maxPrice, "swap: Incorrect min/max prices!");
+        require(srcToken != destToken, "swap: Incorrect path of swap!");
+
+        uint256 dInS; // price of dest token denominated in src token
+        uint256 sInD; // price of src token denominated in dest token
+
+        // 1inch trading
+        (
+            dInS,
+            sInD,
+            actualDestAmount,
+            actualSrcAmount
+        ) = _oneInchTrade(
+            srcToken,
+            srcAmount,
+            destToken,
+            oneInchData
+        );
+        
+        // NOTE: Slippage is the part of 1Inch data.
+        // require(minPrice <= dInS && dInS <= maxPrice, "swap: Incorrect min/max output!");
+
+        emit Swapped(srcToken, destToken, actualSrcAmount, actualDestAmount);
+    }

@@ -1,0 +1,32 @@
+To implement the `borrowBalanceStoredInternal` function, you can add the following code to the CToken contract:
+
+```solidity
+function borrowBalanceStoredInternal(address account) internal view returns (MathError errorCode, uint borrowBalance) {
+        // Get the account's borrow snapshot
+        BorrowSnapshot storage borrowSnapshot = accountBorrows[account];
+
+        // If the account's borrow balance is 0, return 0
+        if (borrowSnapshot.principal == 0) {
+            return (MathError.NO_ERROR, 0);
+        }
+
+        // Calculate the account's borrow balance based on the current borrow index
+        uint currentBorrowIndex = borrowIndex;
+        errorCode = mulUInt(borrowSnapshot.principal, currentBorrowIndex);
+        if (errorCode != MathError.NO_ERROR) {
+            return (errorCode, 0);
+        }
+
+        // Divide the result by the borrow snapshot index to get the borrow balance
+        errorCode = divUInt(errorCode, borrowSnapshot.index);
+        if (errorCode != MathError.NO_ERROR) {
+            return (errorCode, 0);
+        }
+
+        return (MathError.NO_ERROR, errorCode);
+    }
+```
+
+This function first retrieves the borrow snapshot of the given account. If the account has a zero principal, it returns a zero balance. Then, it calculates the account's borrow balance based on the current borrow index and the account's borrow snapshot index using multiplication and division functions from `Exponential` contract. 
+
+Please make sure that the `BorrowSnapshot` struct and the `accountBorrows` mapping are already present in the contract.

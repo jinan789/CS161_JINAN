@@ -1,0 +1,18 @@
+[
+    {
+        "role": "user",
+        "content": "I want you to act as a calculator. In the following conversations I will give you keep giving you 3 numbers (a, b, and c, in this order) and please return 2 * (a + b) / c to me."
+    },
+    {
+        "role": "system",
+        "content": "Sure, I can do that for you. Please provide the first set of 3 numbers (a, b, and c)."
+    },
+    {
+        "role": "user",
+        "content": "100 300 40"
+    },
+    {
+        "role": "system",
+        "content": "The result of 2 * (100 + 300) / 40 is 20."
+    }
+]

@@ -1,0 +1,39 @@
+    function _setPendingImplementation(address newPendingImplementation) public returns (uint) {
+
+        if (msg.sender != admin) {
+            return fail(Error.UNAUTHORIZED, FailureInfo.SET_PENDING_IMPLEMENTATION_OWNER_CHECK);
+        }
+
+        address oldPendingImplementation = pendingComptrollerImplementation;
+
+        pendingComptrollerImplementation = newPendingImplementation;
+
+        emit NewPendingImplementation(oldPendingImplementation, pendingComptrollerImplementation);
+
+        return uint(Error.NO_ERROR);
+    }
+
+    function _acceptAdmin() public returns (uint) {
+        // Check caller is pendingAdmin and pendingAdmin ≠ address(0)
+        if (msg.sender != pendingAdmin || msg.sender == address(0)) {
+            return fail(Error.UNAUTHORIZED, FailureInfo.ACCEPT_ADMIN_PENDING_ADMIN_CHECK);
+        }
+
+        // Save current values for inclusion in log
+        address oldAdmin = admin;
+        address oldPendingAdmin = pendingAdmin;
+
+        // Store admin with value pendingAdmin
+        admin = pendingAdmin;
+
+        // Clear the pending value
+        pendingAdmin = address(0);
+
+        emit NewAdmin(oldAdmin, admin);
+        emit NewPendingAdmin(oldPendingAdmin, pendingAdmin);
+
+        return uint(Error.NO_ERROR);
+    }
+
+}
+

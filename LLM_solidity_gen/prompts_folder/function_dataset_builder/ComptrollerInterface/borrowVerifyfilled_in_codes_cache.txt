@@ -1,0 +1,6 @@
+<CODE_BEGINNING>
+function borrowVerify(address cToken, address borrower, uint borrowAmount) external {
+    // TODO: Implement the logic to check and validate the borrow amount for the given borrower and cToken.
+    // For example, you might want to compare the borrow amount with some limit, check borrower's collateral, etc.
+}
+<CODE_ENDING>

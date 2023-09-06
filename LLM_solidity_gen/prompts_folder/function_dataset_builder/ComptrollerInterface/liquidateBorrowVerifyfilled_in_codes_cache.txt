@@ -1,0 +1,24 @@
+<CODE_BEGINNING>
+function liquidateBorrowVerify(
+    address cTokenBorrowed,
+    address cTokenCollateral,
+    address liquidator,
+    address borrower,
+    uint repayAmount,
+    uint seizeTokens
+) external {
+    // Your implementation for the function should come here
+
+    // Make sure the cToken addresses are valid
+    require(cTokenBorrowed != address(0) && cTokenCollateral != address(0), "Invalid cToken addresses");
+
+    // Make sure liquidator and borrower addresses are valid and not equal
+    require(liquidator != address(0) && borrower != address(0) && liquidator != borrower, "Invalid liquidator or borrower addresses");
+
+    // Make sure repayAmount and seizeTokens are positive
+    require(repayAmount > 0 && seizeTokens > 0, "Invalid repayAmount or seizeTokens");
+
+    // Perform other checks as needed for your specific implementation/requirements
+
+}
+<CODE_ENDING>

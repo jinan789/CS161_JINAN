@@ -1,0 +1,7 @@
+Function: _reduceReserves
+
+Input: (uint) reduceAmount
+
+Output: (uint)
+
+Summary: The function reduces the reserves by the specified reduceAmount, which is supplied as input.

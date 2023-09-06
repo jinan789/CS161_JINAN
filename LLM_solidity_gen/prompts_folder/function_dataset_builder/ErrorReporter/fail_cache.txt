@@ -1,0 +1,9 @@
+Function Name: fail
+
+1. Input format:
+   - err: Error (enum)
+   - info: FailureInfo (enum)
+2. Output format:
+   - Returns: uint (corresponding to the input error)
+
+Summary: This function emits a Failure event, passing the input error, failure info, and a 0 as its details. The function then returns the input error as an unsigned integer. Essentially, this function is used to report a known error and provide information regarding the failure.

@@ -1,0 +1,50 @@
+    function _setImplementation(address newImplementation) private {
+        require(AddressUpgradeable.isContract(newImplementation), "ERC1967: new implementation is not a contract");
+        StorageSlotUpgradeable.getAddressSlot(_IMPLEMENTATION_SLOT).value = newImplementation;
+    }
+
+
+    function _upgradeToAndCall(
+        address newImplementation,
+        bytes memory data,
+        bool forceCall
+    ) internal {
+        _upgradeTo(newImplementation);
+        if (data.length > 0 || forceCall) {
+            _functionDelegateCall(newImplementation, data);
+        }
+    }
+
+
+    function _setAdmin(address newAdmin) private {
+        require(newAdmin != address(0), "ERC1967: new admin is the zero address");
+        StorageSlotUpgradeable.getAddressSlot(_ADMIN_SLOT).value = newAdmin;
+    }
+
+
+    function _getBeacon() internal view returns (address) {
+        return StorageSlotUpgradeable.getAddressSlot(_BEACON_SLOT).value;
+    }
+
+
+    function _setBeacon(address newBeacon) private {
+        require(AddressUpgradeable.isContract(newBeacon), "ERC1967: new beacon is not a contract");
+        require(
+            AddressUpgradeable.isContract(IBeaconUpgradeable(newBeacon).implementation()),
+            "ERC1967: beacon implementation is not a contract"
+        );
+        StorageSlotUpgradeable.getAddressSlot(_BEACON_SLOT).value = newBeacon;
+    }
+
+
+    function _functionDelegateCall(address target, bytes memory data) private returns (bytes memory) {
+        require(AddressUpgradeable.isContract(target), "Address: delegate call to non-contract");
+
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, bytes memory returndata) = target.delegatecall(data);
+        return AddressUpgradeable.verifyCallResult(success, returndata, "Address: low-level delegate call failed");
+    }
+    uint256[50] private __gap;
+}
+
+

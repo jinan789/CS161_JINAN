@@ -1,0 +1,6 @@
+Summary of divUInt function:
+
+1. Input: Two uint variables (a and b)
+2. Output: A tuple containing a MathError enum value and a uint variable
+
+The function, divUInt, is responsible for dividing two unsigned integers and returning an error code along with the result. It checks if the divisor (b) is zero, in which case it returns an error indicating DIVISION_BY_ZERO; otherwise, it performs the division and returns the result with NO_ERROR.

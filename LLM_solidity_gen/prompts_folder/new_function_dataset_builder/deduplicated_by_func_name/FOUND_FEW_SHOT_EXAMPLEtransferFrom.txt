@@ -1,0 +1,4 @@
+The most similar function signatures to the target function 'transferFrom' are:
+
+1. function transfer(address dst, uint rawAmount) external returns (bool)
+2. function approve(address spender, uint rawAmount) external returns (bool)

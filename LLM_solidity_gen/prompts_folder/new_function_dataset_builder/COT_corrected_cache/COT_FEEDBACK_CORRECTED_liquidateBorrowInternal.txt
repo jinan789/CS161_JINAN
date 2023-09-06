@@ -1,0 +1,43 @@
+TASK 1: Step-by-step plan for liquidateBorrowInternal function
+
+1. Accrue interest on the borrowed asset:
+    a. Call the accrueInterest() function for the current CToken contract.
+    b. Check the returned error code. If it's not 0 (NO_ERROR), return the error code and 0 as actual repayment amount.
+
+2. Accrue interest on the collateral asset:
+    a. Call the accrueInterest() function for the cTokenCollateral contract.
+    b. Check the returned error code. If it's not 0 (NO_ERROR), return the error code and 0 as the actual repayment amount.
+
+3. Perform the process of repaying borrowed amount and seizing collateral:
+    a. Call the liquidateBorrowFresh() function with the following parameters: msg.sender (the liquidator), borrower, repayAmount, and cTokenCollateral.
+    b. Check the returned error code. If it's not 0 (NO_ERROR), return the error code and 0 as the actual repayment amount.
+
+4. Return the result:
+    a. If all previous steps succeeded, return (uint(Error.NO_ERROR), actualRepayAmount).
+
+Now, let's check if the provided code follows these steps:
+
+Your provided code:
+```solidity
+function liquidateBorrowInternal(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal returns (uint, uint) {
+    // Accrue interest on the borrowed asset and the collateral asset
+    uint errorCode = accrueInterest();
+    if (errorCode != 0) {
+        return (errorCode, 0);
+    }
+    errorCode = cTokenCollateral.accrueInterest();
+    if (errorCode != 0) {
+        return (errorCode, 0);
+    }
+
+    // Call liquidateBorrowFresh function to perform the process of repaying borrowed amount and seizing collateral
+    (uint err, uint actualRepayAmount) = liquidateBorrowFresh(msg.sender, borrower, repayAmount, cTokenCollateral);
+    if (err != 0) {
+        return (err, 0);
+    }
+
+    return (uint(Error.NO_ERROR), actualRepayAmount);
+}
+```
+
+Comparing the provided code and the step-by-step plan, it is clear that the code already follows the plan properly. Hence, no changes are needed for the provided code.

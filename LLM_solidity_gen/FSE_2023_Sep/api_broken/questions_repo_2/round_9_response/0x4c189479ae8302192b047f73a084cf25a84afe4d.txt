@@ -1,0 +1,76 @@
+New Gas-Wasting Patterns:
+
+1. **Recalculation of a Constant Expression within a Loop**
+
+- How did you find this pattern? 
+
+In the `getSwappingRate(uint256 numValues)` function, the expression `numValues + 1` is calculated in each iteration of the loop. This expression does not change during the execution of the loop and thus leads to unnecessary computation.
+
+- How to fix:
+
+Calculate the expression before the loop and store the result in a variable. Use this variable within the loop. 
+
+```solidity
+uint256 numValuesPlusOne = numValues + 1;
+for (uint256 i = 1; i < numValuesPlusOne; i++) {
+    series[i] = (series[i - 1] * 99) / 100;
+}
+```
+
+- Impact on Readability, Security, and Maintainability:
+
+Readability: 5 (No impact, as the logic remains the same); 
+Security: 5 (No impact, as we aren't changing any security-related operations); 
+Maintainability: 5 (No impact, as it doesn't add extra complexity)
+
+2. **Repeated Access of Storage Variable**
+
+- How did you find this pattern? 
+
+In the `swap()` function, `totalETH` is a state variable that is accessed multiple times. Each access to a storage variable costs more gas than access to a local variable.
+
+- How to fix:
+
+Store `totalETH` in a local variable at the start of the function, and use this local variable within the function. At the end of the function, update the storage variable with the value of the local variable.
+
+```solidity
+uint256 _totalETH = totalETH;
+// Use _totalETH in the function
+totalETH = _totalETH;
+```
+
+- Impact on Readability, Security, and Maintainability:
+
+Readability: 4 (Slight impact, as it introduces an extra variable); 
+Security: 5 (No impact, as it doesn't change any security-related operations); 
+Maintainability: 5 (No impact, as it doesn't add extra complexity)
+
+3. **Repeated Calls to the Same Function within a Loop**
+
+- How did you find this pattern? 
+
+In the `swapConvert(uint256 _eth)` function, `getSwappingRate(ethBeforeDecimal)` is called within the loop. This could lead to unnecessary computation if the result is the same for each iteration.
+
+- How to fix:
+
+If the result is the same for each iteration, calculate it once before the loop and store the result in a variable. Use this variable within the loop.
+
+```solidity
+uint256 swappingRate = getSwappingRate(ethBeforeDecimal);
+for (uint256 i = 0; i < main; i++) {
+    tokensToMint += (1 ether * swappingRate) / 1 ether;
+    _totalETH += 1 ether;
+}
+```
+
+- Impact on Readability, Security, and Maintainability:
+
+Readability: 5 (No impact, as the logic remains the same); 
+Security: 5 (No impact, as we aren't altering any security-related operations); 
+Maintainability: 5 (No impact, as it doesn't add extra complexity)
+
+Regarding your additional requirements:
+
+1. Your prompt was clear and well-structured. However, it would be helpful if you could provide some context about the code. For instance, what the contract is intended to do, and what each function is supposed to achieve.
+
+2. When analyzing the code for potential gas improvements, it's important to understand the purpose of each function and the overall contract. Having a clear understanding of how the contract is intended to function can guide the search for gas optimization opportunities. This time, I closely examined each piece of code for repeated patterns, unnecessary computations, and expensive operations. I also considered the impact of potential optimization on readability, security, and maintainability. In the future, I could improve the process by considering more advanced optimization techniques and looking for deeper patterns in the code.

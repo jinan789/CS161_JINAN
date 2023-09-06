@@ -1,0 +1,2 @@
+
+Next, I will give you some additional information. I will give a chunk of sample codes as a few-shot example for you. It is extracted from the continual code repository and should give you a better idea on how to use the continual code repository. The few-shot codes are as follows:

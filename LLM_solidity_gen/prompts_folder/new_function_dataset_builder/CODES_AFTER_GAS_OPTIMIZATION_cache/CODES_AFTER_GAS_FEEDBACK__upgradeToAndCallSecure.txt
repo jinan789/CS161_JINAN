@@ -1,0 +1,25 @@
+After analyzing the provided codes, I found that your codes do not match any of the given gas-wasting patterns. The function seems to be simple and straightforward. Therefore, no suggestions for optimizations are required in this case.
+
+Accordingly, the tasks are:
+TASK 1: 
+None of the given gas-wasting patterns are found in the provided codes.
+
+TASK 2:
+As no gas-wasting patterns were found in the provided codes, no modifications are required. Here is your original function:
+
+<CODE_BEGINNING>
+function _upgradeToAndCallSecure(
+    address newImplementation,
+    bytes memory data,
+    bool forceCall
+) internal {
+    // Step 1: Store the current implementation before upgrading
+    address currentImplementation = _getImplementation();
+
+    // CHANGES BASED ON CALLED CODE MADE: Replaced _upgradeTo with _upgradeToAndCall to handle delegate call properly
+    // Step 2: Upgrade to the new implementation and perform delegate call
+    _upgradeToAndCall(newImplementation, data, forceCall);
+
+    //CHANGES BASED ON CALLED CODE MADE: Removed unnecessary if condition for performing delegate call
+}
+<CODE_ENDING>

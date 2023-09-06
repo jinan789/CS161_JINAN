@@ -1,0 +1,4 @@
+Input: 1 address array, 3 arrays of uint, string, bytes data types, 1 string
+Output: 1 uint value
+
+The propose function creates a proposal with specified targets, values, signatures, calldatas, and a description. It ensures that the proposal is valid and checks if the proposer has enough voting power (being a top staker). Additionally, it limits the number of targets, operations, and sets starting and ending block numbers for the proposal's voting. The function finally emits a ProposalCreated event and returns the newly created proposal's ID.

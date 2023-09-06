@@ -1,0 +1,5 @@
+The following function signatures are the most similar to the given target function based on their parameters, return types, and function names:
+
+1. function borrowBalanceStored(address account) public view returns (uint)
+
+2. function borrowBalanceCurrent(address account) external nonReentrant returns (uint)

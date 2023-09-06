@@ -1,0 +1,18 @@
+<CODE_BEGINNING>
+    function safeTransferFrom(
+        ERC20 token,
+        address from,
+        address to,
+        uint256 amount
+    ) internal {
+        bytes4 private constant SELECTOR = bytes4(keccak256(bytes("transferFrom(address,address,uint256)")));
+        bytes memory callData = abi.encodeWithSelector(SELECTOR, from, to, amount);
+
+        (bool success, bytes memory returndata) = address(token).call(callData);
+        require(success, "TRANSFER_FROM_FAILED");
+
+        if (returndata.length > 0) {
+            require(abi.decode(returndata, (bool)), "TRANSFER_FROM_FAILED");
+        }
+    }
+<CODE_ENDING>

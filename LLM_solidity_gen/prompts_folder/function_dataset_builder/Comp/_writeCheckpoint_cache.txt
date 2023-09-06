@@ -1,0 +1,11 @@
+Function: _writeCheckpoint
+
+Inputs:
+1. address delegatee
+2. uint32 nCheckpoints
+3. uint96 oldVotes
+4. uint96 newVotes
+
+Output: None, but the function emits a DelegateVotesChanged event.
+
+Summary: The function updates the votes checkpoint for the delegatee. If the current block number is the same as the last checkpoint's block number, it updates the votes in the last checkpoint. Otherwise, it creates a new checkpoint with the newVotes and updates the number of checkpoints for the delegatee. An event (DelegateVotesChanged) is emitted to notify the change in delegatee's votes.

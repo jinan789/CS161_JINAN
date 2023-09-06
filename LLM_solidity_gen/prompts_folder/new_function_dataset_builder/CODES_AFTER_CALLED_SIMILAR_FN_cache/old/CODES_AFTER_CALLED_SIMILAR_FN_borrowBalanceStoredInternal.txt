@@ -1,0 +1,52 @@
+TASK 1:
+1. Issue: In step 1, it is assumed that `accountBorrows` is a mapping of address to `BorrowSnapshot` struct, but this information is not provided. 
+   Fix: If `accountBorrows` is not defined, declare it as a mapping of address to `BorrowSnapshot` struct.
+
+2. Issue: In step 3, the `borrowIndex` variable is used, but it is not defined or provided in the given codes and information.
+   Fix: Define the `borrowIndex` variable if not already defined or provide information on how the borrow index is calculated or where it comes from.
+
+3. Issue: It is assumed that `mulUInt` and `divUInt` functions correctly handle multiplication and division operations with proper error checking. However, these function definitions are not provided.
+   Fix: Either provide the implementation of `mulUInt` and `divUInt` functions, or verify that these functions correctly handle multiplication and division operations with proper error checking.
+
+TASK 2:
+
+Assuming that there is a `BorrowSnapshot` struct, `accountBorrows` and `mulUInt` and `divUInt` functions are correctly defined and implemented, here is the corrected version of the code:
+
+<CODE_BEGINNING>
+
+//CHANGES BASED ON CALLED CODE MADE: Assumed that `accountBorrows` is defined as a mapping(address => BorrowSnapshot) and `borrowIndex` is defined
+function borrowBalanceStoredInternal(address account) internal view returns (MathError errorCode, uint borrowBalance) {
+    // Step 1: Get the account's borrow snapshot
+    BorrowSnapshot storage borrowSnapshot = accountBorrows[account];
+
+    // Step 2: If the account's borrow balance is 0, return 0
+    if (borrowSnapshot.principal == 0) {
+        return (MathError.NO_ERROR, 0);
+    }
+
+    // Step 3: Calculate the account's borrow balance based on the current borrow index
+    uint currentBorrowIndex = borrowIndex;
+
+    // Step 4: Multiply the borrower's borrow snapshot principal with the current borrow index
+    uint principalTimesIndex;
+    (errorCode, principalTimesIndex) = mulUInt(borrowSnapshot.principal, currentBorrowIndex);
+
+    // Step 5: Check for math errors during multiplication
+    if (errorCode != MathError.NO_ERROR) {
+        return (errorCode, 0);
+    }
+
+    // Step 6: Divide the result by the borrow snapshot index to get the borrow balance
+    uint result;
+    (errorCode, result) = divUInt(principalTimesIndex, borrowSnapshot.index);
+
+    // Step 7: Check for math errors during division
+    if (errorCode != MathError.NO_ERROR) {
+        return (errorCode, 0);
+    }
+
+    // Step 8: Return the borrow balance with a NO_ERROR code
+    return (MathError.NO_ERROR, result);
+}
+
+<CODE_ENDING>

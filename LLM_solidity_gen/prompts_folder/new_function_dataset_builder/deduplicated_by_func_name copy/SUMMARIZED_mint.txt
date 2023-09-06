@@ -1,0 +1,8 @@
+Summary of the function `mint(address dst, uint rawAmount)`:
+
+1. Input variables:
+   - address `dst`: An address where new tokens will be minted
+   - uint `rawAmount`: The amount of tokens to be minted
+
+2. Brief description:
+   The function mints the specified amount of new tokens and transfers them to the given address. The total supply of tokens is increased accordingly, and the function also takes care of updating delegates of the recipient address. This function can only be called by the owner of the contract.

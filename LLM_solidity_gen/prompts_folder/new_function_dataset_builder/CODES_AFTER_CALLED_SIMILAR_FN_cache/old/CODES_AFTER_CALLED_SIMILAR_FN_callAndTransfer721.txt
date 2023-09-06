@@ -1,0 +1,32 @@
+TASK 1:
+
+1. Incorrect decoding of the inputs parameter: The method used in the given code to decode 'inputs' is not proper. It would not decode the correct values for various fields in 'inputs'.
+
+Suggestion: Use abi.decode() function for proper decoding of the inputs.
+
+2. map function does not seem to be a proper function or implementation for mapping the recipient address.
+
+Suggestion: Get rid of the map function and directly use the recipient value in transferFrom()
+
+TASK 2:
+
+<CODE_BEGINNING>
+
+//CHANGES BASED ON CALLED CODE MADE: Fixed the input decoding
+function callAndTransfer721(bytes calldata inputs, address protocol) internal returns (bool success, bytes memory output) {
+    (uint256 value, bytes calldata data, address recipient, address token) = abi.decode(inputs, (uint256, bytes, address, address));
+
+    // Perform a call to the specified protocol with the given value and data
+    (success, output) = protocol.call{value: value}(data);
+
+    // If the call is successful, transfer the ERC721 token to the recipient
+    if (success) {
+        //CHANGES BASED ON CALLED CODE MADE: Removed the map function usage
+        ERC721 erc721Token = ERC721(token);
+        erc721Token.transferFrom(address(this), recipient, value);
+    }
+
+    return (success, output);
+}
+
+<CODE_ENDING>

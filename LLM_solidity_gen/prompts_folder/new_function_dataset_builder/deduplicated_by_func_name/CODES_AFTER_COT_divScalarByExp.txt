@@ -1,0 +1,13 @@
+function divScalarByExp(uint scalar, Exp memory divisor) pure internal returns (MathError, Exp memory) {
+    if (divisor.mantissa == 0) {
+        return (MathError.DIVISION_BY_ZERO, Exp({mantissa: 0}));
+    }
+
+    (MathError mathError, uint ratio) = divUInt(scalar, divisor.mantissa);
+    if (mathError != MathError.NO_ERROR) {
+        return (mathError, Exp({mantissa: 0}));
+    }
+
+    Exp memory expResult = Exp({mantissa: ratio});
+    return (MathError.NO_ERROR, expResult);
+}

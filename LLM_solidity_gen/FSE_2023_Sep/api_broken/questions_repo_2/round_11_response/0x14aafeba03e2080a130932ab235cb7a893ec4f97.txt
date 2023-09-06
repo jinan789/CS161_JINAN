@@ -1,0 +1,23 @@
+Here are a few gas-wasting patterns I noticed in the code.
+
+1. **Checking a condition repeatedly in a loop**: In the `mintSeaDrop` function, the condition `_totalMinted() + quantity > maxSupply()` is checked in every iteration of the loop. This condition could potentially be checked before the loop starts, as `_totalMinted()`, `quantity`, and `maxSupply()` are not changing within the loop. 
+
+    - Discovery Process: This pattern was noticed by observing the repeated invocation of the `_totalMinted()` and `maxSupply()` functions, which do not change within the context of the loop and thus waste gas with each invocation.
+    - Fix: To fix this, you can calculate `_totalMinted() + quantity` before the loop and assign it to a variable, say `newTotalMinted`. Then you can compare `newTotalMinted` with `maxSupply()` before the loop starts. If `newTotalMinted > maxSupply()`, the function can revert immediately.
+    - Impact: Readability: 5; Security: 5; Maintainability: 5. This change does not significantly affect readability, security, or maintainability. In fact, it might improve readability by making it clear that these values are not changing inside the loop.
+
+2. **Use of unchecked blocks**: In the constructor and the `_updateAllowedSeaDrop` function, the `unchecked { ++i; }` blocks are unnecessary and consume more gas. Solidity version 0.8.0 and later automatically checks for integer overflow and underflow, so explicit checks are not required unless the `unchecked` keyword is used.
+
+    - Discovery Process: This pattern was noticed when the `unchecked` keyword was seen, which suppresses the built-in overflow and underflow checks in Solidity 0.8.0 and later. This can cause extra gas to be used.
+    - Fix: To fix this, you can remove the `unchecked { ++i; }` blocks and simply use `i++` instead.
+    - Impact: Readability: 5; Security: 4; Maintainability: 5. Removing `unchecked` blocks can improve security by allowing overflow and underflow checks to be performed, and does not significantly affect readability or maintainability.
+
+3. **Repeated use of length computations**: In the `tokenURI` function, the length of `baseURI` is computed twice. This is unnecessary and wastes gas.
+
+    - Discovery Process: This pattern was noticed by observing the repeated use of `bytes(baseURI).length`.
+    - Fix: To fix this, you can compute the length of `baseURI` once and store it in a variable. Then you can reuse this variable.
+    - Impact: Readability: 5; Security: 5; Maintainability: 5. This change does not significantly affect readability, security, or maintainability.
+
+In terms of feedback, your question was clear and thorough. However, it might be helpful to specify the versions of Solidity and EVM you're targeting, as gas costs can vary between different versions. For instance, the `SLOAD` operation, which reads from storage, has different gas costs in EVM versions Istanbul and Berlin. 
+
+During my analysis, I went through your code line by line to identify patterns that might cause unnecessary gas usage. To improve, I could work on developing a more systematic approach to analyzing code for gas efficiency, such as creating a checklist of common gas-wasting patterns to look for. Also, understanding the gas costs of various operations in different EVM versions would be beneficial.

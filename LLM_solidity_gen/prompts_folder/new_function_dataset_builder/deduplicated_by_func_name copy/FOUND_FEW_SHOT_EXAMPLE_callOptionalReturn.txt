@@ -1,0 +1,14 @@
+Based on the function names, return types, and parameter lists, the two functions that seem to have the most similar functionality to the target function _callOptionalReturn(IERC20 token, bytes memory data) are:
+
+1. function safeTransfer(
+        IERC20 token,
+        address to,
+        uint256 value
+    ) internal
+
+2. function safeTransferFrom(
+        IERC20 token,
+        address from,
+        address to,
+        uint256 value
+    ) internal

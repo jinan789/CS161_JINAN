@@ -1,0 +1,40 @@
+You can add the `borrowInternal` function to the `CToken` contract as shown below:
+
+```solidity
+pragma solidity ^0.5.16;
+
+// (Add other imports here)
+
+/**
+ * @title Compound's CToken Contract
+ * @notice Abstract base for CTokens
+ * @author Compound
+ */
+contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
+    // (Add other functions and variables here)
+
+    /**
+     * @notice The borrowInternal function allows a user to borrow an amount of the underlying asset
+     * @dev Before proceeding, it first calls the accrueInterest function to update the interest
+     * @param borrowAmount The amount of the underlying asset to borrow
+     * @return 0 if the operation is successful, otherwise returns an error code
+     */
+    function borrowInternal(uint borrowAmount) internal nonReentrant returns (uint) {
+        // Step 1: Call accrueInterest to update interest
+        uint err = accrueInterest();
+        if (err != 0) {
+            // If accrueInterest returns an error, log the failed borrow attempt and return the error code
+            return fail(Error(err), FailureInfo.BORROW_ACCRUE_INTEREST_FAILED);
+        }
+
+        // Step 2: Perform the borrow operation (add your custom logic here)
+
+        // Step 3: Return 0 to indicate success
+        return uint(Error.NO_ERROR);
+    }
+
+    // (Add other functions here)
+}
+```
+
+In the above code snippet, the `borrowInternal` function is added to the existing `CToken` contract. This function takes an input of the `borrowAmount` which represents the amount of the underlying asset to be borrowed. The function first updates the interest by calling the `accrueInterest` function. If any error occurs while updating the interest, it logs a failed borrow attempt and returns the error code. If the interest update is successful, you can proceed to implement the desired borrow logic and return a success code (0) once the operation is successful. The function is marked as `internal` which means it can only be called within this contract or within contracts derived from this one.

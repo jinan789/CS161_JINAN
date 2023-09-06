@@ -1,0 +1,17 @@
+function _addReservesFresh(uint addAmount) internal returns (uint, uint) {
+    // Check for fresh block number
+    if (accrualBlockNumber != getBlockNumber()) {
+        return (uint(Error.NOT_FRESH), 0);
+    }
+
+    // Transfer tokens from msg.sender to the contract
+    uint actualAddAmount = doTransferIn(msg.sender, addAmount);
+
+    // Increase total reserves by the actual transferred amount
+    totalReserves = add_(totalReserves, actualAddAmount);
+
+    // Emit the ReservesAdded event
+    emit ReservesAdded(msg.sender, addAmount, actualAddAmount);
+
+    return (uint(Error.NO_ERROR), actualAddAmount);
+}

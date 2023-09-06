@@ -1,0 +1,14 @@
+<CODE_BEGINNING>
+/**
+ * @dev Adds two Exps 'a' and 'b', creating a new Exp with the sum of their `mantissa` values.
+ *      Note: Returns a MathError if the sum of the `mantissa` values overflows.
+ */
+function addExp(Exp memory a, Exp memory b) pure internal returns (MathError, Exp memory) {
+    (MathError mathErr, uint256 result) = add(a.mantissa, b.mantissa);
+    if (mathErr != MathError.NO_ERROR) {
+        return (mathErr, Exp({mantissa: 0}));
+    }
+
+    return (MathError.NO_ERROR, Exp({mantissa: result}));
+}
+<CODE_ENDING>

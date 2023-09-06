@@ -1,0 +1,6 @@
+Function: delegate
+
+1. Input: 1 address variable (delegatee)
+2. Output: No output
+
+Summary: The 'delegate' function allows the caller to delegate their voting power to another address (delegatee). It records the delegation and updates the vote balances of the involved accounts.

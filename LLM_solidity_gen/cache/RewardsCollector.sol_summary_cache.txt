@@ -1,0 +1,8 @@
+RewardsCollector.sol
+<START_FUNCTIONS>
+- collectRewards(bytes calldata looksRareClaim) external: Collects rewards from the LooksRare rewards distributor, and then transfers the collected tokens to the router rewards distributor. Emits a RewardsSent event with the transferred amount.
+<END_FUNCTIONS>
+<START_CONTRACTS>
+Summary of the entire contract:
+The RewardsCollector contract is an implementation of the IRewardsCollector interface, and inherits from RouterImmutables. It uses the SafeTransferLib for safe ERC20 token transfers. The contract provides a single function, collectRewards, which collects rewards tokens from the LooksRare rewards distributor and then transfers them to the router rewards distributor. It also emits a RewardsSent event with the transferred token amount.
+<END_CONTRACTS>

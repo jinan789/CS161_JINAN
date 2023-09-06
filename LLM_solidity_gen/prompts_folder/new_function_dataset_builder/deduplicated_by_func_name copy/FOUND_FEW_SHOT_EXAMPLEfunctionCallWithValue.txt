@@ -1,0 +1,17 @@
+The two function signatures from the Address library that are most similar to the target function are:
+
+1. function functionCall(
+        address target,
+        bytes memory data,
+        string memory errorMessage
+    ) internal returns (bytes memory)
+
+2. function verifyCallResult(
+        bool success,
+        bytes memory returndata,
+        string memory errorMessage
+    ) internal pure returns (bytes memory)
+
+The first function signature, "functionCall", is very similar in structure to the target function. It has the same return type (bytes memory) and similar input parameters (address, bytes memory, and string memory). The main difference is that the target function has an additional uint256 "value" parameter.
+
+The second function signature, "verifyCallResult", is used within the target function, which suggests that it is related to the functionality of the target function. However, this function has different input and output parameters compared to the target function, so it's not as similar as the "functionCall" signature.

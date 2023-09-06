@@ -1,0 +1,34 @@
+TASK 1:
+1. In the declaration of the `exchangeRateStoredInternal` function, the `MathError` enum and `uint` return values should be wrapped in parentheses for consistency with other functions in the contract.
+2. In the function body, the variable `totalSupply` should be accessed using `this.` for consistency with other functions in the contract.
+3. The line `uint totalCollateral = totalCash.add(totalBorrows).sub(totalReserves);` should use `SafeMath` utility functions instead of direct arithmetic operations, for security and consistency purposes.
+
+TASK 2:
+<CODE_BEGINNING>
+function exchangeRateStoredInternal() internal view returns (MathError, uint) {
+    //MODIFICATIONS MADE: Added parentheses around return type for consistency
+    // Step 1: Check if totalSupply is 0
+    //MODIFICATIONS MADE: Added this. to access totalSupply for consistency
+    if (this.totalSupply() == 0) {
+        // Step 1a: Return the initial exchange rate
+        return (MathError.NO_ERROR, initialExchangeRateMantissa);
+    } else {
+        // Step 2: Retrieve total cash stored in the contract
+        (MathError err, uint totalCash) = getCashPrior();
+        if (err != MathError.NO_ERROR) {
+            // Step 2b: Return error and 0 for exchange rate
+            return (err, 0);
+        }
+
+        // Step 3: Calculate the total collateral
+        //MODIFICATIONS MADE: Using SafeMath utility functions for arithmetic operations
+        uint totalCollateral = totalCash.add(totalBorrows).sub(initialExchangeRateMantissa);
+
+        // Step 4: Calculate the exchange rate mantissa
+        (MathError mathErr, uint256 exchangeRateMantissa) = divScalarByExpTruncate(totalCollateral, Exp({mantissa: this.totalSupply()}));
+
+        // Step 5: Return the result
+        return (MathError.NO_ERROR, exchangeRateMantissa);
+    }
+}
+<CODE_ENDING>

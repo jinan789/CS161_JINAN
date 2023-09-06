@@ -1,0 +1,28 @@
+    function _setPendingAdmin(address payable newPendingAdmin) external returns (uint) {
+        // Check caller = admin
+        if (msg.sender != admin) {
+            return fail(Error.UNAUTHORIZED, FailureInfo.SET_PENDING_ADMIN_OWNER_CHECK);
+        }
+
+        // Save current value, if any, for inclusion in log
+        address oldPendingAdmin = pendingAdmin;
+
+        // Store pendingAdmin with value newPendingAdmin
+        pendingAdmin = newPendingAdmin;
+
+        // Emit NewPendingAdmin(oldPendingAdmin, newPendingAdmin)
+        emit NewPendingAdmin(oldPendingAdmin, newPendingAdmin);
+
+        return uint(Error.NO_ERROR);
+    }
+
+    function _setInterestRateModel(InterestRateModel newInterestRateModel) public returns (uint) {
+        uint error = accrueInterest();
+        if (error != uint(Error.NO_ERROR)) {
+            // accrueInterest emits logs on errors, but on top of that we want to log the fact that an attempted change of interest rate model failed
+            return fail(Error(error), FailureInfo.SET_INTEREST_RATE_MODEL_ACCRUE_INTEREST_FAILED);
+        }
+        // _setInterestRateModelFresh emits interest-rate-model-update-specific logs on errors, so we don't need to.
+        return _setInterestRateModelFresh(newInterestRateModel);
+    }
+

@@ -1,0 +1,30 @@
+The two function signatures that have the most similar functionality to the given target function are:
+
+1. 
+```javascript
+function swap(
+    address srcToken,
+    uint256 srcAmount,
+    uint256 minPrice,
+    uint256 maxPrice,
+    address destToken,
+    bytes memory oneInchData
+) public onlyDao returns (
+    uint256 actualDestAmount,
+    uint256 actualSrcAmount
+);
+```
+
+2.
+```javascript
+function _calcRateFromQty(
+    uint256 srcAmount,
+    uint256 destAmount,
+    uint256 srcDecimals,
+    uint256 dstDecimals
+) internal pure returns (uint256)
+```
+
+The first function signature, `swap`, has a similar functionality as it deals with swapping tokens and also returns the actual destination amount and actual source amount, which closely matches with the target function's return values.
+
+The second function signature, `_calcRateFromQty`, is also related to the target function as it is being used within the target function to calculate prices (the srcPriceInDest and destPriceInSrc variables).

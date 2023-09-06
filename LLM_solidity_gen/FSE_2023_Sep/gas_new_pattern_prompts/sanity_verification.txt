@@ -1,0 +1,5 @@
+I want you to help me verify some gas-wasting patterns for Solidity that I have found. I am not an expert in this field, so I need you to help me figure out if the patterns I found have any incorrect or inappropriate statements.
+
+To begin with, I want to tell you a high-level idea of gas optimization. Each instruction in the code sequence consumes a certain amount of gas based on their operation types, which costs money. If we could find an equivalent code instruction sequence that produces the same output while consuming less gas, then this would save money for Solidity users.
+
+Now, the list of new gas-wasting patterns is given below. The list is numbered, with each bullet point specifying one gas-wasting pattern, which is followed by an explanation of why this pattern wastes gas. I want you to read through these and tell me if there are any mistakes or issues regarding the applicability, generalizability and usability of these patterns:

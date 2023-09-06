@@ -1,0 +1,26 @@
+TASK 1: Step-by-step plan for implementing the divScalarByExp function, using information from 1 and 2.
+
+1. Check if the divisor's mantissa is zero.
+    - If zero, return a MathError.DIVISION_BY_ZERO and an Exp with mantissa 0.
+2. Divide the scalar by the divisor's mantissa using the divUInt function from CarefulMath contract.
+    - If there's a MathError during the division, return the error code and Exp with mantissa 0.
+3. Create a new Exp structure for the result with the mantissa equal to the calculated ratio.
+4. Return MathError.NO_ERROR and the created Exp structure as the result.
+
+Now let's compare the steps with the given code:
+
+function divScalarByExp(uint scalar, Exp memory divisor) pure internal returns (MathError, Exp memory) {
+    if (divisor.mantissa == 0) { // Step 1
+        return (MathError.DIVISION_BY_ZERO, Exp({mantissa: 0}));
+    }
+
+    (MathError mathError, uint ratio) = divUInt(scalar, divisor.mantissa); // Step 2
+    if (mathError != MathError.NO_ERROR) {
+        return (mathError, Exp({mantissa: 0}));
+    }
+
+    Exp memory expResult = Exp({mantissa: ratio}); // Step 3
+    return (MathError.NO_ERROR, expResult); // Step 4
+}
+
+As we can see, the provided code already follows the step-by-step plan correctly. So no updates needed, as the code is implemented in a logical and coherent manner.

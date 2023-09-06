@@ -1,0 +1,185 @@
+I want you to help me find new gas-wasting patterns for Solidity. Gas is a unique pricing mechanism in Solidity, which measures the amount of computational resources put into the execution of Solidity codes. The goal of gas optimization is to find an equivalent code instruction sequence that produces the same output while consuming less gas, which may misalign from the way people typically write codes, since code writers aim for readability and maintainability, while gas optimization might seem a little unintuitive to newcomers. For example, storage variables in Solidity are expensive in terms of gas, while memory is not, so storage operations should be avoided whenever possible. Gas is paid in real money, so saving gas is saving money.
+
+First, I will give you a list of known gas-wasting patterns. The list is numbered, with each bullet point specifying one gas-wasting pattern, which is followed by an explanation of why this pattern wastes gas. I want you to read through these and learn how to find new gas-wasting patterns from it. The list is as follows:
+
+1. Repeated computation of the same expression: including repetitive reads of the same expensive storage variable (e.g. Overuse of expensive storage variables). This could be solved by introducing an intermediate variable to hold the value.
+ 
+2. Extractable code chunks: if there are multiple chunks of codes that perform the same/similar functionalities, then we could abstract them into one function (or modifier) to save deployment costs 
+
+3. Variable refactoring: by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+
+4. Redundant operations with same effects: redundant operations that overwrite the effect of the previous operation, making the previous useless
+
+5. Pre-computable operations on constants: performing comparisons (or say other operations) to constants is useless and could be pre-computed
+
+6. Persistent conditional checks: some of the condition checks may always evaluate to true or always evaluate to false, which could be directly replaced by their evaluated values
+
+7. Simplifiable conditional operations: expressions that involve logical operations that could be simplified to reduce the amount of computational workload.
+
+8. "dead codes." codes that are guaranteed not to be executed (e.g. unreachable conditional branch) should be removed.
+9. "Opaque predicate." If the outcome of a predicate could be inferred to be true/false without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+10. "Expensive operations in a loop." If an gas-expensive operation is executed multiple times in a loop, while there is a way to equivalently move it out of the loop to execute only once (e.g. storing a storage variable in a memory variable and performing operations on the memory variable inside the loop), then we should do it to save gas.
+11. "Constant outcome of a loop." If the outcome of a loop could be inferred without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+12. "Loop fusion." If two loops have the same starting and stopping conditions with the same increment steps, then we could consider combining them into one (e.g. delete the second loop, and put its loop body codes into the first one) if they have no dependencies. This way, we save the logical comparisons, conditional jumps, as well as the incremental steps of the second loop, which saves computation and thus gas.
+13. "Repeated computations in a loop." If there are expressions that produce the same outcome in each iteration of a loop, we could move it out of the loop and execute only once, which saves computation.
+14. "Struct variable refactoring." If a struct used in a contract contains some fields that are used more often and some that are less often, then by breaking up the struct into two, where the frequently used fields are now put as a separate struct, we get to avoid unnecessary reads on the less often used fields and save gas.s
+
+Next, I will give you a chunk of Solidity codes from which you will find gas-inefficient patterns; note that I have removed simple functions from the contract and only kept complex ones, with the hope that you could focus on the most complicated function codes
+contract FillQuoteTransformer is Transformer {
+    function transform(TransformContext calldata context) external override returns (bytes4 magicBytes) {
+        TransformData memory data = abi.decode(context.data, (TransformData));
+        FillState memory state;
+
+        // Validate data fields.
+        if (data.sellToken.isTokenETH() || data.buyToken.isTokenETH()) {
+            LibTransformERC20RichErrors
+                .InvalidTransformDataError(
+                    LibTransformERC20RichErrors.InvalidTransformDataErrorCode.INVALID_TOKENS,
+                    context.data
+                )
+                .rrevert();
+        }
+
+        if (
+            data.bridgeOrders.length + data.limitOrders.length + data.rfqOrders.length + data.otcOrders.length !=
+            data.fillSequence.length
+        ) {
+            LibTransformERC20RichErrors
+                .InvalidTransformDataError(
+                    LibTransformERC20RichErrors.InvalidTransformDataErrorCode.INVALID_ARRAY_LENGTH,
+                    context.data
+                )
+                .rrevert();
+        }
+
+        state.takerTokenBalanceRemaining = data.sellToken.getTokenBalanceOf(address(this));
+        if (data.side == Side.Sell) {
+            data.fillAmount = _normalizeFillAmount(data.fillAmount, state.takerTokenBalanceRemaining);
+        }
+
+        // Approve the exchange proxy to spend our sell tokens if native orders
+        // are present.
+        if (data.limitOrders.length + data.rfqOrders.length + data.otcOrders.length != 0) {
+            data.sellToken.approveIfBelow(address(zeroEx), data.fillAmount);
+            // Compute the protocol fee if a limit order is present.
+            if (data.limitOrders.length != 0) {
+                state.protocolFee = uint256(zeroEx.getProtocolFeeMultiplier()).safeMul(tx.gasprice);
+            }
+        }
+
+        state.ethRemaining = address(this).balance;
+
+        // Fill the orders.
+        for (uint256 i = 0; i < data.fillSequence.length; ++i) {
+            // Check if we've hit our targets.
+            if (data.side == Side.Sell) {
+                // Market sell check.
+                if (state.soldAmount >= data.fillAmount) {
+                    break;
+                }
+            } else {
+                // Market buy check.
+                if (state.boughtAmount >= data.fillAmount) {
+                    break;
+                }
+            }
+
+            state.currentOrderType = OrderType(data.fillSequence[i]);
+            uint256 orderIndex = state.currentIndices[uint256(state.currentOrderType)];
+            // Fill the order.
+            FillOrderResults memory results;
+            if (state.currentOrderType == OrderType.Bridge) {
+                results = _fillBridgeOrder(data.bridgeOrders[orderIndex], data, state);
+            } else if (state.currentOrderType == OrderType.Limit) {
+                results = _fillLimitOrder(data.limitOrders[orderIndex], data, state);
+            } else if (state.currentOrderType == OrderType.Rfq) {
+                results = _fillRfqOrder(data.rfqOrders[orderIndex], data, state);
+            } else if (state.currentOrderType == OrderType.Otc) {
+                results = _fillOtcOrder(data.otcOrders[orderIndex], data, state);
+            } else {
+                revert("INVALID_ORDER_TYPE");
+            }
+
+            // Accumulate totals.
+            state.soldAmount = state.soldAmount.safeAdd(results.takerTokenSoldAmount);
+            state.boughtAmount = state.boughtAmount.safeAdd(results.makerTokenBoughtAmount);
+            state.ethRemaining = state.ethRemaining.safeSub(results.protocolFeePaid);
+            state.takerTokenBalanceRemaining = state.takerTokenBalanceRemaining.safeSub(results.takerTokenSoldAmount);
+            state.currentIndices[uint256(state.currentOrderType)]++;
+        }
+
+        // Ensure we hit our targets.
+        if (data.side == Side.Sell) {
+            // Market sell check.
+            if (state.soldAmount < data.fillAmount) {
+                LibTransformERC20RichErrors
+                    .IncompleteFillSellQuoteError(address(data.sellToken), state.soldAmount, data.fillAmount)
+                    .rrevert();
+            }
+        } else {
+            // Market buy check.
+            if (state.boughtAmount < data.fillAmount) {
+                LibTransformERC20RichErrors
+                    .IncompleteFillBuyQuoteError(address(data.buyToken), state.boughtAmount, data.fillAmount)
+                    .rrevert();
+            }
+        }
+
+        // Refund unspent protocol fees.
+        if (state.ethRemaining > 0 && data.refundReceiver != address(0)) {
+            bool transferSuccess;
+            if (data.refundReceiver == REFUND_RECEIVER_RECIPIENT) {
+                (transferSuccess, ) = context.recipient.call{value: state.ethRemaining}("");
+            } else if (data.refundReceiver == REFUND_RECEIVER_SENDER) {
+                (transferSuccess, ) = context.sender.call{value: state.ethRemaining}("");
+            } else {
+                (transferSuccess, ) = data.refundReceiver.call{value: state.ethRemaining}("");
+            }
+            require(transferSuccess, "FillQuoteTransformer/ETHER_TRANSFER_FALIED");
+        }
+        return LibERC20Transformer.TRANSFORMER_SUCCESS;
+    }
+
+    /* solhint-enable function-max-lines */
+
+    // Fill a single bridge order.
+    function _fillBridgeOrder(
+        IBridgeAdapter.BridgeOrder memory order,
+        TransformData memory data,
+        FillState memory state
+    ) private returns (FillOrderResults memory results) {
+        uint256 takerTokenFillAmount = _computeTakerTokenFillAmount(
+            data,
+            state,
+            order.takerTokenAmount,
+            order.makerTokenAmount,
+            0
+        );
+
+        (bool success, bytes memory resultData) = address(bridgeAdapter).delegatecall(
+            abi.encodeWithSelector(
+                IBridgeAdapter.trade.selector,
+                order,
+                data.sellToken,
+                data.buyToken,
+                takerTokenFillAmount
+            )
+        );
+        if (success) {
+            results.makerTokenBoughtAmount = abi.decode(resultData, (uint256));
+            results.takerTokenSoldAmount = takerTokenFillAmount;
+        }
+    }
+
+    // Fill a single limit order.
+Now that I have given you the necessary information, I want you to help me find new gas-wasting patterns from the above codes, based on what you learn from the list of patterns. Please be creative and think out of the box beyond the patterns listed above. Please put the new gas wasting patterns in bullet points (in the form of '1.', '2.', etc), and answer the following questions for each of the found patterns (in sub-bullet-points under each bullet point):
+
+1. How did you find this pattern? Could you explain the reasoning process, step by step, behind the discovery?
+
+2. What should I do, step by step, to fix the found gas-wasting patterns? Could you explain the reasoning process, step by step, behind the reason why such a fix works?
+
+3. On a score of 0 to 5, could you please tell me how would you rate this found new pattern, in terms of how much it is sacrificing readability, security, and maintainability in exchange for gas optimization (5 is the least impacted. For example, Security score of 5 means implementing the found gas-optimization pattern would have no effect on security, whereas 1 means it would reduce security)? Please format your answer as in "Readability: 5; Security: 4; Maintainability: 3". Please also provide explanations.
+
+Here are some additional requirements:
+1. If you think my prompt to you has any issues (e.g. ambiguity or lack of information), please tell me how I should improve it in the next time.
+2. please help me format your answer in the form of a Latex section (e.g. \section*{Analysis of Provided Solidity Code}), since I want to assert it to a Latex document.

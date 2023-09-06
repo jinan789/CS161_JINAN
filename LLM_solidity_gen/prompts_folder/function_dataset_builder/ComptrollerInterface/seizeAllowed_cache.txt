@@ -1,0 +1,13 @@
+Function name: seizeAllowed
+
+Input:
+- address cTokenCollateral
+- address cTokenBorrowed
+- address liquidator
+- address borrower
+- uint seizeTokens
+
+Output:
+- uint
+
+Summary: The function takes in five parameters - the addresses of collateral token, borrowed token, liquidator, borrower, and the number of seize tokens. It checks if seizing tokens is allowed under certain conditions, and returns a uint value representing the status or error code.

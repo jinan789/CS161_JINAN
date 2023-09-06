@@ -1,0 +1,60 @@
+- No SafeMath library imported: The SafeMath library should be imported and used for arithmetic operations to prevent potential integer overflow or underflow issues.
+
+- calculateTokensToSeize should be a view function: As the function only reads from the blockchain state, it should be marked as `view` to reduce gas cost.
+
+- No validation of input parameters: It would be helpful to add require statements to validate the input parameters for the `calculateTokensToSeize` function. For example, checking if the provided addresses are not zero addresses.
+
+- Error handling for the liquidateCalculateSeizeTokens function call: The contract should handle any errors (such as revert or require statements) while calling the `liquidateCalculateSeizeTokens` function.
+
+- Missing event logs when updating the state in the constructor: An event should be emitted when the state of the contract is updated in the constructor, in this case when the `comptroller` reference is set. This can help monitor the contract's state updates.
+
+- Missing comment explanations for input parameters and return values: It would be helpful to add comment explanations for each input parameter and return value in all functions in order to maintain readability, especially for developers who will work with the code.
+
+- Insufficient test coverage: To ensure the functionality and performance of the contract meet the required standards, proper test cases should be written and executed, covering different scenarios and edge cases.
+
+- Missing function to update the Comptroller address: There should be a function to update the Comptroller address if it ever changes. This function should have access control (e.g., only allow the contract owner to update the Comptroller address) and emit an event when the change occurs.
+
+Proposed improvements:
+
+```solidity
+pragma solidity ^0.6.12;
+
+import "./ComptrollerInterface.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+
+contract LiquidationCalculator {
+    using SafeMath for uint256;
+
+    ComptrollerInterface public comptroller;
+    address public owner;
+
+    event ComptrollerUpdated(address newComptroller);
+
+    constructor(address _comptrollerAddress) public {
+        require(_comptrollerAddress != address(0), "Invalid Comptroller address");
+        comptroller = ComptrollerInterface(_comptrollerAddress);
+        owner = msg.sender;
+    }
+
+    function calculateTokensToSeize(
+        address cTokenBorrowed,
+        address cTokenCollateral,
+        uint256 actualRepayAmount
+    ) external view returns (uint256 collateralTokensToSeize, uint256 borrowedTokensToRepay) {
+        require(cTokenBorrowed != address(0), "Invalid cTokenBorrowed address");
+        require(cTokenCollateral != address(0), "Invalid cTokenCollateral address");
+        (collateralTokensToSeize, borrowedTokensToRepay) = comptroller.liquidateCalculateSeizeTokens(
+            cTokenBorrowed,
+            cTokenCollateral,
+            actualRepayAmount
+        );
+    }
+
+    function updateComptroller(address newComptroller) external {
+        require(msg.sender == owner, "Only owner can update Comptroller");
+        require(newComptroller != address(0), "Invalid new Comptroller address");
+        comptroller = ComptrollerInterface(newComptroller);
+        emit ComptrollerUpdated(newComptroller);
+    }
+}
+```

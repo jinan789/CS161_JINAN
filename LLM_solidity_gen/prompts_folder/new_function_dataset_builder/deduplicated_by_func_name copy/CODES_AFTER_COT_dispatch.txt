@@ -1,0 +1,61 @@
+function dispatch(bytes1 commandType, bytes calldata inputs) 
+    external 
+    onlyWrapperOrThis
+    returns (bool success, bytes memory output) 
+{
+    // Step 1: Validate commandType
+    if (!Commands.isValidCommand(commandType)) {
+        revert InvalidCommandType(uint256(commandType));
+    }
+
+    // Step 2: Decode inputs
+    // This step is integrated within each command execution, as it depends on the commandType
+
+    // Step 3: Execute command
+    if (commandType == Commands.Token.TransferERC20.selector[0]) {
+        success = _transferERC20(inputs);
+    } else if (commandType == Commands.Token.TransferERC721.selector[0]) {
+        success = _transferERC721(inputs);
+    } else if (commandType == Commands.Token.TransferERC1155.selector[0]) {
+        success = _transferERC1155(inputs);
+    } else if (commandType == Commands.Token.ApproveERC20.selector[0]) {
+        success = _approveERC20(inputs);
+    } else if (commandType == Commands.Token.ApproveERC721.selector[0]) {
+        success = _approveERC721(inputs);
+    } else if (commandType == Commands.Token.ApproveERC1155.selector[0]) {
+        success = _approveERC1155(inputs);
+    } else if (commandType == Commands.Swaps.SwapV2Proceeds.selector[0]) {
+        (success, output) = _swapV2Proceeds(inputs);
+    } else if (commandType == Commands.Swaps.SwapV3Proceeds.selector[0]) {
+        (success, output) = _swapV3Proceeds(inputs);
+    }
+
+    // Step 4: Check postconditions
+    if (success) {
+        if (commandType == Commands.Token.TransferERC721.selector[0]) {
+            address from;
+            address to;
+            uint256 tokenId;
+            (from, to, tokenId) = abi.decode(inputs, (address, address, uint256));
+            
+            // Check if the token has been transferred
+            if (ERC721(from).ownerOf(tokenId) != to) {
+                revert InvalidOwnerERC721();
+            }
+        } else if (commandType == Commands.Token.TransferERC1155.selector[0]) {
+            address from;
+            address to;
+            uint256 tokenId;
+            uint256 value;
+            (from, to, tokenId, value) = abi.decode(inputs, (address, address, uint256, uint256));
+            
+            // Check if the balance has been updated
+            if (ERC1155(from).balanceOf(to, tokenId) < value) {
+                revert BalanceTooLow();
+            }
+        }
+    }
+
+    // Step 5: Return results
+    return (success, output);
+}

@@ -1,0 +1,5 @@
+The most similar function signatures to the target function mulUInt(uint a, uint b) from the given list are:
+
+1. function divUInt(uint a, uint b) internal pure returns (MathError, uint)
+
+2. function addUInt(uint a, uint b) internal pure returns (MathError, uint)

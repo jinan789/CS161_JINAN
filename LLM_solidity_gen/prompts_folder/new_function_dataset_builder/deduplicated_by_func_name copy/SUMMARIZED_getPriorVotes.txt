@@ -1,0 +1,11 @@
+The given function is `getPriorVotes(address account, uint blockNumber)`.
+
+Input:
+1. address account - The account for which the vote count is to be fetched
+2. uint blockNumber - The block number at which the function is to check the vote count
+
+Output:
+1. uint96 - The vote count for the given account at the specified block number
+
+Summary:
+The function retrieves the vote count of a given account at a specified block number. It checks the most recent balance, implicit zero balance, and performs a binary search for the vote count at the specified block number.

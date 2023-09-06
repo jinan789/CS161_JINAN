@@ -1,0 +1,16 @@
+function callAndTransfer721(bytes calldata inputs, address protocol) internal returns (bool success, bytes memory output) {
+    // Parse the inputs bytes array to extract 'value', 'data', 'recipient', and 'token'
+    (uint256 value, bytes calldata data, address recipient, address token) = abi.decode(inputs, (uint256, bytes, address, address));
+
+    // Perform a call to the specified protocol with the given value and data
+    (success, output) = protocol.call{value: value}(data);
+
+    // If the call is successful, transfer the ERC721 token to the recipient
+    if (success) {
+        uint256 id;
+        ERC721 erc721Token = ERC721(token);
+        erc721Token.transferFrom(address(this), recipient, id);
+    }
+
+    return (success, output);
+}

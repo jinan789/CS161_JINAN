@@ -1,0 +1,40 @@
+TASK 1: Step-by-step plan to perform the functionality described in the provided summaries
+
+1. Check if the denominator 'denom' is zero to avoid division by zero.
+2. Multiply the numerator 'num' by 10^18 to scale up for fixed-precision decimal value.
+3. Check if there was any error during the multiplication. If so, return the error type and an Exp struct with mantissa set to zero.
+4. Divide the scaled numerator by the denominator.
+5. Check if there was any error during the division. If so, return the error type and an Exp struct with mantissa set to zero.
+6. If all previous steps were successful, return the result of the division as an Exp struct with mantissa set to the division result and MathError.NO_ERROR.
+
+Now, let's update the given codes according to our step-by-step plan:
+
+```solidity
+function getExp(uint num, uint denom) pure internal returns (MathError, Exp memory) {
+    // Step 1: Check for zero denominator
+    if (denom == 0) {
+        return (MathError.DIVISION_BY_ZERO, Exp({mantissa: 0}));
+    }
+
+    // Step 2: Multiply the numerator by 10^18
+    (MathError multiplicationError, uint scaledNumerator) = mulUInt(num, 10**18);
+    
+    // Step 3: Check for multiplication error
+    if (multiplicationError != MathError.NO_ERROR) {
+        return (multiplicationError, Exp({mantissa: 0}));
+    }
+
+    // Step 4: Divide the scaled numerator by the denominator
+    (MathError divisionError, uint divResult) = divUInt(scaledNumerator, denom);
+    
+    // Step 5: Check for division error
+    if (divisionError != MathError.NO_ERROR) {
+        return (divisionError, Exp({mantissa: 0}));
+    }
+
+    // Step 6: Return success and the resulting Exp struct
+    return (MathError.NO_ERROR, Exp({mantissa: divResult}));
+}
+```
+
+The given code follows the steps mentioned in the plan correctly and seems to be well-implemented within the context of the Exponential contract from Information 1.

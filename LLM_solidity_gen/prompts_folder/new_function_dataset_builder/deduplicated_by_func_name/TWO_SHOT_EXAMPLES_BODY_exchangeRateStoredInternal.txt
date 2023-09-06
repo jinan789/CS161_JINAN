@@ -1,0 +1,11 @@
+    function exchangeRateStored() public view returns (uint) {
+        (MathError err, uint result) = exchangeRateStoredInternal();
+        require(err == MathError.NO_ERROR, "exchangeRateStored: exchangeRateStoredInternal failed");
+        return result;
+    }
+
+    function exchangeRateCurrent() public nonReentrant returns (uint) {
+        require(accrueInterest() == uint(Error.NO_ERROR), "accrue interest failed");
+        return exchangeRateStored();
+    }
+

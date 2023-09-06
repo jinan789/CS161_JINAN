@@ -1,0 +1,6 @@
+Function summary:
+
+1. Input: 1 variable - address 'account'
+2. Output: 1 variable - boolean value
+
+The function checks if the given 'account' has a specific role within the contract while validating that it is not the zero address. It returns a boolean value indicating the presence or absence of the role for the account.

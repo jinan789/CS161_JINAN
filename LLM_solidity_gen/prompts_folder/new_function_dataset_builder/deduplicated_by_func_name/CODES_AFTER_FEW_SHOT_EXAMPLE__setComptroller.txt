@@ -1,0 +1,20 @@
+function _setComptroller(ComptrollerInterface newComptroller) external returns (uint) {
+    // Check caller is admin and newComptroller address is not zero
+    //MODIFICATIONS MADE: Changed the newComptroller validation to check for the zero address instead of ComptrollerInterface(0)
+    if (msg.sender != admin || address(newComptroller) == address(0)) {
+        return fail(Error.UNAUTHORIZED, FailureInfo.SET_COMPTROLLER_OWNER_CHECK);
+    }
+
+    // Ensure the new comptroller passes the "isComptroller" validation
+    if (!newComptroller.isComptroller()) {
+        return fail(Error.CONTROLLER_CHECK, FailureInfo.SET_COMPTROLLER_VALIDATION);
+    }
+
+    // Set new comptroller and emit event
+    ComptrollerInterface oldComptroller = comptroller;
+    comptroller = newComptroller;
+    emit NewComptroller(oldComptroller, newComptroller);
+
+    // Return success code
+    return uint(Error.NO_ERROR);
+}

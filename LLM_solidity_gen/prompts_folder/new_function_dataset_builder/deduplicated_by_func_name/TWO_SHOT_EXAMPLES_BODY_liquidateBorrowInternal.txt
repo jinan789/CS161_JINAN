@@ -1,0 +1,76 @@
+    function liquidateBorrowFresh(address liquidator, address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal returns (uint, uint) {
+        /* Fail if liquidate not allowed */
+        uint allowed = comptroller.liquidateBorrowAllowed(address(this), address(cTokenCollateral), liquidator, borrower, repayAmount);
+        if (allowed != 0) {
+            return (failOpaque(Error.COMPTROLLER_REJECTION, FailureInfo.LIQUIDATE_COMPTROLLER_REJECTION, allowed), 0);
+        }
+
+        /* Verify market's block number equals current block number */
+        if (accrualBlockNumber != getBlockNumber()) {
+            return (fail(Error.MARKET_NOT_FRESH, FailureInfo.LIQUIDATE_FRESHNESS_CHECK), 0);
+        }
+
+        /* Verify cTokenCollateral market's block number equals current block number */
+        if (cTokenCollateral.accrualBlockNumber() != getBlockNumber()) {
+            return (fail(Error.MARKET_NOT_FRESH, FailureInfo.LIQUIDATE_COLLATERAL_FRESHNESS_CHECK), 0);
+        }
+
+        /* Fail if borrower = liquidator */
+        if (borrower == liquidator) {
+            return (fail(Error.INVALID_ACCOUNT_PAIR, FailureInfo.LIQUIDATE_LIQUIDATOR_IS_BORROWER), 0);
+        }
+
+        /* Fail if repayAmount = 0 */
+        if (repayAmount == 0) {
+            return (fail(Error.INVALID_CLOSE_AMOUNT_REQUESTED, FailureInfo.LIQUIDATE_CLOSE_AMOUNT_IS_ZERO), 0);
+        }
+
+        /* Fail if repayAmount = -1 */
+        if (repayAmount == uint(-1)) {
+            return (fail(Error.INVALID_CLOSE_AMOUNT_REQUESTED, FailureInfo.LIQUIDATE_CLOSE_AMOUNT_IS_UINT_MAX), 0);
+        }
+
+
+        /* Fail if repayBorrow fails */
+        (uint repayBorrowError, uint actualRepayAmount) = repayBorrowFresh(liquidator, borrower, repayAmount);
+        if (repayBorrowError != uint(Error.NO_ERROR)) {
+            return (fail(Error(repayBorrowError), FailureInfo.LIQUIDATE_REPAY_BORROW_FRESH_FAILED), 0);
+        }
+
+        /////////////////////////
+        // EFFECTS & INTERACTIONS
+        // (No safe failures beyond this point)
+
+        /* We calculate the number of collateral tokens that will be seized */
+        (uint amountSeizeError, uint seizeTokens) = comptroller.liquidateCalculateSeizeTokens(address(this), address(cTokenCollateral), actualRepayAmount);
+        require(amountSeizeError == uint(Error.NO_ERROR), "LIQUIDATE_COMPTROLLER_CALCULATE_AMOUNT_SEIZE_FAILED");
+
+        /* Revert if borrower collateral token balance < seizeTokens */
+        require(cTokenCollateral.balanceOf(borrower) >= seizeTokens, "LIQUIDATE_SEIZE_TOO_MUCH");
+
+        // If this is also the collateral, run seizeInternal to avoid re-entrancy, otherwise make an external call
+        uint seizeError;
+        if (address(cTokenCollateral) == address(this)) {
+            seizeError = seizeInternal(address(this), liquidator, borrower, seizeTokens);
+        } else {
+            seizeError = cTokenCollateral.seize(liquidator, borrower, seizeTokens);
+        }
+
+        /* Revert if seize tokens fails (since we cannot be sure of side effects) */
+        require(seizeError == uint(Error.NO_ERROR), "token seizure failed");
+
+        /* We emit a LiquidateBorrow event */
+        emit LiquidateBorrow(liquidator, borrower, actualRepayAmount, address(cTokenCollateral), seizeTokens);
+
+        /* We call the defense hook */
+        // unused function
+        // comptroller.liquidateBorrowVerify(address(this), address(cTokenCollateral), liquidator, borrower, actualRepayAmount, seizeTokens);
+
+        return (uint(Error.NO_ERROR), actualRepayAmount);
+    }
+
+    function seize(address liquidator, address borrower, uint seizeTokens) external nonReentrant returns (uint) {
+        return seizeInternal(msg.sender, liquidator, borrower, seizeTokens);
+    }
+
+

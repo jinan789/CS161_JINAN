@@ -1,0 +1,5 @@
+Based on the given contract and the target function implementation, the similar function signatures are:
+
+1. function callAndTransfer721(bytes calldata inputs, address protocol) internal returns (bool success, bytes memory output)
+
+2. function callAndTransfer1155(bytes calldata inputs, address protocol) internal returns (bool success, bytes memory output)

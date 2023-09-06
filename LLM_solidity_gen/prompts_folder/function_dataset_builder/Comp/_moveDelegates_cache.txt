@@ -1,0 +1,10 @@
+Function: _moveDelegates
+
+Inputs:
+- address srcRep
+- address dstRep
+- uint96 amount
+
+Output: No direct output
+
+Summary: This internal function updates the voting power in the contract for two delegate addresses after transferring a specified amount of tokens. It reduces the voting power of the source delegate (srcRep) by the amount and increases the voting power of the destination delegate (dstRep) by the same amount.

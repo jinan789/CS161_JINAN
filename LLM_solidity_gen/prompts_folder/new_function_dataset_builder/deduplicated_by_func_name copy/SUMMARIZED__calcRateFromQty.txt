@@ -1,0 +1,11 @@
+Function: _calcRateFromQty
+
+Inputs:
+1. uint256 srcAmount
+2. uint256 destAmount
+3. uint256 srcDecimals
+4. uint256 dstDecimals
+
+Output: uint256 (rate)
+
+Summary: The function calculates the rate between two amounts with different decimal resolutions. It takes four input variables - source amount, destination amount, source decimals, and destination decimals - and outputs the calculated rate.

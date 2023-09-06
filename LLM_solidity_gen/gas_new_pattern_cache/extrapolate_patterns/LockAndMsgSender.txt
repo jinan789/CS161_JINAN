@@ -1,0 +1,210 @@
+8. "Redundant state variable assignments." It refers to the pattern where a state variable is assigned the same value, both inside and outside of a conditional statement, regardless of the outcome of the condition. Such assignments can be moved outside the conditional block to save gas. In the given code, we can see that `lockedBy = NOT_LOCKED_FLAG;` is being assigned in both branches of the `if (msg.sender != address(this))` statement in the `isNotLocked()` modifier. This statement could be placed outside the `if` statement, as it is executed in both cases. The updated modifier should look like this:
+
+```solidity
+modifier isNotLocked() {
+    if (msg.sender != address(this)) {
+        if (lockedBy != NOT_LOCKED_FLAG) revert ContractLocked();
+        lockedBy = msg.sender;
+        _;
+    } else {
+        _;
+    }
+    lockedBy = NOT_LOCKED_FLAG;
+}
+```
+
+9. "Inefficient recipient handling." It refers to the pattern where handling recipients of a command can be optimized for gas usage. In the given code, the `map()` function uses three separate conditions to decide the recipient address. Although this doesn't harm the functionality or cause excessive gas usage in the current implementation, it could be more efficient by using a custom structure or more effective if-else branching to handle the recipient mapping.
+*****&&&&&^^^^^%%%%%$$$$$
+
+
+8. "Redundant address comparisons." In the `isNotLocked` modifier, the value of `msg.sender` is checked if it is equal to `address(this)`. Then, in the `map` function, the value of `recipient` is checked if it is equal to `Constants.ADDRESS_THIS`. However, both `msg.sender` and `recipient` are addresses and can be directly used without checking for their equivalence to `address(this)`.
+
+Gas can be saved by removing the redundant address comparisons and directly using `msg.sender` and `recipient` in respective functions. Alternatively, the `map` function can be modified to remove the recipient check, and the code calling the `map` function can handle the logic for selecting the appropriate recipient. This way, there is no need to compare the recipient with `Constants.ADDRESS_THIS` in the `map` function.
+
+9. "Excessive use of internal storage." The contract uses an internal storage variable `lockedBy` to manage the lock state. This variable is updated multiple times within the `isNotLocked` modifier, even if it is not necessary to utilize the storage. Using storage variables consumes more gas compared to using memory variables.
+
+To save gas, replace the storage variable `lockedBy` with a local memory variable within the scope of the `isNotLocked` modifier. The variable can be stored in memory, updated accordingly, and then used within the modifier, saving gas by avoiding unnecessary storage interactions.
+
+Here is the modified `isNotLocked` modifier:
+
+```solidity
+modifier isNotLocked() {
+    address currentLockedBy = lockedBy;
+    if (msg.sender != address(this)) {
+        if (currentLockedBy != NOT_LOCKED_FLAG) revert ContractLocked();
+        currentLockedBy = msg.sender;
+        _;
+        currentLockedBy = NOT_LOCKED_FLAG;
+    } else {
+        _;
+    }
+}
+```
+
+In summary, two new gas-wasting patterns are found in the provided source code:
+
+8. Redundant address comparisons that could be simplified or removed, reducing gas consumption for comparison operations.
+9. Excessive use of internal storage variables that could be optimized by using local memory variables within the function scope, reducing gas consumed for storage operations.
+*****&&&&&^^^^^%%%%%$$$$$
+
+
+Here are a few gas-wasting patterns found in the given Solidity code:
+
+8. "Unnecessary branching in the isNotLocked modifier." The if statement in the isNotLocked modifier checks if msg.sender is not equal to the address of the contract (i.e., msg.sender != address(this)). This check is followed by another if statement that checks if the contract is locked (i.e., lockedBy != NOT_LOCKED_FLAG). Combining these conditions with an AND operation could reduce the nested if statements and save some gas at runtime.
+
+Suggested change:
+```
+    modifier isNotLocked() {
+        if (msg.sender != address(this) && lockedBy != NOT_LOCKED_FLAG) {
+            revert ContractLocked();
+        }
+        lockedBy = msg.sender;
+        _;
+        lockedBy = NOT_LOCKED_FLAG;
+    }
+```
+
+9. "Comparison operation for known constants in the map function." In the map function, there are checks for recipient being Constants.MSG_SENDER and Constants.ADDRESS_THIS. Constants.MSG_SENDER is a constant representing the message sender's address, and Constants.ADDRESS_THIS is a constant representing the contract's address. Since they are CONSTANTS, the values will not change during deployment. Comparing both values to the recipient uses extra gas, which could be saved by setting recipient to the Constants.MSG_SENDER or Constants.ADDRESS_THIS values directly.
+
+Suggested change:
+```
+    function map(address recipient) internal view returns (address) {
+        if (recipient == lockedBy) {
+            return lockedBy;
+        } else if (recipient == address(this)) {
+            return address(this);
+        } else {
+            return recipient;
+        }
+    }
+```
+
+This change assumes that Constants.MSG_SENDER refers to lockedBy (i.e., the address of the locker). The gas-wasting patterns found in the given code are primarily focused on redundant condition checks and comparisons with known constants, which can be improved for gas optimization.
+*****&&&&&^^^^^%%%%%$$$$$
+
+
+8. "Extra comparison in isNotLocked modifier." In the `isNotLocked()` modifier, when `msg.sender != address(this)`, the condition `lockedBy != NOT_LOCKED_FLAG` is checked to determine if the contract is locked. If it is not locked, the `lockedBy` variable is temporarily set to `msg.sender` before reverting to its initial state after executing the protected function. Since `lockedBy` can only be `msg.sender` or `NOT_LOCKED_FLAG`, an extra comparison is being executed, consuming more gas. To save gas, the `lockedBy` variable can be directly set to `msg.sender`, and the condition `lockedBy != NOT_LOCKED_FLAG` can be removed.
+
+Refactored isNotLocked modifier:
+```solidity
+modifier isNotLocked() {
+    if (msg.sender != address(this)) {
+        lockedBy = msg.sender;
+        _;
+        lockedBy = NOT_LOCKED_FLAG;
+    } else {
+        _;
+    }
+}
+```
+
+9. "Unnecessary branching in map function." The `map` function checks the recipient address and returns the mapped address depending on the recipient value. The function could be simplified by using a ternary operator, which reduces the number of conditional branches. This can help save gas by reducing the number of instructions executed during runtime.
+
+Refactored map function:
+```solidity
+function map(address recipient) internal view returns (address) {
+    return recipient == Constants.MSG_SENDER
+        ? lockedBy
+        : (recipient == Constants.ADDRESS_THIS ? address(this) : recipient);
+}
+```
+*****&&&&&^^^^^%%%%%$$$$$
+
+
+I have analyzed the given Solidity code and found a few gas-wasting patterns similar to the list provided above:
+
+8. "Unnecessary conditional check." It refers to the pattern where there is a conditional check that could be simplified without affecting the functionality of the code.
+
+In the given Solidity code, the `isNotLocked()` modifier has a nested conditional check that can be simplified:
+
+```solidity
+modifier isNotLocked() {
+    if (msg.sender != address(this) && lockedBy != NOT_LOCKED_FLAG) {
+        revert ContractLocked();
+    } 
+    if (msg.sender != address(this)) {
+        lockedBy = msg.sender;
+        _;
+        lockedBy = NOT_LOCKED_FLAG;
+    } else {
+        _;
+    }
+}
+```
+
+By collapsing the nested conditions into a single check, the code becomes cleaner and reduces the number of operations needed to determine the outcome:
+
+```solidity
+modifier isNotLocked() {
+    if (msg.sender != address(this)) {
+        // Must check for previous lock state before (re-)assigning `lockedBy`
+        if (lockedBy != NOT_LOCKED_FLAG) revert ContractLocked();
+        lockedBy = msg.sender;
+        _;
+        lockedBy = NOT_LOCKED_FLAG;
+    } else {
+        _;
+    }
+}
+```
+
+Removing the else branch for the `else { _; }` since it's not necessary here:
+
+```solidity
+modifier isNotLocked() {
+    if (msg.sender != address(this)) {
+        // Must check for previous lock state before (re-)assigning `lockedBy`
+        if (lockedBy != NOT_LOCKED_FLAG) revert ContractLocked();
+        lockedBy = msg.sender;
+        _;
+        lockedBy = NOT_LOCKED_FLAG;
+    }
+    _;
+}
+```
+9. "Redundant storage." It refers to the pattern where a storage variable has a value assigned redundantly or remains unchanged in different code paths, which can lead to increased gas costs for storage updates.
+
+In the given Solidity code, `lockedBy` is assigned `NOT_LOCKED_FLAG` at the beginning and then reassigned `NOT_LOCKED_FLAG` at the end of the `isNotLocked()` modifier. Instead of doing this, consider using a local variable to store the original `lockedBy` value and restore it after the `_;` statement if necessary:
+
+```solidity
+modifier isNotLocked() {
+    if (msg.sender != address(this)) {
+        if (lockedBy != NOT_LOCKED_FLAG) revert ContractLocked();
+        address originalLockedBy = lockedBy;
+        lockedBy = msg.sender;
+        _;
+        lockedBy = originalLockedBy;
+    } else {
+        _;
+    }
+}
+```
+
+This recommended change could save gas by avoiding unnecessary storage updates and potentially minimizing the number of storage changes required throughout the contract.
+*****&&&&&^^^^^%%%%%$$$$$
+
+
+I found these gas-wasting patterns in the given Solidity code. Kindly note the explanation for each pattern below:
+
+8. "Redundant state variable initial value." In the contract LockAndMsgSender, the state variable `lockedBy` is initialized with the value `NOT_LOCKED_FLAG`. However, this is redundant since Solidity automatically initializes state variables to their default values. In this case, the default value for the `address` type is `address(0)`. Assigning `NOT_LOCKED_FLAG` address(1) and initializing `lockedBy` with it is an unnecessary gas-consuming operation. To save gas, initialize the `lockedBy` variable directly with its desired value or set the `NOT_LOCKED_FLAG` to `address(0)` and remove the initialization of the `lockedBy` variable.
+
+9. "Unoptimized conditional branching." The modifier `isNotLocked` uses nested `if` statements to check whether the contract is locked by the `msg.sender` and whether the current sender is not the contract itself. These two conditions could be checked with logic AND operation, simplifying the code and saving gas by reducing branching complexity. Instead of the nested conditionals, the updated code could look like:
+
+```solidity
+modifier isNotLocked() {
+    if (msg.sender != address(this) && lockedBy != NOT_LOCKED_FLAG) {
+        revert ContractLocked();
+    }
+    if (msg.sender != address(this)) {
+        lockedBy = msg.sender;
+        _;
+        lockedBy = NOT_LOCKED_FLAG;
+    } else {
+        _;
+    }
+}
+```
+Please note that you should further analyze the given code to grasp its functionality and ensure that the gas-wasting patterns found are accurate. Also, consider other optimization techniques, such as optimizing data storage and access, using libraries for common operations, and reducing contract size to ensure cost-effective execution.
+*****&&&&&^^^^^%%%%%$$$$$
+
+

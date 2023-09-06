@@ -1,0 +1,23 @@
+<CODE_BEGINNING>
+    /**
+     * @notice Calculates the amount of collateral tokens to be seized in a liquidation process
+     * @param cTokenBorrowed The address of the borrowed token
+     * @param cTokenCollateral The address of the collateral token
+     * @param repayAmount The repayment amount in borrowed token
+     * @return uint The number of collateral tokens to be seized
+     * @return uint 0 if successful, otherwise an error code
+     */
+    function liquidateCalculateSeizeTokens(address cTokenBorrowed, address cTokenCollateral, uint repayAmount) external returns (uint, uint) {
+        // TODO: Implement the logic to calculate the number of collateral tokens to be seized
+        // based on the borrowed token, collateral token, and repayment amount.
+        // Use provided getExchangeRate() and getPrice() functions to determine the exchange rates and prices of the tokens.
+
+        // For example:
+        // 1. Convert repayAmount to its value in underlying asset using borrowed token's exchange rate
+        // 2. Calculate the value of the collateral tokens to be seized based on the value of repayment amount
+        // 3. Convert the value of seized collateral tokens to the number of collateral tokens using collateral token's exchange rate
+        // 4. Return the number of collateral tokens to be seized and 0 as error code
+
+        // Note: You may need to define additional helper functions such as getExchangeRate() and getPrice() if they are not provided in the given contract
+    }
+<CODE_ENDING>

@@ -1,0 +1,51 @@
+```solidity
+function liquidateBorrowFresh(address thisCtoken, address liquidator, address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal returns (uint, uint) {
+    //MODIFICATIONS MADE: Adding accrueInterest() call for both cTokens involved in the liquidation process.
+    uint error = accrueInterest();
+    if (error != uint(Error.NO_ERROR)) {
+        return (fail(Error(error), FailureInfo.LIQUIDATE_ACCRUE_BORROW_INTEREST_FAILED), 0);
+    }
+    
+    error = cTokenCollateral.accrueInterest();
+    if (error != uint(Error.NO_ERROR)) {
+        return (fail(Error(error), FailureInfo.LIQUIDATE_ACCRUE_COLLATERAL_INTEREST_FAILED), 0);
+    }
+
+    //MODIFICATIONS MADE: Comparing allowed against zero instead of shortFall
+    (uint allowed, uint shortFall) = Comptroller.calcAccountLiquidity(borrower);
+    if (allowed == 0) {
+        return (fail(Error.INVALID_ACCOUNT_PAIR), 0);
+    }
+
+    if (repayAmount == 0 || repayAmount == type(uint).max) {
+        return (fail(Error.INVALID_CLOSE_AMOUNT_REQUESTED), 0);
+    }
+    
+    //MODIFICATIONS MADE: Added "address thisCtoken," to the function arguments and used it as the first argument for Comptroller.liquidateCalculateSeizeTokens
+    (uint collateralTokenAmount, uint actualRepayAmount) = Comptroller.liquidateCalculateSeizeTokens(address(thisCtoken), cTokenCollateral, repayAmount);
+    if (collateralTokenAmount == 0) {
+        return (fail(Error.ZERO_COLLATERAL_TOKENS_SEIZED), 0);
+    }
+
+    //CHANGES BASED ON CALLED CODE MADE: Call repayBorrowFresh function before the seize function call
+    (uint repayError, uint actualRepayAmountInReturn) = repayBorrowFresh(liquidator, borrower, repayAmount);
+    if(repayError != uint(Error.NO_ERROR)) {
+        return (fail(Error(repayError), FailureInfo.REPAY_BEHALF_ACCRUE_INTEREST_FAILED), 0);
+    }
+
+    (uint seizeError,) = cTokenCollateral.seize(liquidator, borrower, collateralTokenAmount);
+    if (seizeError != uint(Error.NO_ERROR)) {
+        return (fail(Error(fromTokenSeizeError(TokenError(seizeError))), actualRepayAmount), 0);
+    }
+
+    emit LiquidateBorrow(
+        liquidator,
+        borrower,
+        actualRepayAmount,
+        address(cTokenCollateral),
+        collateralTokenAmount
+    );
+
+    return (uint(Error.NO_ERROR), actualRepayAmount);
+}
+```

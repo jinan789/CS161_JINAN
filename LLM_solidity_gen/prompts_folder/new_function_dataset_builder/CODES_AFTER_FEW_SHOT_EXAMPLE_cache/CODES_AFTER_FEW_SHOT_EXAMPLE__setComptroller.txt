@@ -1,0 +1,26 @@
+TASK 1:
+1. The only issue I can find in the provided code is the validation of the newComptroller address. Instead of comparing it with a ComptrollerInterface(0) address, a proper validation would be checking if the newComptroller address is not the zero address (address(0)).
+
+TASK 2:
+<CODE_BEGINNING>
+function _setComptroller(ComptrollerInterface newComptroller) external returns (uint) {
+    // Check caller is admin and newComptroller address is not zero
+    //MODIFICATIONS MADE: Changed the newComptroller validation to check for the zero address instead of ComptrollerInterface(0)
+    if (msg.sender != admin || address(newComptroller) == address(0)) {
+        return fail(Error.UNAUTHORIZED, FailureInfo.SET_COMPTROLLER_OWNER_CHECK);
+    }
+
+    // Ensure the new comptroller passes the "isComptroller" validation
+    if (!newComptroller.isComptroller()) {
+        return fail(Error.CONTROLLER_CHECK, FailureInfo.SET_COMPTROLLER_VALIDATION);
+    }
+
+    // Set new comptroller and emit event
+    ComptrollerInterface oldComptroller = comptroller;
+    comptroller = newComptroller;
+    emit NewComptroller(oldComptroller, newComptroller);
+
+    // Return success code
+    return uint(Error.NO_ERROR);
+}
+<CODE_ENDING>

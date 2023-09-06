@@ -1,0 +1,32 @@
+TASK 1: Step-by-step plan for the tryMul function
+
+1. Start by defining the function tryMul with its input parameters (a and b) and output parameters (success and result).
+
+2. Check for the case where either a or b is zero. If either of the inputs is zero, return true immediately as multiplication with zero cannot cause an overflow.
+
+3. Perform the multiplication of a and b, and store the result in variable c.
+
+4. To check for overflow, divide the product (c) by one of the inputs (a or b). If the result is equal to the other input, then there was no overflow.
+
+5. If there was no overflow, return true along with the product of the multiplication (c).
+
+6. If there was an overflow, return false and a result of 0.
+
+Now, let's compare this plan with the provided code snippet:
+
+    function tryMul(uint256 a, uint256 b) internal pure returns (bool success, uint256 result) {
+        if (a == 0 || b == 0) { // Step 2
+            return (true, 0);
+        }
+        
+        uint256 c = a * b; // Step 3
+
+        // Step 4 & Step 5
+        if (c / a == b) { 
+            return (true, c);
+        } else { // Step 6
+            return (false, 0);
+        }
+    }
+
+The provided code snippet correctly follows the steps outlined in the plan. There are no improvements necessary as the code efficiently implements the desired functionality.

@@ -1,0 +1,83 @@
+
+The function that I want you to summarize is transfer(address token, address receiver, uint256 amount, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signatureS, with the purpose of providing richer background information for you. The codes are: 
+// SPDX-License-Identifier: Unlicensed
+pragma solidity ^0.8.0;
+
+import '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import './access/roles/Admin.sol';
+import './access/roles/Dao.sol';
+import './interfaces/IERC20Detailed.sol';
+
+/// @notice DETF pool smart contract
+/// @author D-ETF.com
+/// @dev The Pool contract keeps all underlaying tokens of DETF token.
+/// Contract allowed to do swaps and change the ratio of the underlaying token, after governance contract approval.
+contract Pool is AdminRole, DaoRole {
+    using SafeMath for uint256;
+    using SafeERC20 for IERC20Detailed;
+
+    address public oneInchAddr;
+
+    address internal constant _ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    uint256 internal constant _ETH_DECIMALS = 18;
+    uint256 internal constant _MAX_QTY = (10**28); // 10B tokens
+    uint256 internal constant _MAX_DECIMALS = 18;
+    uint256 internal constant _PRECISION = (10**18);
+
+    event Swapped(address srcToken, address destToken, uint256 actSrcAmount, uint256 actDestAmount);
+    event Transferred(address asset, address receiver, uint256 amount);
+
+
+    constructor (address oneInchAddr_) {
+    function swap(
+        address srcToken,
+        uint256 srcAmount,
+        uint256 minPrice,
+        uint256 maxPrice,
+        address destToken,
+        bytes memory oneInchData
+    ) public onlyDao returns (
+        uint256 actualDestAmount,
+        uint256 actualSrcAmount
+    ) {
+
+    function transfer(address token, address receiver, uint256 amount) public onlyAdmin {
+        if (token == _ETH_ADDRESS) {
+            (bool success, ) = receiver.call{value: amount}("");
+            require(success, "transfer: Failed to send Ether!");
+        }
+
+        IERC20Detailed(token).safeTransfer(receiver, amount);
+
+        emit Transferred(token, receiver, amount);
+    }
+
+    function updateOneInchAddress(address newOneInch) public onlyAdmin {
+    function getPoolBalance(address asset) public view returns (uint256) {
+    function _oneInchTrade(
+        address _srcToken,
+        uint256 _srcAmount,
+        address _destToken,
+        bytes memory _calldata
+    )
+        internal
+        returns (
+            uint256 _destPriceInSrc,
+            uint256 _srcPriceInDest,
+            uint256 _actualDestAmount,
+            uint256 _actualSrcAmount
+        )
+    {
+    function _calcRateFromQty(
+        uint256 srcAmount,
+        uint256 destAmount,
+        uint256 srcDecimals,
+        uint256 dstDecimals
+    ) internal pure returns (uint256) {
+    function _getBalance(address token, address addr)
+        internal
+        view
+        returns (uint256)
+    {
+    function _getDecimals(address token) internal view returns (uint256) {

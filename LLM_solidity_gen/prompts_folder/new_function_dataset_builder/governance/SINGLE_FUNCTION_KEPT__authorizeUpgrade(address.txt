@@ -1,0 +1,90 @@
+
+The function that I want you to summarize is _authorizeUpgrade(address, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signatureS, with the purpose of providing richer background information for you. The codes are: 
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.2;
+pragma experimental ABIEncoderV2;
+
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "./GovernorBravoInterfaces.sol";
+
+contract GovernorBravoDelegate is Initializable,UUPSUpgradeable,GovernorBravoDelegateStorageV2, GovernorBravoEvents {
+    /// @notice Address of Investee.
+    mapping (uint256 => address) public investeeDetails;
+    
+    /// @notice Next investee to support
+    uint256 public nextInvestee;
+
+    /// @notice Next investee to fund
+    uint256 public nextInvesteeFund;
+
+    /// @notice Treasury contract address
+    address public treasury;
+
+    /// @notice The name of this contract
+    string public constant name = "Cult Governor Bravo";
+
+    /// @notice The minimum setable proposal threshold
+    uint public constant MIN_PROPOSAL_THRESHOLD = 50000e18; // 50,000 Cult
+
+    /// @notice The maximum setable proposal threshold
+    uint public constant MAX_PROPOSAL_THRESHOLD = 6000000000000e18; //6000000000000 Cult
+
+    /// @notice The minimum setable voting period
+    uint public constant MIN_VOTING_PERIOD = 1; // About 24 hours
+
+    /// @notice The max setable voting period
+    uint public constant MAX_VOTING_PERIOD = 80640; // About 2 weeks
+
+    /// @notice The min setable voting delay
+    uint public constant MIN_VOTING_DELAY = 1;
+
+    /// @notice The max setable voting delay
+    uint public constant MAX_VOTING_DELAY = 40320; // About 1 week
+
+    /// @notice The number of votes in support of a proposal required in order for a quorum to be reached and for a vote to succeed
+    uint public constant quorumVotes = 1000000000e18; // 1 Billion
+
+    /// @notice The maximum number of actions that can be included in a proposal
+    uint public constant proposalMaxOperations = 10; // 10 actions
+
+    /// @notice The EIP-712 typehash for the contract's domain
+    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+
+    /// @notice The EIP-712 typehash for the ballot struct used by the contract
+    bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint256 proposalId,uint8 support)");
+
+
+    function initialize(address timelock_, address dCult_, uint votingPeriod_, uint votingDelay_, uint proposalThreshold_, address treasury_) public initializer{
+    function propose(address[] memory targets, uint[] memory values, string[] memory signatures, bytes[] memory calldatas, string memory description) public returns (uint) {
+    function queue(uint proposalId) external {
+    function queueOrRevertInternal(address target, uint value, string memory signature, bytes memory data, uint eta) internal {
+    function execute(uint proposalId) external payable {
+    function cancel(uint proposalId) external {
+    function getActions(uint proposalId) external view returns (address[] memory targets, uint[] memory values, string[] memory signatures, bytes[] memory calldatas) {
+    function getReceipt(uint proposalId, address voter) external view returns (Receipt memory) {
+    function state(uint proposalId) public view returns (ProposalState) {
+    function castVote(uint proposalId, uint8 support) external {
+    function castVoteWithReason(uint proposalId, uint8 support, string calldata reason) external {
+    function castVoteBySig(uint proposalId, uint8 support, uint8 v, bytes32 r, bytes32 s) external {
+    function castVoteInternal(address voter, uint proposalId, uint8 support) internal returns (uint256) {
+    function isWhitelisted(address account) public view returns (bool) {
+    function _setVotingDelay(uint newVotingDelay) external {
+    function _setInvesteeDetails(address _investee) external {
+    function _fundInvestee() external returns(address){
+    function _setVotingPeriod(uint newVotingPeriod) external {
+    function _setProposalThreshold(uint newProposalThreshold) external {
+    function _setWhitelistAccountExpiration(address account, uint expiration) external {
+     function _setWhitelistGuardian(address account) external {
+    function _initiate(address governorAlpha) external {
+    function _setPendingAdmin(address newPendingAdmin) external {
+    function _acceptAdmin() external {
+    function _AcceptTimelockAdmin() external {
+
+    function _authorizeUpgrade(address) internal view override {
+        require(admin == msg.sender, "Only admin can upgrade implementation");
+    }
+
+    function add256(uint256 a, uint256 b) internal pure returns (uint) {
+    function sub256(uint256 a, uint256 b) internal pure returns (uint) {
+    function getChainIdInternal() internal view returns (uint) {

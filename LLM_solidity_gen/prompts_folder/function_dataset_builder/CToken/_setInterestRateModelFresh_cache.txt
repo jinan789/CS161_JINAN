@@ -1,0 +1,8 @@
+Input: 
+1. newInterestRateModel (type: InterestRateModel)
+
+Output: 
+1. uint (Error code)
+
+Summary: 
+The function _setInterestRateModelFresh updates the interest rate model of the CToken contract. It requires the caller to be the admin and the contract to be in a fresh state (accrual block number is equal to the current block number). The new interest rate model must also pass the isInterestRateModel() check. On success, the function emits a NewMarketInterestRateModel event with the old and new interest rate models and returns the error code for no error.

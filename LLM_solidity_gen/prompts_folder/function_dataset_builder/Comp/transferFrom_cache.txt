@@ -1,0 +1,10 @@
+Function: transferFrom
+
+Inputs:
+1. address src (source address)
+2. address dst (destination address)
+3. uint rawAmount (amount to transfer)
+
+Output: boolean (true if transfer is successful)
+
+Summary: This function transfers a specified amount of tokens from a source address to a destination address. It checks and updates the allowance for the spender, and emits an Approval event for updated allowances.

@@ -1,0 +1,32 @@
+The suggestions given by software quality assurance testers have been incorporated. Below is the improved Solidity code for the new LiquidationCalculator contract:
+
+```solidity
+pragma solidity ^0.6.12;
+
+import "./ComptrollerInterface.sol"; // Ensure the correct import path for ComptrollerInterface.sol
+
+contract LiquidationCalculator {
+    ComptrollerInterface public comptroller; // Declare a variable to hold the ComptrollerInterface reference
+
+    // Constructor that accepts the address of the ComptrollerInterface and initializes the `comptroller` variable
+    constructor(address _comptrollerAddress) public {
+        comptroller = ComptrollerInterface(_comptrollerAddress);
+    }
+
+    // Calculates and returns the number of collateral tokens to seize and the number of borrowed tokens to repay
+    function calculateTokensToSeize(
+        address cTokenBorrowed,
+        address cTokenCollateral,
+        uint256 actualRepayAmount
+    ) external view returns (uint256 collateralTokensToSeize, uint256 borrowedTokensToRepay) {
+        // Call liquidateCalculateSeizeTokens function from ComptrollerInterface with the given input parameters
+        (collateralTokensToSeize, borrowedTokensToRepay) = comptroller.liquidateCalculateSeizeTokens(
+            cTokenBorrowed,
+            cTokenCollateral,
+            actualRepayAmount
+        );
+    }
+}
+```
+
+The improved LiquidationCalculator contract ensures accurate import paths and simplifies some comments. The functionality remains the same. Deploy the contract with the address of the Comptroller implementation containing the liquidateCalculateSeizeTokens function and call the `calculateTokensToSeize` function with the required input parameters (cTokenBorrowed, cTokenCollateral, and actualRepayAmount) to get the number of collateral tokens to seize. Ensure the correct import path for ComptrollerInterface.sol within your project structure.

@@ -1,0 +1,7 @@
+Input: 
+1. address 'spender' - the address of the account which may transfer tokens.
+2. uint256 'amount' - the number of tokens to be approved.
+
+Output: bool 'success' - returns true if the approval is successful.
+
+Summary: The 'approve' function approves the 'spender' to spend a certain 'amount' of tokens on behalf of the token owner.

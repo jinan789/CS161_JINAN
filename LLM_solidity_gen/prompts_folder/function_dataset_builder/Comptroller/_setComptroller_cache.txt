@@ -1,0 +1,5 @@
+Function: _setComptroller
+Input: newComptroller (ComptrollerInterface type)
+Output: uint
+
+The function _setComptroller updates the Comptroller contract reference within the current contract. It takes a new ComptrollerInterface as input and returns a uint value indicating the result of the operation.

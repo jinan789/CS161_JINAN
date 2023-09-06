@@ -1,0 +1,13 @@
+Function: transferTokens
+
+Input:
+1. spender (address)
+2. src (address)
+3. dst (address)
+4. tokens (uint)
+
+Output:
+1. result (uint)
+
+Summary:
+The 'transferTokens' function transfers a specified number of tokens from the 'src' address to the 'dst' address. The transfer will only succeed if certain conditions are met, like the transferrer being allowed to perform the transfer, and the 'src' and 'dst' addresses not being the same. The function handles any allowance-related calculations and necessary updates, and emits a Transfer event upon successful transfer.

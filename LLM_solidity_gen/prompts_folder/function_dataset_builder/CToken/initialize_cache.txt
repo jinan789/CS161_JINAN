@@ -1,0 +1,15 @@
+Function: initialize
+
+Input:
+1. ComptrollerInterface comptroller_
+2. InterestRateModel interestRateModel_
+3. uint initialExchangeRateMantissa_
+4. string name_
+5. string symbol_
+6. uint8 decimals_
+
+Output:
+None
+
+Summary:
+This function initializes a new money market with various parameters such as the comptroller, interest rate model, initial exchange rate, name, symbol, and decimal precision of the token. It sets the initial values, validates input values, and ensures that the function is only called once by the admin.

@@ -1,0 +1,214 @@
+I want you to help me find new gas-wasting patterns for Solidity. Gas is a unique pricing mechanism in Solidity, which measures the amount of computational resources put into the execution of Solidity codes. The goal of gas optimization is to find an equivalent code instruction sequence that produces the same output while consuming less gas, which may misalign from the way people typically write codes, since code writers aim for readability and maintainability, while gas optimization might seem a little unintuitive to newcomers. For example, storage variables in Solidity are expensive in terms of gas, while memory is not, so storage operations should be avoided whenever possible. Gas is paid in real money, so saving gas is saving money.
+
+First, I will give you a list of known gas-wasting patterns. The list is numbered, with each bullet point specifying one gas-wasting pattern, which is followed by an explanation of why this pattern wastes gas. I want you to read through these and learn how to find new gas-wasting patterns from it. The list is as follows:
+
+1. Repeated computation of the same expression: including repetitive reads of the same expensive storage variable (e.g. Overuse of expensive storage variables). This could be solved by introducing an intermediate variable to hold the value.
+ 
+2. Extractable code chunks: if there are multiple chunks of codes that perform the same/similar functionalities, then we could abstract them into one function (or modifier) to save deployment costs 
+
+3. Variable refactoring: by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+
+4. Redundant operations with same effects: redundant operations that overwrite the effect of the previous operation, making the previous useless
+
+5. Pre-computable operations on constants: performing comparisons (or say other operations) to constants is useless and could be pre-computed
+
+6. Persistent conditional checks: some of the condition checks may always evaluate to true or always evaluate to false, which could be directly replaced by their evaluated values
+
+7. Simplifiable conditional operations: expressions that involve logical operations that could be simplified to reduce the amount of computational workload.
+
+8. "dead codes." codes that are guaranteed not to be executed (e.g. unreachable conditional branch) should be removed.
+9. "Opaque predicate." If the outcome of a predicate could be inferred to be true/false without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+10. "Expensive operations in a loop." If an gas-expensive operation is executed multiple times in a loop, while there is a way to equivalently move it out of the loop to execute only once (e.g. storing a storage variable in a memory variable and performing operations on the memory variable inside the loop), then we should do it to save gas.
+11. "Constant outcome of a loop." If the outcome of a loop could be inferred without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+12. "Loop fusion." If two loops have the same starting and stopping conditions with the same increment steps, then we could consider combining them into one (e.g. delete the second loop, and put its loop body codes into the first one) if they have no dependencies. This way, we save the logical comparisons, conditional jumps, as well as the incremental steps of the second loop, which saves computation and thus gas.
+13. "Repeated computations in a loop." If there are expressions that produce the same outcome in each iteration of a loop, we could move it out of the loop and execute only once, which saves computation.
+14. "Struct variable refactoring." If a struct used in a contract contains some fields that are used more often and some that are less often, then by breaking up the struct into two, where the frequently used fields are now put as a separate struct, we get to avoid unnecessary reads on the less often used fields and save gas.s
+
+Next, I will give you a chunk of Solidity codes from which you will find gas-inefficient patterns; note that I have removed simple functions from the contract and only kept complex ones, with the hope that you could focus on the most complicated function codes
+contract Donate3 is Ownable, IDonate3, ReentrancyGuard {
+    function donateToken(
+        uint256 amountIn,
+        address to,
+        bytes calldata message,
+        bytes32[] calldata _merkleProof
+    ) external payable nonReentrant {
+        address from = _msgSender();
+        require(from != to, "The donor address is equal to receive");
+
+        require(amountIn > 0, "Invalid input amount.");
+
+        require(msg.value == amountIn,"msg value error.");
+        
+       // Project memory p = _findProject(to, pid);
+        require(address(to) != address(0), "The project is not exist");
+
+       // require(p.status == ProjectStatus.resume, "The project is deleted");
+
+        uint32 fee = _merkleProof.length > 0 &&
+            _verifyFreeAllowList(from, _merkleProof)
+            ? 0
+            : handlingFee;
+
+        uint256 amountOut = amountIn.mul(uint256(1000).sub(fee)).div(1000);
+        require(amountOut <= amountIn, "Invalid output amount");
+
+        // transfer
+        (bool success, ) = to.call{value: amountOut}("");
+        if (!success) {
+            revert CallFailed();
+        }
+
+        // refund dust eth, if any
+        if (msg.value > amountIn) {
+            TransferHelper.safeTransferETH(from, msg.value - amountIn);
+        }
+
+        _record(from, to, tokenSymbol, amountOut, message);
+    }
+
+    function setHandleFee(uint32 _fee) external onlyOwner {
+        require(_fee <= 200, "Fee out of range.");
+        require(_fee != handlingFee, "Fee is equal.");
+
+        emit HandleFeeChanged(_msgSender(), handlingFee, _fee);
+
+        handlingFee = _fee;
+    }
+    function _verifyFreeAllowList(
+        address pOwner,
+        bytes32[] calldata _merkleProof
+    ) internal view returns (bool) {
+        require(pOwner != address(0), "Owner is the zero address.");
+
+        bytes32 leaf = keccak256(abi.encodePacked(pOwner));
+        return MerkleProof.verify(_merkleProof, freeMerkleRoot, leaf);
+    }
+    function donateERC20(
+        address _token,
+        string calldata _tokenSymbol,
+        uint256 _amountInDesired,
+        address _to,
+        bytes calldata _message,
+        bytes32[] calldata _merkleProof
+    ) external nonReentrant {
+        address from = _msgSender();
+        string calldata symbol = _tokenSymbol;
+        bytes calldata message = _message;
+        address token = _token;
+        bytes32[] calldata merkleProof = _merkleProof;
+        uint256 amountInDesired = _amountInDesired;
+
+        address to = _to;
+        require(from != to, "The donor address is equal to receive");
+
+        uint256 amountOut = _transferToken(
+            token,
+            from,
+            amountInDesired,
+            to,
+            merkleProof
+        );
+
+        // record
+        _record(from, to, symbol, amountOut, message);
+    }
+    function _transferToken(
+        address token,
+        address from,
+        uint256 amountInDesired,
+        address rAddress,
+        bytes32[] calldata merkleProof
+    ) internal returns (uint256 amountOut) {
+        uint256 balanceBefore = IERC20(token).balanceOf(address(this));
+
+        // transfer to contract
+        TransferHelper.safeTransferFrom(
+            token,
+            from,
+            address(this),
+            amountInDesired
+        );
+
+        uint256 balanceAfter = IERC20(token).balanceOf(address(this));
+        uint256 amountIn = balanceAfter - balanceBefore;
+        amountOut = _getAmount(from, amountIn, merkleProof);
+        require(amountOut <= amountIn, "Invalid output amount");
+
+        // transfer to user
+        TransferHelper.safeApprove(token, rAddress, amountOut);
+        TransferHelper.safeTransfer(token, rAddress, amountOut);
+    }
+    function _getAmount(
+        address from,
+        uint256 amountIn,
+        bytes32[] calldata _merkleProof
+    ) internal view returns (uint256) {
+        uint32 fee = _merkleProof.length > 0 &&
+            _verifyFreeAllowList(from, _merkleProof)
+            ? 0
+            : handlingFee;
+        uint256 amountOut = amountIn.mul(uint256(1000).sub(fee)).div(1000);
+        return amountOut;
+    }
+    function stringToBytes32(string memory source)
+        private
+        pure
+        returns (bytes32 result)
+    {
+        assembly {
+            result := mload(add(source, 32))
+        }
+    }
+
+    function withDrawToken(address to, uint256 amount) external onlyOwner {
+        require(to != address(0), "ZERO_ADDRESS");
+        require(amount > 0 && amount <= to.balance, "Invalid input amount.");
+
+        // transfer
+        (bool success, ) = to.call{value: amount}("");
+        if (!success) {
+            revert CallFailed();
+        }
+        emit withDraw(tokenSymbol, _msgSender(), to, amount);
+    }
+
+    function withDrawERC20List(
+        address[] calldata tokens,
+        string[] calldata symbols,
+        address to,
+        uint256[] calldata amounts
+    ) external onlyOwner {
+        require(to != address(0), "ZERO_ADDRESS");
+        require(
+            tokens.length == symbols.length && symbols.length == amounts.length,
+            "Invalid input length"
+        );
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            address token = tokens[i];
+            string memory symbol = symbols[i];
+            uint256 amount = amounts[i];
+
+            uint256 balance = IERC20(token).balanceOf(address(this));
+            require(amount > 0 && amount <= balance, "Invalid input amount.");
+
+            // transfer to user
+            TransferHelper.safeApprove(token, to, amount);
+            TransferHelper.safeTransfer(token, to, amount);
+
+            emit withDraw(symbol, _msgSender(), to, amount);
+        }
+    }
+
+    }
+Now that I have given you the necessary information, I want you to help me find new gas-wasting patterns from the above codes, based on what you learn from the list of patterns. Please be creative and think out of the box beyond the patterns listed above. Please put the new gas wasting patterns in bullet points (in the form of '1.', '2.', etc), and answer the following questions for each of the found patterns (in sub-bullet-points under each bullet point):
+
+1. How did you find this pattern? Could you explain the reasoning process, step by step, behind the discovery?
+
+2. What should I do, step by step, to fix the found gas-wasting patterns? Could you explain the reasoning process, step by step, behind the reason why such a fix works?
+
+3. On a score of 0 to 5, could you please tell me how would you rate this found new pattern, in terms of how much it is sacrificing readability, security, and maintainability in exchange for gas optimization (5 is the least impacted. For example, Security score of 5 means implementing the found gas-optimization pattern would have no effect on security, whereas 1 means it would reduce security)? Please format your answer as in "Readability: 5; Security: 4; Maintainability: 3". Please also provide explanations.
+
+Here are some additional requirements:
+1. If you think my prompt to you has any issues (e.g. ambiguity or lack of information), please tell me how I should improve it in the next time.
+2. please help me format your answer in the form of a Latex section (e.g. \section*{Analysis of Provided Solidity Code}), since I want to assert it to a Latex document.

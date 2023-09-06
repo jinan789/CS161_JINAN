@@ -1,0 +1,8 @@
+- Missing function visibility for constructor, it should be explicitly marked as "public".
+- The contract should include the interfaces for cTokenBorrowed and cTokenCollateral contracts, in order to interact with them properly, as well as ensure the input addresses are of those contract types.
+- import "./ErrorReporter.sol" should be updated to "import { ComptrollerErrorReporter } from './ErrorReporter.sol';" to specify the import of ComptrollerErrorReporter.
+- There is no validation of repayAmount, which could lead to error scenarios.
+- No test cases/modifiers for checking if caller is authorized to perform the required liquidation.
+- Assumption that comptroller.checkMarketsListed and comptroller.liquidateCalculateSeizeTokens will not revert is not safe; consider using try-catch statements when calling external contract functions to handle exceptions gracefully.
+- It's better to emit proper events in cases of failure or success in this function, so that the dApp can listen to these events and react accordingly.
+- The function can benefit from adding proper natspec comments to describe its purpose and usage, including descriptions for the parameters, and expected output.

@@ -1,0 +1,1 @@
+liquidateCalculateSeizeTokens(address cTokenBorrowed, address cTokenCollateral, uint repayAmount) external view returns (uint, uint): Calculates the amount of collateral tokens to be seized and the amount of borrowed tokens to be repaid when liquidating a loan. From code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/ComptrollerInterface.sol

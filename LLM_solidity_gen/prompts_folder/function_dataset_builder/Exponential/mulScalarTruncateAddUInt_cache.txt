@@ -1,0 +1,11 @@
+Function: mulScalarTruncateAddUInt
+Input:
+- a (Exp memory)
+- scalar (uint)
+- addend (uint)
+
+Output:
+- MathError (enum)
+- uint
+
+Summary: This function multiplies an Exp type value (a) with a scalar, truncates the result, and adds an additional uint value (addend) to it. It returns a MathError and the final calculated value as a uint.

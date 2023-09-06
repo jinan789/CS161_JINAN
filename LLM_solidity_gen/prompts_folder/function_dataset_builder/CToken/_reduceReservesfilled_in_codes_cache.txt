@@ -1,0 +1,30 @@
+<CODE_BEGINNING>
+/**
+* @notice Reduce the reserves of the contract
+* @param reduceAmount The amount of reserves to reduce
+* @return uint errorCode 0 if successful, otherwise an error code
+*/
+function _reduceReserves(uint reduceAmount) external nonReentrant returns (uint) {
+    // Accrue interest
+    uint err = accrueInterest();
+    if (err != uint(Error.NO_ERROR)) {
+        return fail(Error(err), FailureInfo.REDUCE_RESERVES_ACCRUE_INTEREST_FAILED);
+    }
+
+    // Check if the amount to reduce is less than or equal to the current total reserves
+    if (reduceAmount > totalReserves) {
+        return fail(Error.BAD_INPUT, FailureInfo.REDUCE_RESERVES_VALIDATION);
+    }
+
+    // Transfer the reduceAmount to the admin
+    doTransferOut(admin, reduceAmount);
+
+    // Update the total reserves
+    totalReserves = totalReserves.sub(reduceAmount);
+
+    // Emit the ReservesReduced event
+    emit ReservesReduced(admin, reduceAmount, totalReserves);
+
+    return uint(Error.NO_ERROR);
+}
+<CODE_ENDING>

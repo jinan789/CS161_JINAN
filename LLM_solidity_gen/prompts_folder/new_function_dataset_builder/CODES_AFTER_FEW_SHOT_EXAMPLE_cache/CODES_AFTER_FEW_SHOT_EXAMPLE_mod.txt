@@ -1,0 +1,11 @@
+TASK 1:
+1. The function name should follow the same naming pattern as the other functions in the SafeMath library, i.e., it should be `mod` instead of `modWithError`.
+2. There is no need to check if `b != 0` in this function, as it is already handled in the `tryMod` function.
+
+TASK 2:
+<CODE_BEGINNING>
+//MODIFICATIONS MADE: Changed function name to mod and removed unnecessary require statement
+function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    return a % b;
+}
+<CODE_ENDING>

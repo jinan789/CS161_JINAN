@@ -1,0 +1,66 @@
+
+
+
+\noindent\textbf{STEP 2: Direct generation} 
+
+0. Code repository preparation: generate a summary of the codebase that could be referred to during generation
+Input: code repository
+Output: one summary for each contract and each function signature
+1. Task input: user input in the form of a natural language description
+2. Code repository lookup: look up relevant contracts that provide useful functions for the generated codes
+Input: task description, the code repository to choose from
+Output: a set of files that contain helpful contract codes
+3. Related function lookup: find out the most relevant functions from the relevant contracts found above
+Input: task description, the related contracts
+Output: a set of functions that are most relevant
+4. Few-shot example lookup: find out the most relevant function as a few-shot example that shows how to utilize the code repository
+Input: task description, the related functions
+Output: a function that is most relevant
+[How to properly express the context knowledge? Is this step necessary? Could the tool work without this step?] [look at other papers on how to express contexts]
+5. Generate codes:  
+Input: task description, the related functions, the few-shot example
+Output: generated codes
+Repeat the following process until the stopping criteria is satisfied
+6. Feedback: get feedback on the generated codes in terms of how to improve
+Input: generated codes
+Output: a set of suggestions on how to improve the generated codes (e.g. adding security checks)
+[feedback on context here]
+7. Code fixing: use the above feedback to improve the codes
+Input: generated codes, feedback
+Output: fixed codes
+[Put gas reduction]
+8. Stopping criteria query: query the stopping agent in terms of if the generation should stop
+Input: task description, fixed codes
+Output: True/False in terms of if the generation should stop
+[need a high level overall view of the entire code repository/project]
+[look up to see what could constitute a better stopping criteria]
+E.g. what are needed? What are the demands?
+E.g. connect with contexts
+[could add dynamic running and static analysis for vulnerabilities]
+[program verification: e.g. pre-/post- condition]
+[the output here could be used as further input on code fixing.]
+[unit testing?] [do not use LLM here]
+9. Gas reduction:  
+Input: fixed codes
+Output: optimized codes with gas consumption reduced.
+
+
+
+\noindent\textbf{STEP 1: Direct generation} 
+In this step, we ask the GPT-4 model to directly generate the codes.
+
+The input of this step is the ..., and the output is ...
+
+This step utilizes the \textbf{Code Generating Agent (Agent X)} 
+
+
+\noindent\textbf{STEP 2: Context extraction}
+In this step, we aim to extract the contextual functions that are called by our generated codes. By contextual functions, we refer to both the internal (i.e. implemented within the same contract) and external (implemented on different contracts) ones. \todo{check if this saying is professional}
+
+
+ 
+\noindent\textbf{STEP 3: Direct generation} 
+
+
+\noindent\textbf{STEP 4: Direct generation} 
+

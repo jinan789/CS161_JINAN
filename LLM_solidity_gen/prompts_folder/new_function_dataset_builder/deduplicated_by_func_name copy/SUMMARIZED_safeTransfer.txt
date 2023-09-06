@@ -1,0 +1,7 @@
+Input: 
+1. ERC20 token (type: ERC20)
+2. Address to (type: address)
+3. Amount (type: uint256)
+Output: N/A
+
+The function safeTransfer transfers a specified amount of an ERC20 token to a given address. It checks for transfer success and reverts the transaction with an error message if it fails.

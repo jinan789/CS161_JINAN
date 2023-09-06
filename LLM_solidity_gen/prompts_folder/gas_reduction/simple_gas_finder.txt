@@ -1,0 +1,1 @@
+Your job is to find if a given chunk of Solidity codes contains any lines of codes that waste gas. The reason we want to find these codes is that we want to fix the codes that waste gas during deployment or running. The codes are: 

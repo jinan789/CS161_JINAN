@@ -1,0 +1,5 @@
+Function: accrueInterest
+Input: None
+Output: uint (returns error code, where 0 indicates success)
+
+Summary: The function updates and accrues the total interest of an asset within the current block.

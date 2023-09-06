@@ -1,0 +1,4 @@
+Based on the function names, return types, parameter lists and the functionality in the target function, I found the following two function signatures that may have the most similar functionality to the given target function:
+
+1. function castVote(uint proposalId, uint8 support) external{
+2. function castVoteWithReason(uint proposalId, uint8 support, string calldata reason) external{

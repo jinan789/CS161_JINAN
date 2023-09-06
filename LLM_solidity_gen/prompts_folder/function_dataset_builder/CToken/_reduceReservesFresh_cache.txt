@@ -1,0 +1,8 @@
+Input:
+- uint reduceAmount
+
+Output:
+- uint error code
+
+Summary:
+This function attempts to reduce the total reserves of a CToken by the given reduceAmount. The caller must be the admin, and the market's block number must be equal to the current block number. The function also checks for sufficient underlying cash and ensures that the reduceAmount is not greater than the total reserves. If all conditions are met, the function reduces the total reserves, transfers out the reduceAmount to the admin, and emits a ReservesReduced event. It returns an error code indicating success or the reason for failure.

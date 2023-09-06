@@ -1,0 +1,25 @@
+function permit(address _owner, address spender, uint rawAmount, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
+    require(deadline >= block.timestamp, "INV: permit expired");
+    
+    //MODIFICATIONS MADE: Check if rawAmount is equal to uint(-1)
+    uint96 amount;
+    if (rawAmount == uint(-1)) {
+        amount = uint96(-1);
+    } else {
+        amount = safe96(rawAmount, "INV: amount exceeds 96 bits");
+    }
+    
+    bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), getChainId(), address(this)));
+    bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, _owner, spender, rawAmount, nonces[_owner], deadline)); //MODIFICATIONS MADE: Use nonces[_owner] without incrementing here
+    bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+    address recoveredAddress = ecrecover(digest, v, r, s);
+    require(recoveredAddress != address(0) && recoveredAddress == _owner, "INV: invalid signature");
+    
+    //MODIFICATIONS MADE: Increment nonces[_owner] after all checks have passed
+    nonces[_owner]++;
+
+    allowances[_owner][spender] = amount;
+
+    //CHANGES BASED ON CALLED CODE MADE: Use rawAmount when emitting the Approval event
+    emit Approval(_owner, spender, rawAmount);
+}

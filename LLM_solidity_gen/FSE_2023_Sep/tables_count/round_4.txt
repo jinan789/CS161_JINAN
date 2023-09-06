@@ -1,0 +1,90 @@
+
+
+\begin{table}
+\centering
+\footnotesize
+\caption{\small{ROUND 4: statistics of the found gas-wasting patterns (to be added: gas saved)}}
+\begin{tabular}{c|cccl} 
+
+% \toprule
+\textbf{Pattern name}   & \textbf{Location num}       & \textbf{Categorization}  & \textbf{Verified}  & \textbf{Comments}  \\
+\hline \hline 
+Usage of array iteration for rewardInfo        & 4.1   &  A2 &   N     & the target codes did involve a lot of memory operations, and we might consider adding a category called "expensive contracts" to indicate such, and propose potential methods for improvement (in this case, how to save away that many operations on memory arrays)  \\
+Repeated computation of `timeElapsed` and `tokenReward`         & 4.1    & 1  & Y  &        \\
+Usage of division operation         & 4.1   &  A1  &   N     &   \\
+
+\hline 
+\hline 
+
+Redundant calculations         & 4.2   &  A4  &   N    &  \\  
+Unnecessary casting         & 4.2   &  A3  &   N     &   \\
+\hline 
+\hline 
+
+Repeated loading of contract state variables         & 4.3   &  A5  &   N    &  \\  
+Repetition of code logic         & 4.3   &  2  &   Y     &   \\
+Unnecessary assembly usage         & 4.3   &  A6  &   N     &   \\
+\hline 
+\hline 
+
+Repeated calls to external contracts         & 4.4   &  1  &   Y    &  repeated calls to pair.token0() and pair.token1() \\  
+Unnecessary condition checks         & 4.4   &  A7  &   N     &   \\
+Inefficient use of data types        & 4.4   &  3  &   Y     &  e.g. use uint32 instead of uint256 in "for (uint32 i = 0; i < myArray.length; i++)" \\
+\hline 
+\hline 
+
+
+Repeated conditional checks in different functions         & 4.5   &  A2  &   N    &   \\  
+Repeated computation of rEthToken.balanceOf(address(this))         & 4.5   &  1  &   Y     &  rEthToken.balanceOf(address(this)) is repeated in \_depositInternal \\
+\hline 
+\hline 
+
+
+Redundant Assignment in the \_initializePool Function         & 4.6   &  4  &   Y    &  \_token0 and \_token1 are overwritten in the else case of the \_initializePool function \\  
+Unnecessary Constant Checking         & 4.6   &  5  &   Y     &  Constants, like UNISWAP\_FEE, TICK\_SPACING, etc., are used in require statements \\
+
+Redundant Zero-Value Check         & 4.6   &  6  &   Y     &  There's a check in the addLiquidity function for `slippage >= 0`. Since slippage is a uint16, it can't be less than zero. This redundant check wastes gas. \\
+\hline 
+\hline 
+
+Multiple existence checks         & 4.7   &  2  &   Y    &  \\  
+Repeated storage reads         & 4.7   &  1  &   Y     &   \\
+Repetitive revert statements   & 4.7   &  A6  &   N     &   \\
+\hline 
+\hline 
+
+Repeated Calls to External Contract Functions         & 4.8   &  1  &   Y    &  \\  
+Duplicate Code in Loop         & 4.8   &  2  &   Y     &   \\
+\hline 
+\hline 
+
+
+
+Redundant Function Calls         & 4.9   &  1  &   Y    &  \\  
+Unnecessary Storage Reads         & 4.9   &  A4  &   N     &   \\
+Condition-based Optimization  & 4.9   &  A4  &   N     &  however, looking at this, we do find that there are repeated accesses to variables like pot.rho() and pot.chi(). \\
+\hline 
+\hline 
+
+Repeated Calls to \_msgSender        & 4.10   &  1  &   Y    &  \\  
+Repeated Storage Lookup         & 4.10   &  A2  &   N     &   \\
+
+\hline 
+\hline 
+
+
+
+\hline 
+\hline 
+
+
+
+
+
+
+% \textbf{Average Number}  & \textbf{2.9025}    & \textbf{2.1572}    & \textbf{5.0597}             \\
+% \bottomrule
+\end{tabular}
+\label{tab:num_modified_lines}
+\vspace{-2mm}
+\end{table}

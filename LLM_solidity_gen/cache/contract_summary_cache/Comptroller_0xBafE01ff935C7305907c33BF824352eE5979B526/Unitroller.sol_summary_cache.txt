@@ -1,0 +1,23 @@
+code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/Unitroller.sol
+<START_FUNCTIONS>
+- constructor(): Initializes the Unitroller contract and sets the admin to the contract creator.
+- _setPendingImplementation(address newPendingImplementation) public returns (uint): Sets the pending comptroller implementation to `newPendingImplementation` and emits a NewPendingImplementation event. Returns a status code from ErrorReporter.
+  Input: newPendingImplementation (address)
+  Output: status code (uint)
+
+- _acceptImplementation() public returns (uint): Accepts the pending comptroller implementation if the caller is the pending implementation, updates the implementation, and emits events. Returns a status code from ErrorReporter.
+  Output: status code (uint)
+
+- _setPendingAdmin(address newPendingAdmin) public returns (uint): Sets the pending admin address to `newPendingAdmin` and emits a NewPendingAdmin event. Returns a status code from ErrorReporter.
+  Input: newPendingAdmin (address)
+  Output: status code (uint)
+
+- _acceptAdmin() public returns (uint): Accepts the pending admin role, updates the admin address, and emits events. Returns a status code from ErrorReporter.
+  Output: status code (uint)
+
+- function () payable external: Delegates execution to the implementation contract and forwards returns or reverts.
+<END_FUNCTIONS>
+<START_CONTRACTS>
+Summary of the entire contract:
+The Unitroller contract serves as a storage contract for the Comptroller, enabling the execution of logic through a separate implementation contract. It provides functionalities such as setting and accepting new pending implementations, setting and accepting new pending admin addresses, and delegating execution to the implementation contract. The contract also emits events for implementation and admin changes.
+<END_CONTRACTS>

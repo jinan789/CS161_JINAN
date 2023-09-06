@@ -1,0 +1,24 @@
+function borrowBalanceStoredInternal(address account) internal view returns (MathError errorCode, uint borrowBalance) {
+        // Get the account's borrow snapshot
+        BorrowSnapshot storage borrowSnapshot = accountBorrows[account];
+
+        // If the account's borrow balance is 0, return 0
+        if (borrowSnapshot.principal == 0) {
+            return (MathError.NO_ERROR, 0);
+        }
+
+        // Calculate the account's borrow balance based on the current borrow index
+        uint currentBorrowIndex = borrowIndex;
+        errorCode = mulUInt(borrowSnapshot.principal, currentBorrowIndex);
+        if (errorCode != MathError.NO_ERROR) {
+            return (errorCode, 0);
+        }
+
+        // Divide the result by the borrow snapshot index to get the borrow balance
+        errorCode = divUInt(errorCode, borrowSnapshot.index);
+        if (errorCode != MathError.NO_ERROR) {
+            return (errorCode, 0);
+        }
+
+        return (MathError.NO_ERROR, errorCode);
+    }

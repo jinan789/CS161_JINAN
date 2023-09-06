@@ -1,0 +1,9 @@
+Function: doTransferIn
+
+Inputs: 
+1. address 'from'
+2. uint 'amount'
+
+Output: uint
+
+Summary: The function transfers a specified 'amount' of tokens from the given 'from' address and returns the actual amount transferred.

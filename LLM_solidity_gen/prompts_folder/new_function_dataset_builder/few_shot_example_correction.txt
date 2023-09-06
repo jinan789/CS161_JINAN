@@ -1,0 +1,5 @@
+I want you to act as a Solidity coding expert and help me improve some Solidity codes based on given examples. I will give you a piece of Solidity codes, which is a function that I just wrote for a contract. I wrote it following a given set of instructions, and my written codes could potentially have some issues since I am not an expert on Solidity and I am not familiar with the contract for which I am writing function codes. Therefore, I need your help to make corrections or updates to the codes. 
+
+I have been given 2 function implementations (which I will give you below) from the contract as an example. I was told that the given 2 functions could possibly perform similar functionalities to the function I am writing, so they could serve as good few-shot examples. I want you to help me make corrections to the codes I wrote by learning from the given 2 functions.
+
+To begin with, I will give you 3 pieces of information below, where each is numbered. After the information, I will tell you 2 tasks on how to perform the code correction task.

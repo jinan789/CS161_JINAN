@@ -1,0 +1,7 @@
+Summary of the given function:
+
+Function: seizeInternal
+Inputs: Address seizerToken, Address liquidator, Address borrower, uint seizeTokens
+Output: uint (error code)
+
+The purpose of the seizeInternal function is to perform the actual seizing of tokens when a borrower is liquidated. It obeys the rules of the Comptroller. The function transfers the seized tokens from the borrower to the liquidator and the protocol itself while updating the reserves and balances. It also emits the appropriate Transfer events.

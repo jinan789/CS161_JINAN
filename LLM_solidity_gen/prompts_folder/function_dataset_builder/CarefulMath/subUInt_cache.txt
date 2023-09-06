@@ -1,0 +1,7 @@
+Function summary:
+
+Function name: subUInt
+Input: 2 unsigned integer variables (a, b)
+Output: MathError (enumeration) and an unsigned integer variable
+
+The function accepts two unsigned integers, 'a' and 'b', as input and returns a MathError value indicating if any errors occurred, and a result of the subtraction (a - b). If 'b' is less than or equal to 'a', the function returns the subtraction result without errors; if not, it returns an INTEGER_UNDERFLOW error with a result of 0.

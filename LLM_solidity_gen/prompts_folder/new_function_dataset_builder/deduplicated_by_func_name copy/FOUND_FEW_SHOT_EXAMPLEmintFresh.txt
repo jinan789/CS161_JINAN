@@ -1,0 +1,5 @@
+The function signatures that have the most similar functionality to the given target function are:
+
+1. function mintInternal(uint mintAmount) internal nonReentrant returns (uint, uint)
+
+2. function redeemInternal(uint redeemTokens) internal nonReentrant returns (uint)

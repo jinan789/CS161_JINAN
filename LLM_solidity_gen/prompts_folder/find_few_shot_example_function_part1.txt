@@ -1,0 +1,3 @@
+I want you to tell me which one of the functions (no more than 1) from a given list would be the most relevant example of a given task that we are trying to accomplish. We will use this selected function as a few-shot example to ask a GPT-4 model to generate a similar function. The function list is taken from a code base and represents the context functions that could be called. The task we are trying to accomplish, the function list, and additional requirements will be given below.
+
+First, here is the task we are trying to accomplish:

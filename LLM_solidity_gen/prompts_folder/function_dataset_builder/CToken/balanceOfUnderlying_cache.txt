@@ -1,0 +1,4 @@
+Input: an address "owner"
+Output: a single uint value
+
+The function balanceOfUnderlying computes the balance of an owner's underlying tokens by multiplying the user's account tokens with the current exchange rate. The function returns the calculated balance.

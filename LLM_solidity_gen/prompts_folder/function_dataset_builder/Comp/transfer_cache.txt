@@ -1,0 +1,5 @@
+Function: transfer
+Input: 1 variable - address dst (destination account) and uint rawAmount (number of tokens to transfer)
+Output: 1 variable - bool (whether the transfer was successful or not)
+
+This function transfers a specified amount (rawAmount) of tokens from the caller's account (msg.sender) to a destination account (dst). The transfer is successful if the amount does not exceed 96 bits, and the internal function _transferTokens() is called with the source, destination, and amount.

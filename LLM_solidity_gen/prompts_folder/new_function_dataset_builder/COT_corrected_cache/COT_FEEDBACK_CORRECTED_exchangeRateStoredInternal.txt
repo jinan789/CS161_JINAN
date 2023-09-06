@@ -1,0 +1,51 @@
+Task 1: Step-by-step plan to implement the exchangeRateStoredInternal function:
+
+1. Check if the totalSupply variable in the contract is 0:
+    a. If true, return the initialExchangeRateMantissa as there are no tokens minted yet.
+    b. If false, proceed to calculate the exchange rate.
+
+2. Retrieve total cash stored in the contract:
+    a. Call the function getCashPrior() to obtain the total cash.
+    b. Check for errors in the result. If an error is present, return the error and 0 for the exchange rate.
+
+3. Calculate total collateral of the contract:
+    a. Obtain total borrows from the contract's totalBorrows variable.
+    b. Obtain total reserves from the contract's totalReserves variable.
+    c. Calculate totalCollateral using the formula: totalCollateral = totalCash + totalBorrows - totalReserves.
+
+4. Calculate the exchange rate mantissa (exchangeRateMantissa):
+    a. Divide total collateral by total supply using the divScalarByExpTruncate function which takes the totalCollateral and an Exp struct with the mantissa equal to totalSupply.
+    b. The resulting exchange rate mantissa is a uint256 value.
+
+5. Return the result:
+    a. Return MathError.NO_ERROR and the calculated exchangeRateMantissa.
+
+Updated Solidity Code:
+
+```solidity
+function exchangeRateStoredInternal() internal view returns (MathError, uint) {
+    // Step 1: Check if totalSupply is 0
+    if (totalSupply == 0) {
+        // Step 1a: Return the initial exchange rate
+        return (MathError.NO_ERROR, initialExchangeRateMantissa);
+    } else {
+        // Step 2: Retrieve total cash stored in the contract
+        (MathError err, uint totalCash) = getCashPrior();
+        if (err != MathError.NO_ERROR) {
+            // Step 2b: Return error and 0 for exchange rate
+            return (err, 0);
+        }
+
+        // Step 3: Calculate the total collateral
+        uint totalCollateral = totalCash.add(totalBorrows).sub(totalReserves);
+
+        // Step 4: Calculate the exchange rate mantissa
+        (MathError mathErr, uint256 exchangeRateMantissa) = divScalarByExpTruncate(totalCollateral, Exp({mantissa: totalSupply}));
+
+        // Step 5: Return the result
+        return (MathError.NO_ERROR, exchangeRateMantissa);
+    }
+}
+```
+
+With this updated code, the written function now follows the step-by-step plan and implements the required functionality as stated in the provided Information 2.

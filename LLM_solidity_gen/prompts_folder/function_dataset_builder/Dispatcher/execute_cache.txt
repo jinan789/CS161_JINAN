@@ -1,0 +1,9 @@
+Function: execute
+
+Input:
+1. commands: bytes (calldata)
+2. inputs: bytes[] (calldata)
+
+Output: none
+
+Summary: This function decodes and executes a given command with the provided inputs and has no output. It is called externally and is payable.

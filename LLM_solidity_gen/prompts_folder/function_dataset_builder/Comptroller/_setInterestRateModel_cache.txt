@@ -1,0 +1,4 @@
+Function: _setInterestRateModel
+Inputs: newInterestRateModel (InterestRateModel type)
+Outputs: uint
+Purpose: This function allows to update the interest rate model for the contract, while returning a corresponding status code (uint value) indicating the result of the operation.

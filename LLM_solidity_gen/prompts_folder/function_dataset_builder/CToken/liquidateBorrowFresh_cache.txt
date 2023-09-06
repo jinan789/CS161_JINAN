@@ -1,0 +1,14 @@
+Function: liquidateBorrowFresh
+
+Input:
+1. address liquidator
+2. address borrower
+3. uint repayAmount
+4. CTokenInterface cTokenCollateral
+
+Output:
+1. uint (Error code)
+2. uint (Actual repay amount)
+
+Summary:
+This function allows a liquidator to repay a borrower's loan, then seize an appropriate amount of the borrower's collateral. It first performs several checks to ensure the liquidation is allowed, the markets and accounts are valid, and the repay amount is non-zero and not equal to the maximum allowed uint. The function then uses the repay amount to calculate the number of collateral tokens that'll be seized and transfers them to the liquidator. Finally, the function emits a LiquidateBorrow event to record the liquidation process.

@@ -1,0 +1,9 @@
+I will give you a Solidity contract, and I need you to help me implement one function that is to be added to the contract. I will also give you the summary of the function that I want you to add to the contract. Overall, this summary provides the following information for the function to be generated:
+1. the input and output format
+2. A brief summary of the overall purpose of the function
+
+In addition, please assert the token <CODE_BEGINNING> at the beginning of your generated codes, and add the token <CODE_ENDING> at the ending of your generated codes.
+
+Make sure to give me a complete block of generated codes, with no placeholders that I have to implement.
+
+

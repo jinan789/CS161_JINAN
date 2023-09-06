@@ -1,0 +1,24 @@
+TASK 1:
+1. You are missing the NonReentrant modifier, which is used in other functions to prevent reentrancy attacks.
+2. `doTransferIn` is undefined in the provided contract snippet. Depending on its implementation, there might be an issue with environment assignment or implementation of the function.
+
+TASK 2:
+<CODE_BEGINNING>
+function _addReservesFresh(uint addAmount) internal nonReentrant returns (uint, uint) { // MODIFICATIONS MADE: Added nonReentrant modifier to prevent reentrancy attacks
+    // Check for fresh block number
+    if (accrualBlockNumber != getBlockNumber()) {
+        return (uint(Error.NOT_FRESH), 0);
+    }
+
+    // Transfer tokens from msg.sender to the contract
+    uint actualAddAmount = doTransferIn(msg.sender, addAmount); // MODIFICATIONS MADE: Implementation of doTransferIn is not given in the provided context, depending on its implementation this line might have issues.
+
+    // Increase total reserves by the actual transferred amount
+    totalReserves = add_(totalReserves, actualAddAmount);
+
+    // Emit the ReservesAdded event
+    emit ReservesAdded(msg.sender, addAmount, actualAddAmount);
+
+    return (uint(Error.NO_ERROR), actualAddAmount);
+}
+<CODE_ENDING>

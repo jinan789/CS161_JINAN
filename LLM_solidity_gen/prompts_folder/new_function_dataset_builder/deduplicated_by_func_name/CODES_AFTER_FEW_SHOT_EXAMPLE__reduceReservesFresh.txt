@@ -1,0 +1,45 @@
+function reduceReserves(uint reduceAmount) external nonReentrant returns (uint) {
+    // Check caller is admin
+    if (msg.sender != admin) {
+        return fail(Error.UNAUTHORIZED, FailureInfo.REDUCE_RESERVES_CHECK_ADMIN);
+    }
+
+    // Accrue interest before making other checks and operations 
+    //MODIFICATIONS MADE: Added call to accrueInterest() to ensure proper reserve calculations.
+    uint error = accrueInterest();
+    if (error != uint(Error.NO_ERROR)) {
+        return fail(Error(error), FailureInfo.REDUCE_RESERVES_ACCRUE_INTEREST_FAILED);
+    }
+    
+    // Check block number is equal to current block number
+    if (accrualBlockNumber != getBlockNumber()) {
+        return fail(Error.BLOCK_NUMBER_IS_NOT_CURRENT, FailureInfo.REDUCE_RESERVES_CHECK_BLOCK_NUMBER);
+    }
+
+    // Check there is sufficient underlying cash
+    uint availableCash = getCash();
+    if (reduceAmount > availableCash) {
+        return fail(Error.INSUFFICIENT_CASH, FailureInfo.REDUCE_RESERVES_CHECK_CASH);
+    }
+
+    // Check reduceAmount is not greater than total reserves
+    if (reduceAmount > totalReserves) {
+        return fail(Error.INVALID_AMOUNT_REQUESTED, FailureInfo.REDUCE_RESERVES_CHECK_AMOUNT);
+    }
+
+    // Update total reserves
+    totalReserves = totalReserves.sub(reduceAmount);
+
+    // Transfer out the reduceAmount to the admin
+    //MODIFICATIONS MADE: Handling errors that could be returned from the transfer.
+    (bool success,) = admin.call{value: reduceAmount}("");
+    if (!success) {
+            return fail(Error.TOKEN_TRANSFER_OUT_FAILED, FailureInfo.REDUCE_RESERVES_TRANSFER_OUT_FAILED);
+        }
+
+    // Emit ReservesReduced event
+    emit ReservesReduced(admin, reduceAmount, totalReserves);
+
+    // Return success code
+    return uint(Error.NO_ERROR);
+}

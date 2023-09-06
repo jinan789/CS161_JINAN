@@ -1,0 +1,23 @@
+<CODE_BEGINNING>
+/**
+ * @notice Internal function to get the stored exchange rate for the token
+ * @return MathError Enum representing any error encountered in the computation
+ * @return uint The current exchange rate for the token
+ */
+function exchangeRateStoredInternal() internal view returns (MathError, uint) {
+    if (totalSupply == 0) {
+        // If no tokens are minted, return the initial exchange rate.
+        return (MathError.NO_ERROR, initialExchangeRateMantissa);
+    } else {
+        // Calculate the exchange rate using the total cash, total borrows, total reserves, and total supply.
+        (MathError err, uint totalCash) = getCashPrior();
+        if (err != MathError.NO_ERROR) {
+            return (err, 0);
+        }
+
+        uint totalCollateral = totalCash.add(totalBorrows).sub(totalReserves);
+        (uint256 exchangeRateMantissa, ) = divScalarByExpTruncate(totalCollateral, Exp({mantissa: totalSupply}));
+        return (MathError.NO_ERROR, exchangeRateMantissa);
+    }
+}
+<CODE_ENDING>

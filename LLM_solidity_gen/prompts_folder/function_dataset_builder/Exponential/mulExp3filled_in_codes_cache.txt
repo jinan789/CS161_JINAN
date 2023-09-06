@@ -1,0 +1,28 @@
+<CODE_BEGINNING>
+/**
+ * @notice Performs multiplication of three exponentials, returns an Exp memory variable
+ * @param a The first Exp memory variable
+ * @param b The second Exp memory variable
+ * @param c The third Exp memory variable
+ * @return A tuple containing MathError and the final Exp memory variable
+ */
+function mulExp3(Exp memory a, Exp memory b, Exp memory c) pure internal returns (MathError, Exp memory) {
+    // Multiply a and b
+    MathError abError;
+    Exp memory abResult;
+    (abError, abResult) = mulExp(a, b);
+
+    // If there is an error in multiplication of a and b, return the error and intermediate result
+    if (abError != MathError.NO_ERROR) {
+        return (abError, abResult);
+    }
+
+    // Multiply abResult and c
+    MathError abcError;
+    Exp memory abcResult;
+    (abcError, abcResult) = mulExp(abResult, c);
+
+    // Return the final error and result
+    return (abcError, abcResult);
+}
+<CODE_ENDING>

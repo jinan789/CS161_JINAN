@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+interface IERC20 {
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address recipient, uint256 amount) external returns (bool);
+}
+
+interface IRewardsCollector {
+    function collectRewards(bytes calldata looksRareClaim) external;
+}
+
+contract RewardsCollector is IRewardsCollector {
+    address public constant LOOKS_RARE_REWARDS_DISTRIBUTOR = address(0xA2b4C0Af19cDBA57C4c4C6556ECdE1c216E17dB6);
+    address public constant ROUTER_REWARDS_DISTRIBUTOR = address(0x3E6aAe6f3d4Ab9c57424461e3D65D4D17C38dD26);
+    address public constant LOOKS_RARE_TOKEN = address(0x3DcB3C8B5497CA4dF50E4ef5Dc927dE7fE674A37);
+
+    event RewardsSent(uint256 amount);
+
+    function collectRewards(bytes calldata looksRareClaim) external {
+        bool success = LOOKS_RARE_REWARDS_DISTRIBUTOR.call(looksRareClaim);
+        if (!success) {
+            revert("UnableToClaim");
+        }
+        uint256 amount = IERC20(LOOKS_RARE_TOKEN).balanceOf(address(this));
+        require(amount > 0, "NoRewardsToCollect");
+        require(IERC20(LOOKS_RARE_TOKEN).transfer(ROUTER_REWARDS_DISTRIBUTOR, amount), "TransferFailed");
+        emit RewardsSent(amount);
+    }
+}

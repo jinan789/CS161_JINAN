@@ -1,0 +1,10 @@
+Function: _addReserves
+
+Input:
+- uint addAmount
+
+Output:
+- uint (returns a uint code indicating the result)
+
+Summary:
+The function `_addReserves` takes an input `addAmount` of type uint, and is responsible for adding the provided amount to the contract's existing reserves. The function returns a uint code indicating the result of the operation.

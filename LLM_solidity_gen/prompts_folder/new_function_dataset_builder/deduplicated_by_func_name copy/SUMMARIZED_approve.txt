@@ -1,0 +1,9 @@
+Input: 
+- address spender
+- uint rawAmount
+
+Output:
+- bool
+
+Summary:
+The approve function sets an allowance value for a spender to spend on behalf of the message sender. It takes two inputs, an address of the spender and a uint value for the raw amount. It outputs a boolean value to indicate whether the approval process was successful or not.

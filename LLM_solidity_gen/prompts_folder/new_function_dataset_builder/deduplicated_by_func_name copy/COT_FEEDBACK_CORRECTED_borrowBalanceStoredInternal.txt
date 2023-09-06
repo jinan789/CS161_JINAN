@@ -1,0 +1,48 @@
+Number of steps: 8
+
+Number of branches: 0
+
+Modification needed: YES
+
+
+CODES_BEGINNING
+function borrowBalanceStoredInternal(address account) internal view returns (MathError errorCode, uint borrowBalance) {
+    // Step 1: Get the account's borrow snapshot
+    BorrowSnapshot storage borrowSnapshot = accountBorrows[account];
+
+    // Step 2: If the account's borrow balance is 0, return 0
+    if (borrowSnapshot.principal == 0) {
+        return (MathError.NO_ERROR, 0);
+    }
+
+    // Step 3: Calculate the account's borrow balance based on the current borrow index
+    uint currentBorrowIndex = borrowIndex;
+
+    // Step 4: Multiply the borrower's borrow snapshot principal with the current borrow index
+    //MODIFICATION_BEGINNING
+    uint principalTimesIndex;
+    (errorCode, principalTimesIndex) = mulUInt(borrowSnapshot.principal, currentBorrowIndex);
+    //MODIFICATION_ENDING
+
+    // Step 5: Check for math errors during multiplication
+    if (errorCode != MathError.NO_ERROR) {
+        return (errorCode, 0);
+    }
+
+    // Step 6: Divide the result by the borrow snapshot index to get the borrow balance
+    //MODIFICATION_BEGINNING
+    uint result;
+    (errorCode, result) = divUInt(principalTimesIndex, borrowSnapshot.index);
+    //MODIFICATION_ENDING
+
+    // Step 7: Check for math errors during division
+    if (errorCode != MathError.NO_ERROR) {
+        return (errorCode, 0);
+    }
+
+    // Step 8: Return the borrow balance with a NO_ERROR code
+    //MODIFICATION_BEGINNING
+    return (MathError.NO_ERROR, result);
+    //MODIFICATION_ENDING
+}
+CODES_ENDING

@@ -1,0 +1,9 @@
+I will give you a Solidity contract that contains only one function, and I want you to give me a summary of the given function that is contained in the contract. 
+
+Please be reminded that the downstream task of your summary is to be fed to someone else for them to generate Solidity codes that implement the given summary. The reason we want them to generate Solidity codes is to test their ability to write such codes. As a result, it is important to only retain essential information in the summary, while not leaking exactly how the codes are, since this summary will be used as a test and should have enough but not too much information. 
+
+Overall, please follow the following requirements when generating the summary:
+1. Specify the input and output format (e.g. how many input or output variables, what are their types, etc)
+2. Very briefly summarize the overall purpose of the given function. Please do not include too much details, and make the summarized results as brief as possible, while still describing the most essential functionalities of the given codes.
+
+Here are the codes for you to summarize: 

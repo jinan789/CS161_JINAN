@@ -1,0 +1,33 @@
+Task 1. Step-by-step plan for the _addReservesFresh function:
+
+1. Check if the market is fresh by comparing the accrualBlockNumber with the current block number.
+2. If the market is not fresh, return an error with the code "NOT_FRESH" and "0" as actualAddAmount.
+3. If the market is fresh, proceed with the reserve addition procedure.
+4. Transfer tokens from the msg.sender to the contract using the "doTransferIn" function, and store the actual transferred amount in a variable called "actualAddAmount".
+5. Update the contract's totalReserves by adding the actualAddAmount to the existing totalReserves.
+6. Emit an event "ReservesAdded" with arguments msg.sender, addAmount, and actualAddAmount to indicate the successful reserve addition.
+7. Return the result as a tuple with Error.NO_ERROR and actualAddAmount.
+
+After analyzing the code you provided, it seems like all the steps are present in the correct order. No update is needed for the code, it follows the step-by-step plan and solves the problem as stated in Information 2.
+
+Here is your original code, which already implements the step-by-step plan:
+
+```solidity
+function _addReservesFresh(uint addAmount) internal returns (uint, uint) {
+    // Check for fresh block number
+    if (accrualBlockNumber != getBlockNumber()) {
+        return (uint(Error.NOT_FRESH), 0);
+    }
+
+    // Transfer tokens from msg.sender to the contract
+    uint actualAddAmount = doTransferIn(msg.sender, addAmount);
+
+    // Increase total reserves by the actual transferred amount
+    totalReserves = add_(totalReserves, actualAddAmount);
+
+    // Emit the ReservesAdded event
+    emit ReservesAdded(msg.sender, addAmount, actualAddAmount);
+
+    return (uint(Error.NO_ERROR), actualAddAmount);
+}
+```

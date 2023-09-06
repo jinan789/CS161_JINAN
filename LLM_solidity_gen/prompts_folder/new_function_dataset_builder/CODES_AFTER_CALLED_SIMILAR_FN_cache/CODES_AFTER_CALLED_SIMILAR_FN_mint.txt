@@ -1,0 +1,28 @@
+TASK 1:
+
+1. Misuse of SafeMath.add function: In the code, SafeMath.add is used to update totalSupply, which might not be in sync with the contract's implementation since SafeMath is not used anywhere else.
+Suggestion: Replace SafeMath.add with add96 while updating the total supply.
+
+2. Inconsistency in using "INV" as the error message prefix: The other functions in the contract use "INV::" instead of "INV:" as the error message prefix.
+Suggestion: Change the error message prefix to "INV::" for consistency.
+
+TASK 2:
+<CODE_BEGINNING>
+function mint(address dst, uint rawAmount) external onlyOwner {
+    require(dst != address(0), "INV:: cannot mint tokens to the zero address");
+
+    // Update total supply of tokens
+    //CHANGES BASED ON CALLED CODE MADE: Replaced SafeMath.add with add96 for consistency
+    totalSupply = add96(totalSupply, safe96(rawAmount, "INV:: transfer amount overflows"), "INV:: total supply overflows");
+
+    // Transfer the newly minted tokens to the specified address
+    uint96 mintAmount = safe96(rawAmount, "INV:: transfer amount overflows"); //MODIFICATIONS MADE: Introduced new variable mintAmount since it is used multiple times in the function
+    balances[dst] = add96(balances[dst], mintAmount, "INV:: transfer amount overflows");
+
+    // Update the delegates of the recipient address
+    _moveDelegates(address(0), delegates[dst], mintAmount); //MODIFICATIONS MADE: Replaced rawAmount with mintAmount (Already cast to uint96) to avoid repetitive casting
+
+    // Emit the transfer event
+    emit Transfer(address(0), dst, rawAmount);
+}
+<CODE_ENDING>

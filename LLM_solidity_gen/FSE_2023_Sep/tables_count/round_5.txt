@@ -1,0 +1,102 @@
+
+
+
+\begin{table}
+\centering
+\footnotesize
+\caption{\small{ROUND 5: statistics of the found gas-wasting patterns (to be added: gas saved)}}
+\begin{tabular}{c|cccl} 
+
+% \toprule
+\textbf{Pattern name}   & \textbf{Location num}       & \textbf{Categorization}  & \textbf{Verified}  & \textbf{Comments}  \\
+\hline \hline 
+Redundant storage reads        & 5.1   &  1 &   Y     & repeated storage reads   \\
+Repeated conditional checks         & 5.1    & 1  & Y  & repeated conditional expressions      \\
+Repeated function calls         & 5.1   &  1  &   Y     & repeated calls to the same function  \\
+Overuse of storage         & 5.1   &  1  &   Y     &  \\
+\hline 
+\hline 
+
+
+Multiple Calls to the Same Function        & 5.3   &  A5 &   N     &    \\
+ Unnecessary Typecasting         & 5.3   & A4  & N     &   \\
+\hline 
+\hline 
+
+
+
+
+Unnecessary Hash Computations        & 5.4   &  A5 &   N     &    \\
+Redundant Length Fetching         & 5.4   & A4  & N     &   \\
+\hline 
+\hline 
+
+
+Repeated common computations        & 5.5   &  2 &   Y     &    \\
+Repeated storage reads         & 5.5   & A2  & N     &   \\
+Unnecessary boolean operations & 5.5   & 7  & Y     &  \textit{bool isOwner = false; if(msg.sender == presale\_owner) { isOwner = true;}         require(isOwner == true, "Requires owner");} could be  simplified to \textit{require(msg.sender == presale\_owner, "Requires owner")}, i.e. 3 conditional checks to just 1  \\
+\hline 
+\hline 
+
+
+
+Multiple `getConfiguration` calls for the same asset in a function        & 5.6   &  A5 &   N     &    \\
+\hline 
+\hline 
+
+
+Repeated Contract Interactions       & 5.7   &  1 &   Y     &    \\
+Looping over Arrays of Unknown Length   & 5.7   &  A8 &   N     &  But it does raise concerns about accepting arrays inputs of arbitrary sizes and looping over them, as this has a high level of undercainty as to the amount of gas that will be consumed  \\
+Inefficient Calculation       & 5.7   &  A4 &   N    &    \\
+\hline 
+\hline 
+
+
+
+Redundant Balance and Allowance Checks       & 5.8   & A3   &  N      &    \\
+Repeated Calls to `block.timestamp      & 5.8   & 1   &  Y      &    \\
+Inefficient Storage Usage      & 5.8   & 1   &  Y      &    \\
+\hline 
+\hline 
+
+
+Repeated Calls to Functions Returning Constant Values       & 5.9   & 1   &  Y     &    \\
+Unnecessary Storage of Boolean Variables in Memory      & 5.9   & 7   &  Y      & E.g. \textit{result = false; return result;}  could be simplified to just \textit{return false}  \\
+Repeated Zero Balance Checks      & 5.9   & 7   &  Y      &  first it checked \textit{if (tokensForSwapping > 0 \&\& balanceOf(address(this)) >= tokensForSwapping)}  and then checked \textit{uint256 tokenBalance = balanceOf(address(this)); if (tokenBalance == 0 || totalTokensToSwap == 0)} , which is an extra unnecessary operation that could be simplified and stored to an intermediate variable\\
+\hline 
+\hline 
+
+
+
+Redundant Approvals       & 5.10   & A4   &  N      &    \\
+Unnecessary Balance Checks      & 5.10   & A4   &  N      &    \\
+Inefficient Token Comparison      & 5.10   & A9   &  N      &    \\
+\hline 
+\hline 
+
+
+
+
+
+
+
+
+
+
+
+
+
+\hline 
+\hline 
+
+
+
+
+
+
+% \textbf{Average Number}  & \textbf{2.9025}    & \textbf{2.1572}    & \textbf{5.0597}             \\
+% \bottomrule
+\end{tabular}
+\label{tab:num_modified_lines}
+\vspace{-2mm}
+\end{table}

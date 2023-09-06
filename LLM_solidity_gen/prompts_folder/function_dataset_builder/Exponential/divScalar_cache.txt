@@ -1,0 +1,7 @@
+The function to be summarized is "divScalar".
+
+1. Input and output format:
+   - Input: An Exp memory struct "a" and a uint "scalar"
+   - Output: A MathError enum and an Exp memory struct
+
+2. Summary: The function divides the mantissa of the input Exp struct "a" by the given scalar uint value, and returns the result as the mantissa of a new Exp struct. The function also returns a MathError indicating whether the division was successful or not.

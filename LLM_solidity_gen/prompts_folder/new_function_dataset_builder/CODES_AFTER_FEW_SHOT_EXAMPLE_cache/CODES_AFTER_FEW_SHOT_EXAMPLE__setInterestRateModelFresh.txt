@@ -1,0 +1,28 @@
+TASK 1:
+1. You should use `onlyAdmin()` modifier to check if the caller is the admin, instead of checking it manually within the function.
+2. The `_setInterestRateModelFresh` function name implies that it should only be called in fresh conditions. However, the function checks for the freshness state itself, making it less generic. It might be better to separate the freshness check out of the function.
+
+TASK 2:
+<CODE_BEGINNING>
+function _setInterestRateModelFresh(InterestRateModel newInterestRateModel) internal onlyAdmin returns (uint) { //MODIFICATIONS MADE: Added onlyAdmin modifier to streamline admin checking.
+    // Check contract is in fresh state
+    if (accrualBlockNumber != getBlockNumber()) {
+        return fail(Error.NOT_FRESH, FailureInfo.SET_INTEREST_RATE_MODEL_ACCRUAL_FRESHNESS_CHECK);
+    }
+    
+    // Check new interest rate model is valid
+    if (!newInterestRateModel.isInterestRateModel()) {
+        return fail(Error.INVALID_INTEREST_RATE_MODEL, FailureInfo.SET_INTEREST_RATE_MODEL_VALIDITY_CHECK);
+    }
+
+    // Update the interest rate model
+    InterestRateModel oldInterestRateModel = interestRateModel;
+    interestRateModel = newInterestRateModel;
+
+    // Emit the NewMarketInterestRateModel event
+    emit NewMarketInterestRateModel(oldInterestRateModel, newInterestRateModel);
+
+    // Return the success error code
+    return uint(Error.NO_ERROR);
+}
+<CODE_ENDING>

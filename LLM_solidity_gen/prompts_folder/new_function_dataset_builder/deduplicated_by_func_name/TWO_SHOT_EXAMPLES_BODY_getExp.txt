@@ -1,0 +1,26 @@
+    function divScalarByExp(uint scalar, Exp memory divisor) pure internal returns (MathError, Exp memory) {
+        /*
+          We are doing this as:
+          getExp(mulUInt(expScale, scalar), divisor.mantissa)
+
+          How it works:
+          Exp = a / b;
+          Scalar = s;
+          `s / (a / b)` = `b * s / a` and since for an Exp `a = mantissa, b = expScale`
+        */
+        (MathError err0, uint numerator) = mulUInt(expScale, scalar);
+        if (err0 != MathError.NO_ERROR) {
+            return (err0, Exp({mantissa: 0}));
+        }
+        return getExp(numerator, divisor.mantissa);
+    }
+
+    function divScalarByExpTruncate(uint scalar, Exp memory divisor) pure internal returns (MathError, uint) {
+        (MathError err, Exp memory fraction) = divScalarByExp(scalar, divisor);
+        if (err != MathError.NO_ERROR) {
+            return (err, 0);
+        }
+
+        return (MathError.NO_ERROR, truncate(fraction));
+    }
+

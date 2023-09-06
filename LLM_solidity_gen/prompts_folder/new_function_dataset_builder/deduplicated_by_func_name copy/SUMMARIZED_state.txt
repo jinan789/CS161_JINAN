@@ -1,0 +1,8 @@
+Input: 
+- uint proposalId
+
+Output: 
+- ProposalState (enumeration)
+
+Summary: 
+The function takes a proposal identifier as input and returns the current state of the proposal. The states can be Canceled, Pending, Active, Defeated, Succeeded, Executed, Expired, or Queued.

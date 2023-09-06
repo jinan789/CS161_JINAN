@@ -1,0 +1,4 @@
+The function signatures that have the most similar functionality to the given target function are:
+
+1. function queue(uint proposalId) external;
+2. function getActions(uint proposalId) external view returns (address[] memory targets, uint[] memory values, string[] memory signatures, bytes[] memory calldatas);

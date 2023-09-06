@@ -1,0 +1,20 @@
+
+The function that I want you to summarize is symbol, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signature, with the purpose of providing richer background information for you. The codes are: 
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+
+
+interface IERC20Detailed is IERC20 {
+    /**
+     * @dev Returns the name of the token.
+     */
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+
+    /**
+     * @dev Returns the number of decimals used to get its user representation.
+     */
+    function decimals() external view returns (uint8);
+}

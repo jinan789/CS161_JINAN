@@ -1,0 +1,49 @@
+- Issue: Missing closing parenthesis in `liquidateCalculateSeizeTokens` function call.
+    - Resolution: Add the closing parenthesis to the function call.
+      ```solidity
+        (, uint errorCode) = comptroller.liquidateCalculateSeizeTokens(
+            address(cTokenCollateral),
+            repayAmount
+        );
+      ```
+
+- Issue: Incorrect variable 's' is used in `liquidateCalculateSeizeTokens` function call.
+    - Resolution: Replace 's' with 'address(cTokenBorrowed)' in the function call.
+      ```solidity
+        (, uint errorCode) = comptroller.liquidateCalculateSeizeTokens(
+            address(cTokenBorrowed),
+            address(cTokenCollateral),
+            repayAmount
+        );
+      ```
+
+- Issue: Misuse of Error enum value in the `fail` function call.
+    - Resolution: Replace `Error(err)` with `Error(errorCode)` in the fail function call.
+      ```solidity
+        if (errorCode != uint(Error.NO_ERROR)) {
+            return fail(Error(errorCode), FailureInfo.LIQUIDATE_BORROW_ALLOWED);
+        } 
+      ```
+
+- Issue: Lack of input validation for repayAmount.
+    - Resolution: Add an input validation check before the main logic of the function.
+      ```solidity
+        require(repayAmount > 0, "Repay amount should be greater than 0");
+      ```
+
+- Recommendation: Keep the contract addresses (CToken, Comptroller, and PriceOracle) constant (immutable).
+    - Change the current state variable declaration to use `immutable`.
+      ```solidity
+        ComptrollerInterface public immutable comptroller;
+        PriceOracle public immutable priceOracle;
+      ```
+
+- Recommendation: Add events to signal successful liquidateBorrowAllowed validation.
+    - Declare a new event named `LiquidateBorrowAllowed` at the beginning of the contract.
+      ```solidity
+        event LiquidateBorrowAllowed(address indexed cTokenBorrowed, address indexed cTokenCollateral, address indexed liquidator, address borrower, uint repayAmount);
+      ```
+    - Emit the event after successful validation.
+      ```solidity
+        emit LiquidateBorrowAllowed(cTokenBorrowed, cTokenCollateral, liquidator, borrower, repayAmount);
+      ```

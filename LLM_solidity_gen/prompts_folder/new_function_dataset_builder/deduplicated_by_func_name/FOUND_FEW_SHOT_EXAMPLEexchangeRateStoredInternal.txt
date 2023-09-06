@@ -1,0 +1,5 @@
+The two function signatures that have the most similar functionality to the given target function are:
+
+1. function exchangeRateStored() public view returns (uint)
+
+2. function exchangeRateCurrent() public nonReentrant returns (uint)

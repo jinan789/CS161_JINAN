@@ -1,0 +1,27 @@
+    function safeTransfer(
+        ERC20 token,
+        address to,
+        uint256 amount
+    ) internal {
+        bytes4 selector = bytes4(keccak256(bytes("transfer(address,uint256)")));
+        bytes memory data = abi.encodeWithSelector(selector, to, amount);
+
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            let result := call(
+                gas(), // forward all gas
+                address(token),
+                0, // don't transfer any ETH
+                add(data, 32), // input (skip array length in first 32 bytes)
+                mload(data), // input length (32 bytes)
+                0, // output memory
+                0 // don't expect a return value
+            )
+
+            if iszero(result) {
+                // copy 16 bytes into `scratch` to minimize dirtying the free memory pointer
+                mstore(scratch, 635118857786409067614384709121336216610074705733860015878604473643799713740793)
+                revert(add(scratch, 32), 32)
+            }
+        }
+    }

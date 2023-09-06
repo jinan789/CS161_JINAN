@@ -1,0 +1,13 @@
+<CODE_BEGINNING>
+/**
+ * @notice Calculates and returns the updated total borrowed amount based on the current interest rates
+ * @return uint The updated total borrowed amount
+ */
+function totalBorrowsCurrent() public returns (uint) {
+    // Update the total borrowed amount by calling accrueInterest function
+    accrueInterest();
+
+    // Return the updated total borrowed amount
+    return totalBorrows;
+}
+<CODE_ENDING>

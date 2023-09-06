@@ -1,0 +1,57 @@
+TASK 1: Step-by-step plan for 'transferTokens' function
+
+Step 1: Check if src and dst addresses are the same. If yes, return an error (INVALID_ACCOUNT_PAIR with TRANSFER_TOKENS_FAIL failure info).
+
+Step 2: Check if 'spender' is the 'src' address. If yes, skip the allowance check since owners can always transfer their own tokens.
+
+Step 3: If 'spender' is not the 'src', get the allowance for the spender from the 'src' address.
+
+Step 4: Check if the allowance is less than the tokens to be transferred. If yes, return an error (INSUFFICIENT_ALLOWANCE with TRANSFER_TOKENS_NOT_ALLOWED failure info).
+
+Step 5: Update the allowance for the spender by subtracting the transferred tokens from it.
+
+Step 6: Subtract the tokens from the 'src' address balance (accountTokens[src]).
+
+Step 7: Add the tokens to the 'dst' address balance (accountTokens[dst]).
+
+Step 8: Emit a Transfer event with the 'src', 'dst', and tokens as arguments.
+
+Step 9: Return success (0).
+
+Improved codes based on the given plan:
+
+```solidity
+function transferTokens(address spender, address src, address dst, uint tokens) public returns (uint result) {
+    // Step 1: Make sure that the source and destination addresses are different
+    if (src == dst) {
+        return fail(Error.INVALID_ACCOUNT_PAIR, FailureInfo.TRANSFER_TOKENS_FAIL);
+    }
+
+    // Step 2 and Step 3: If 'spender' is not the 'src', get the allowance for the spender from the 'src' address
+    if (spender != src) {
+        uint startingAllowance = allowances[src][spender];
+
+        // Step 4: Check if the spender is allowed to perform the transfer
+        if (startingAllowance < tokens) {
+            return fail(Error.INSUFFICIENT_ALLOWANCE, FailureInfo.TRANSFER_TOKENS_NOT_ALLOWED);
+        }
+
+        // Step 5: Update the allowance
+        allowances[src][spender] = sub_(startingAllowance, tokens);
+    }
+
+    // Step 6: Transfer the tokens from src address
+    accountTokens[src] = sub_(accountTokens[src], tokens);
+
+    // Step 7: Transfer the tokens to dst address
+    accountTokens[dst] = add_(accountTokens[dst], tokens);
+
+    // Step 8: Emit the Transfer event
+    emit Transfer(src, dst, tokens);
+
+    // Step 9: Return 0 (success)
+    return 0;
+}
+```
+
+This updated code covers all the steps in the given plan and checks if the `spender` is the `src` address to optimize the calculation of allowance.

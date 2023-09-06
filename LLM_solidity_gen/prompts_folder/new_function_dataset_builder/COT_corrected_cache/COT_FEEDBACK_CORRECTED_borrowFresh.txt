@@ -1,0 +1,76 @@
+Sure, let's break down the tasks required for implementing the `borrowFresh` function according to the specification and context provided.
+
+Step-by-Step Plan:
+
+1. Call `accrueInterest` to update the interest rates.
+2. Get the account liquidity of the borrower by calling the `comptroller.getAccountLiquidity` function. This will return three variables: `allowed`, `liquidity`, and `shortfall`.
+3. Check if the borrower is allowed to borrow. This is determined by the `allowed` variable (it should be equal to 0) and the `shortfall` variable (it should also be equal to 0). If one of these conditions is not met, return an error code indicating that the borrow request was rejected by the comptroller.
+4. Get the current block number by calling the `getBlockNumber` function. 
+5. Validate that the current block number is not the same as the `borrowIndex` to avoid repetitive calculations for the same block. If they are equal, return an error code indicating that the calculation of the accumulated balance has failed.
+6. Check the contract's cash balance by calling the `getCash` function.
+7. Make sure that the contract has enough cash to fulfill the borrow request. If it doesn't, return an error code indicating that there's insufficient cash.
+8. Transfer the requested amount to the borrower by calling the `doTransferOut` function.
+9. Update the borrower's borrow balance. This involves calculating the accrued borrow amount, adding it to the borrower's current principal, and then updating the borrower's `BorrowSnapshot` struct.
+10. Update the `totalBorrows` of the contract by adding the `borrowAmount` to the current `totalBorrows`.
+11. Emit a `Borrow` event with the borrower's address, the borrow amount, and the borrower's principal before and after the transaction.
+12. If all steps are executed without any errors, return an error code indicating that there's no error.
+
+Based on this plan, here's the improved code:
+
+```solidity
+function borrowFresh(address payable borrower, uint borrowAmount) external nonReentrant returns (uint) {
+    // Step 1: Update the interest rates
+    accrueInterest();
+
+    // Step 2: Get the borrower's account liquidity
+    (uint allowed, uint liquidity, uint shortfall) = comptroller.getAccountLiquidity(borrower);
+
+    // Step 3: Check if the borrower is allowed to borrow
+    if (allowed != 0 || shortfall != 0) {
+        return fail(Error.BORROW_COMPTROLLER_REJECTION, FailureInfo.BORROW_COMPTROLLER_REJECTION);
+    }
+
+    // Step 4: Get the current block number
+    uint currentBlockNumber = getBlockNumber();
+
+    // Step 5: Validate the current block number
+    if (borrowIndex == currentBlockNumber) {
+        return fail(Error.BORROW_ACCUMULATED_BALANCE_CALCULATION_FAILED, FailureInfo.BORROW_ACCUMULATED_BALANCE_CALCULATION_FAILED);
+    }
+
+    // Step 6: Check the contract's cash balance
+    uint cash = getCash();
+
+    // Step 7: Check if the contract has enough cash
+    if (cash < borrowAmount) {
+        return fail(Error.TOKEN_INSUFFICIENT_CASH, FailureInfo.BORROW_INSUFFICIENT_CASH);
+    }
+
+    // Step 8: Transfer the requested amount to the borrower
+    doTransferOut(borrower, borrowAmount);
+
+    // Step 9: Update the borrower's borrow balance
+    BorrowSnapshot storage borrowSnapshot = accountBorrows[borrower];
+    uint principalBefore = borrowSnapshot.principal;
+    MathError mathErr;
+    uint accruedBorrowAmount;
+    (mathErr, accruedBorrowAmount) = mulScalar(borrowAmount, borrowIndex);
+    if (mathErr != MathError.NO_ERROR) {
+        return failOpaque(Error.MATH_ERROR, FailureInfo.BORROW_ACCUMULATED_BALANCE_CALCULATION_FAILED, uint(mathErr));
+    }
+    uint principalAfter = principalBefore.add(accruedBorrowAmount);
+    borrowSnapshot.principal = principalAfter;
+    borrowSnapshot.interestIndex = borrowIndex;
+
+    // Step 10: Update the total borrows
+    totalBorrows = totalBorrows.add(borrowAmount);
+
+    // Step 11: Emit a Borrow event
+    emit Borrow(borrower, borrowAmount, principalBefore, principalAfter);
+
+    // Step 12: Return no error
+    return uint(Error.NO_ERROR);
+}
+```
+
+This code now follows the step-by-step plan and should correctly perform the intended functionality according to the given specifications.

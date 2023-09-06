@@ -1,0 +1,54 @@
+TASK 1: Step-by-step plan for the _setComptroller function:
+
+Step 1: Check whether the caller of the function is the admin by comparing the sender's address with the address of the current admin.
+
+Step 2: Check if the newComptroller address passed as an argument is not a zero address.
+
+Step 3: If either step 1 or step 2 fails, return an Error.UNAUTHORIZED code with the corresponding FailureInfo.SET_COMPTROLLER_OWNER_CHECK.
+
+Step 4: Check if the newComptroller passes the "isComptroller" validation by calling the isComptroller() function of the newComptroller interface.
+
+Step 5: If step 4 fails, return an Error.CONTROLLER_CHECK code with the corresponding FailureInfo.SET_COMPTROLLER_VALIDATION.
+
+Step 6: Store the address of the oldComptroller in a temporary variable.
+
+Step 7: Set the comptroller variable of the CToken contract to the address of the newComptroller.
+
+Step 8: Emit a NewComptroller event with the oldComptroller and newComptroller addresses.
+
+Step 9: Return the Error.NO_ERROR code.
+
+Now, let's improve the given codes based on this step-by-step plan:
+
+```solidity
+function _setComptroller(ComptrollerInterface newComptroller) external returns (uint) {
+    // Step 1: Check caller is admin
+    if (msg.sender != admin) {
+        return fail(Error.UNAUTHORIZED, FailureInfo.SET_COMPTROLLER_OWNER_CHECK);
+    }
+
+    // Step 2: Check newComptroller address is not zero
+    if (address(newComptroller) == address(0)) {
+        return fail(Error.UNAUTHORIZED, FailureInfo.SET_COMPTROLLER_OWNER_CHECK);
+    }
+
+    // Step 4: Ensure the new comptroller passes the "isComptroller" validation
+    if (!newComptroller.isComptroller()) {
+        return fail(Error.CONTROLLER_CHECK, FailureInfo.SET_COMPTROLLER_VALIDATION);
+    }
+
+    // Step 6: Store the address of the oldComptroller
+    ComptrollerInterface oldComptroller = comptroller;
+
+    // Step 7: Set new comptroller
+    comptroller = newComptroller;
+
+    // Step 8: Emit NewComptroller event
+    emit NewComptroller(oldComptroller, newComptroller);
+
+    // Step 9: Return success code
+    return uint(Error.NO_ERROR);
+}
+```
+
+I have updated the codes based on the step-by-step plan. The main changes were to separate the check for the sender being the admin and newComptroller address being not zero and to remove the explicit casting of newComptroller and zero address to ComptrollerInterface type. The rest of the code remains the same as it was already following the steps required.

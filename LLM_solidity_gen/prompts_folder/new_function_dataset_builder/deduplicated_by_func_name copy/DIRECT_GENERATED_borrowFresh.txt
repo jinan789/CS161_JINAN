@@ -1,0 +1,46 @@
+   function borrowFresh(address payable borrower, uint borrowAmount) external nonReentrant returns (uint) {
+        // Check if the borrow request is allowed by the comptroller
+        (uint allowed, uint liquidity, uint shortfall) = comptroller.getAccountLiquidity(borrower);
+        if (allowed != 0 || shortfall != 0) {
+            return fail(Error.BORROW_COMPTROLLER_REJECTION, FailureInfo.BORROW_COMPTROLLER_REJECTION);
+        }
+
+        // Validate current block number
+        accrueInterest();
+        uint currentBlockNumber = getBlockNumber();
+        if (borrowIndex == currentBlockNumber) {
+            return fail(Error.BORROW_ACCUMULATED_BALANCE_CALCULATION_FAILED, FailureInfo.BORROW_ACCUMULATED_BALANCE_CALCULATION_FAILED);
+        }
+
+        // Check if the contract has enough underlying cash to fulfill the borrow request
+        uint cash = getCash();
+        if (cash < borrowAmount) {
+            return fail(Error.TOKEN_INSUFFICIENT_CASH, FailureInfo.BORROW_INSUFFICIENT_CASH);
+        }
+
+        // Transfer the requested amount to the borrower
+        doTransferOut(borrower, borrowAmount);
+
+        // Update the borrow balance of the borrower
+        BorrowSnapshot storage borrowSnapshot = accountBorrows[borrower];
+        uint principalBefore = borrowSnapshot.principal;
+
+        MathError mathErr;
+        uint accruedBorrowAmount;
+        (mathErr, accruedBorrowAmount) = mulScalar(borrowAmount, borrowIndex);
+        if (mathErr != MathError.NO_ERROR) {
+            return failOpaque(Error.MATH_ERROR, FailureInfo.BORROW_ACCUMULATED_BALANCE_CALCULATION_FAILED, uint(mathErr));
+        }
+        
+        uint principalAfter = principalBefore.add(accruedBorrowAmount);
+        borrowSnapshot.principal = principalAfter;
+        borrowSnapshot.interestIndex = borrowIndex;
+
+        // Update the total borrows
+        totalBorrows = totalBorrows.add(borrowAmount);
+
+        // Emit a Borrow event
+        emit Borrow(borrower, borrowAmount, principalBefore, principalAfter);
+
+        return uint(Error.NO_ERROR);
+    }

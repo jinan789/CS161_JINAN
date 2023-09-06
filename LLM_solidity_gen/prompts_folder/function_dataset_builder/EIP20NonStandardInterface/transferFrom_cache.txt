@@ -1,0 +1,9 @@
+Function: transferFrom
+Input: 
+1. address src - source address
+2. address dst - destination address
+3. uint256 amount - amount of tokens to transfer
+
+Output: None
+
+Summary: The transferFrom function allows a specified address (src) to transfer a specified amount of tokens to another address (dst), with no return value provided.

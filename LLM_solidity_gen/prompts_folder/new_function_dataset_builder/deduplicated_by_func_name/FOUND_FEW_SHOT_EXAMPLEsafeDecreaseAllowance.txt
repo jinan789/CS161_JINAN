@@ -1,0 +1,23 @@
+The two function signatures with the most similar functionality to the given target function (safeDecreaseAllowance) are:
+
+1. safeApprove:
+
+```solidity
+function safeApprove(
+    IERC20 token,
+    address spender,
+    uint256 value
+) internal;
+```
+
+2. safeIncreaseAllowance:
+
+```solidity
+function safeIncreaseAllowance(
+    IERC20 token,
+    address spender,
+    uint256 value
+) internal;
+```
+
+These two functions are the most similar to the target function because they also involve modifying the allowance of a token spender, like the target function. However, safeApprove sets a new allowance value, while safeIncreaseAllowance and safeDecreaseAllowance increase and decrease the existing allowance, respectively.

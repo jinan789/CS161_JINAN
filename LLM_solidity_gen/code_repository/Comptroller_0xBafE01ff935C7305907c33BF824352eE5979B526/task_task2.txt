@@ -1,0 +1,3 @@
+This is a function in a smart contract written in Solidity programming language. The function is called liquidateCalculateSeizeTokens and it takes three input parameters: cTokenBorrowed, cTokenCollateral, and actualRepayAmount. The function returns a tuple of two unsigned integer values.
+
+The purpose of this function is to calculate the number of tokens of collateral asset to seize from a borrower in a liquidation scenario. Given the amount of underlying assets to be repaid (actualRepayAmount), the function calculates the equivalent amount of collateral tokens to seize from the borrower's collateral asset (cTokenCollateral).

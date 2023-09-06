@@ -1,0 +1,7 @@
+Now that I have given you all of the necessary information, I want you to help me find new gas-wasting patterns in the above codes. Please put the new gas wasting patterns in bullet points (in the form of '1.', '2.', etc). Specifically, for each of the found patterns, I want you to answer each of the following questions, where the answer to each question should be put as a sub-bullet point under each bullet point:
+
+1. how did you find this pattern? Could you explain the reasoning process, step by step, behind the discovery?
+
+2. what should I do, step by step, to fix the found gas-wasting patterns? Could you explain the reasoning process, step by step, behind the reason why such a fix works?
+
+3. if you think my prompt to you has any issues (e.g. ambiguity or lack of information that could be beneficial for you to understand my task), please tell me how I should improve my prompt in the next time I ask you to perform the same task, such that you would be able to better understand my task and better solve it next time. If there are any suggestions, could you also explain the reasoning process, step by step, behind the reason why such a fix is needed?

@@ -1,0 +1,6 @@
+1. Input and output format:
+   - Input: One variable 'value' of type uint256
+   - Output: One variable of type uint160
+
+2. Summary:
+The function 'toUint160' safely casts a given uint256 value to uint160 type and returns the result. It checks if the input value is within the range of uint160, and throws an error if the cast is deemed unsafe.

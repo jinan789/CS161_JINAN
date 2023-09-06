@@ -1,0 +1,32 @@
+function verifyCallResult(
+    bool success,
+    bytes memory returndata,
+    string memory errorMessage
+) internal pure returns (bytes memory) {
+    
+    // Step 1
+    if (success) {
+        // Step 2
+        return returndata;
+    } else {
+        // Step 3
+        if (returndata.length > 0) {
+            // Step 4
+            assembly {
+                let result := mload(0x40) // Step 4a
+                mstore(0x40, add(result, and(add(add(returndata, 32), mload(returndata)), 0xfffffffffffffff0)))
+
+                //MODIFICATIONS MADE: Changed the second parameter to returndata and added the correct memcpy operation
+                mstore(result, mload(returndata))
+                let dataSize := and(add(mload(returndata), 63), 0xfffffffffffffff0)
+                memcpy(add(result, 32), add(returndata, 32), dataSize)
+
+                // Step 4b
+                revert(result, add(32, mload(returndata))) // Step 4c
+            }
+        } else {
+            // Step 5
+            revert(errorMessage);
+        }
+    }
+}

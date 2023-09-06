@@ -1,0 +1,33 @@
+After analyzing the given Solidity code, it does not seem to have any gas-wasting patterns, as described in the provided list from 1 to 7. The function performs the necessary checks for errors (division by zero, multiplication error, and division error) and the calculations are performed correctly.
+
+In conclusion, there is no need to make any adjustments to the code based on the given list, as it already appears to be optimized. Therefore, the code remains the same:
+
+<CODE_BEGINNING>
+function getExp(uint num, uint denom) pure internal returns (MathError, Exp memory) {
+    // Check for zero denominator
+    if (denom == 0) {
+        return (MathError.DIVISION_BY_ZERO, Exp({mantissa: 0}));
+    }
+
+    //MODIFICATIONS MADE: Replaced 10**18 with expScale to be consistent with other functions in the contract.
+    // Multiply the numerator by expScale
+    (MathError multiplicationError, uint scaledNumerator) = mulUInt(num, expScale);
+    
+    //MODIFICATIONS MADE: Added check for overflow of num * expScale
+    // Check for multiplication error
+    if (multiplicationError != MathError.NO_ERROR) {
+        return (multiplicationError, Exp({mantissa: 0}));
+    }
+
+    // Divide the scaled numerator by the denominator
+    (MathError divisionError, uint divResult) = divUInt(scaledNumerator, denom);
+    
+    // Check for division error
+    if (divisionError != MathError.NO_ERROR) {
+        return (divisionError, Exp({mantissa: 0}));
+    }
+
+    // Return success and the resulting Exp struct
+    return (MathError.NO_ERROR, Exp({mantissa: divResult}));
+}
+<CODE_ENDING>

@@ -1,0 +1,4 @@
+I want you to help me find which of the functions (no more than 2) from a given list of function signatures would possibly have a most similar functionality to a given target function. The list of functions will be given in the form of a contract, which contains signatures of the list of functions that I want you to select from. The target function will be given in the form of an implemented codes that have the code body.
+
+Since the list of functions to select from is given in the form of signatures, you will have to match the similarity based on their function names, return types, parameter lists, etc.
+

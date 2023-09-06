@@ -1,0 +1,45 @@
+TASK 1: Step-by-step plan to implement the _setReserveFactorFresh function:
+
+1. Check if the caller of the function is the admin of the contract. If not, revert the operation with an appropriate error code (UNAUTHORIZED) and failure information (SET_RESERVE_FACTOR_ADMIN_CHECK).
+
+2. Ensure that the market is fresh. This means that the accrualBlockNumber of the contract should be equal to the current block number. If it's not, revert the operation with an appropriate error code (MARKET_NOT_FRESH) and failure information (SET_RESERVE_FACTOR_FRESH_CHECK).
+
+3. Validate the new reserve factor. It should be within bounds, i.e., less than or equal to the maximum mantissa (maxMantissa). If it's not, revert the operation with an appropriate error code (BAD_INPUT) and failure information (SET_RESERVE_FACTOR_BOUNDS_CHECK).
+
+4. Update the contract's reserve factor (reserveFactorMantissa) to the provided new reserve factor (newReserveFactorMantissa).
+
+5. Emit a NewReserveFactor event containing the updated reserve factor (newReserveFactorMantissa).
+
+6. Return with an error code indicating success (NO_ERROR).
+
+Now let's review the provided code against this plan.
+
+The code you provided has all the steps in the correct order and coherent manner. Here's your code with minor comments added to highlight the steps:
+
+    function _setReserveFactorFresh(uint newReserveFactorMantissa) internal returns (uint) {
+        // Step 1: Check caller is admin
+        if (msg.sender != admin) {
+            return fail(Error.UNAUTHORIZED, FailureInfo.SET_RESERVE_FACTOR_ADMIN_CHECK);
+        }
+
+        // Step 2: Check market is fresh
+        if (accrualBlockNumber != getBlockNumber()) {
+            return fail(Error.MARKET_NOT_FRESH, FailureInfo.SET_RESERVE_FACTOR_FRESH_CHECK);
+        }
+
+        // Step 3: Check reserve factor is within bounds
+        if (newReserveFactorMantissa > maxMantissa) {
+            return fail(Error.BAD_INPUT, FailureInfo.SET_RESERVE_FACTOR_BOUNDS_CHECK);
+        }
+
+        // Step 4: Update reserve factor
+        reserveFactorMantissa = newReserveFactorMantissa;
+
+        // Step 5: Emit NewReserveFactor event
+        emit NewReserveFactor(newReserveFactorMantissa);
+
+        // Step 6: Return NO_ERROR
+        return uint(Error.NO_ERROR);
+    }
+
+Your code is correct, as it matches the step-by-step plan and implements the desired functionality. No modifications are needed.

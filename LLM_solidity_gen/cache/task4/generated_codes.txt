@@ -1,0 +1,38 @@
+Given the task and the additional information provided, here's a possible implementation for the repayBorrowAllowed function:
+
+```solidity
+pragma solidity ^0.8.0;
+
+import "./code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/ComptrollerInterface.sol";
+import "./code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/ErrorReporter.sol";
+
+contract MyContract is ComptrollerErrorReporter {
+
+    ComptrollerInterface public comptroller;
+
+    constructor(address comptrollerAddress) {
+        comptroller = ComptrollerInterface(comptrollerAddress);
+    }
+
+    function repayBorrowAllowed(
+        address cToken, 
+        address payer, 
+        address borrower, 
+        uint repayAmount
+    ) public view returns (uint) {
+        // Check if the market for the given cToken is listed
+        (bool isListed, , ) = comptroller.markets(cToken);
+
+        if (!isListed) {
+            return fail(Error.MARKET_NOT_LISTED, FailureInfo.REPAY_BORROW_MARKET_NOT_LISTED);
+        }
+
+        // Add other checks here (e.g. sufficient collateral, user balances, etc.)
+
+        // If all checks pass, return the success code (0)
+        return uint(Error.NO_ERROR);
+    }
+}
+```
+
+This implementation imports the necessary interface and error reporting utility and defines a `repayBorrowAllowed` function that checks if a market is listed before proceeding. The external comptroller contract address is set in the constructor. The function returns an error code using the `fail` function if the market is not listed as specified in the task. Note that you might need to add more checks depending on your specific use case and requirements.

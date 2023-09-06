@@ -1,0 +1,10 @@
+<CODE_BEGINNING>
+/**
+ * @notice Returns the balance of the given account
+ * @param owner The address of the account for which the token balance is required
+ * @return balance The token balance for the given account
+ */
+function balanceOf(address owner) public view returns (uint256 balance) {
+    balance = accountTokens[owner];
+}
+<CODE_ENDING>

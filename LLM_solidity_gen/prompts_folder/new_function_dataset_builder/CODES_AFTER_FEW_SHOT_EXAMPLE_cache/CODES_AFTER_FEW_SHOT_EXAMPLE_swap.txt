@@ -1,0 +1,48 @@
+TASK 1:
+1. The function modifier should be `onlyDao` instead of `onlyAdmin`, as per the instructions and the provided example code.
+2. The safeTransferFrom function should be called after checking the require statements for minPrice, maxPrice, and token equality.
+
+TASK 2:
+<CODE_BEGINNING>
+function swap(
+    address srcToken,
+    uint256 srcAmount,
+    uint256 minPrice,
+    uint256 maxPrice,
+    address destToken,
+    bytes memory oneInchData
+)
+    public
+    onlyDao //MODIFICATIONS MADE: Changed from onlyAdmin to onlyDao, to match the instructions and provided example
+    returns (
+        uint256 actualDestAmount,
+        uint256 actualSrcAmount
+    )
+{
+    require(minPrice < maxPrice, "Pool: minPrice should be less than maxPrice");
+    require(srcToken != destToken, "Pool: Source and destination tokens should be different");
+
+    //MODIFICATIONS MADE: Moved the safeTransferFrom function below require statements for efficiency
+    IERC20Detailed(srcToken).safeTransferFrom(_msgSender(), address(this), srcAmount);
+
+    uint256 destPriceInSrc;
+    uint256 srcPriceInDest;
+    (destPriceInSrc, srcPriceInDest, actualDestAmount, actualSrcAmount) = _oneInchTrade(
+        srcToken,
+        srcAmount,
+        destToken,
+        oneInchData
+    );
+
+    require(
+        destPriceInSrc >= minPrice,
+        "Pool: Swap rate is lower than the minimum acceptable price"
+    );
+    require(
+        destPriceInSrc <= maxPrice,
+        "Pool: Swap rate is higher than the maximum acceptable price"
+    );
+
+    emit Swapped(srcToken, destToken, actualSrcAmount, actualDestAmount);
+}
+<CODE_ENDING>

@@ -1,0 +1,89 @@
+8. "Suboptimal function call." It refers to the pattern where a function call is made with a low-level .call() method instead of using a more explicit and gas-efficient high-level function call. This forces the code to unnecessarily check the correctness of the call during runtime and propagate success or failure, increasing gas costs.
+
+Example from the given code:
+
+```solidity
+(bool success,) = LOOKS_RARE_REWARDS_DISTRIBUTOR.call(looksRareClaim);
+if (!success) revert UnableToClaim();
+```
+
+This low-level call could be replaced by a high-level function call, given the rewards distributor smart contract's function name and signature. For instance, if the target function is named distribute and accepts one parameter looksRareClaim of bytes type, you can use the following high-level function call:
+
+```solidity
+try LOOKS_RARE_REWARDS_DISTRIBUTOR.distribute(looksRareClaim) {
+    // ...
+} catch {
+    revert UnableToClaim();
+}
+```
+
+By using a high-level function call instead of the low-level .call() method, the code becomes more explicit and efficient in terms of gas consumption.
+*****&&&&&^^^^^%%%%%$$$$$
+
+After analyzing the provided Solidity code, I found the following gas-wasting pattern:
+
+8. "Unnecessary event emission." The event, `RewardsSent`, is emitted in the `collectRewards` function, providing an amount of transferred tokens.
+
+While having an event can be beneficial for monitoring and logging purposes, emitting an event also consumes gas. If the event information is not crucial for the contract's primary use case, or if it's already available through other means (e.g., through frontend web3 calls), then emitting the event could be considered a potential waste of gas.
+
+In this particular case, the `RewardsSent` event is only providing the amount of transferred tokens. The token transfer information is usually already available in the blockchain transaction logs. Therefore, emitting the `RewardsSent` event might not be necessary, and the gas spent on emitting the event could potentially be saved.
+
+This is not a huge gas-waster like the patterns mentioned in the question, but it's still worth considering if the event emission is vital or can be skipped for gas optimization.
+*****&&&&&^^^^^%%%%%$$$$$
+
+
+
+In the given source code, I found the following gas-wasting pattern:
+
+8. "Suboptimal use of the 'call' function." In the collectRewards function, the call function is used to interact with the LOOKS_RARE_REWARDS_DISTRIBUTOR contract:
+
+```solidity
+(bool success,) = LOOKS_RARE_REWARDS_DISTRIBUTOR.call(looksRareClaim);
+if (!success) revert UnableToClaim();
+```
+
+This usage of the 'call' function can be more gas-efficient by using a Solidity interface instead. Here's why: when using 'call', the data is passed as a byte array, which is both more expensive in terms of gas consumption to encode/decode and less type-safe. Instead, creating an interface for the LOOKS_RARE_REWARDS_DISTRIBUTOR contract with a specific function for claiming rewards can save gas and make the code more straightforward and easy to use. The interface will have a function signature that ensures the correct types are used.
+
+To apply this optimization, you would first create an interface for the LOOKS_RARE_REWARDS_DISTRIBUTOR contract:
+
+```solidity
+interface ILooksRareRewardsDistributor {
+   function claimRewards(bytes calldata claimData) external;
+}
+```
+
+Then, the collectRewards function can be updated to utilize the interface:
+
+```solidity
+function collectRewards(bytes calldata looksRareClaim) external {
+    ILooksRareRewardsDistributor(LOOKS_RARE_REWARDS_DISTRIBUTOR).claimRewards(looksRareClaim);
+
+    uint256 balance = LOOKS_RARE_TOKEN.balanceOf(address(this));
+    LOOKS_RARE_TOKEN.transfer(ROUTER_REWARDS_DISTRIBUTOR, balance);
+    emit RewardsSent(balance);
+}
+```
+
+This way, the collectRewards function is more gas-efficient, easier to read, and more type-safe.
+*****&&&&&^^^^^%%%%%$$$$$
+
+
+
+8. "Unnecessary event emission." It refers to the pattern where an event is emitted but may not be required for the smart contract functionality, such as for tracking purposes only. Emitting events consumes gas; therefore, if the emitted event could be removed or replaced by a more efficient way of tracking, gas usage could be reduced. In the provided code:
+
+```solidity
+event RewardsSent(uint256 amount);
+
+...
+uint256 balance = LOOKS_RARE_TOKEN.balanceOf(address(this));
+LOOKS_RARE_TOKEN.transfer(ROUTER_REWARDS_DISTRIBUTOR, balance);
+emit RewardsSent(balance);
+```
+
+The `RewardsSent` event is emitted every time the `collectRewards` function is called. If this event is only used for tracking purposes and no other functionality requires this event to be emitted, reducing or removing the event emission would save gas. A more efficient way of tracking, such as periodically querying the contract state or utilizing off-chain tools, could be considered as an alternative.
+
+It's important to note that events can be crucial for some applications to track changes in contract state, so removing or optimizing event emissions should be approached with caution, considering the impact on the overall system and potential trade-offs.
+*****&&&&&^^^^^%%%%%$$$$$
+
+
+

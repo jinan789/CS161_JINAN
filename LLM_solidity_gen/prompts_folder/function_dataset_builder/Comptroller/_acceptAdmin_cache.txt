@@ -1,0 +1,6 @@
+Summary:
+
+Input: None
+Output: uint (returns a value indicating the success or failure)
+
+The _acceptAdmin function is used to accept the pending admin address by calling external operations. This function updates the admin address when successfully executed, ensuring only the current admin can update it.

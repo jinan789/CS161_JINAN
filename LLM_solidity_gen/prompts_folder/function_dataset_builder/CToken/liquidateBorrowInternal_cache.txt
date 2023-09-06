@@ -1,0 +1,12 @@
+Function: liquidateBorrowInternal
+
+Input:
+1. address borrower
+2. uint repayAmount
+3. CTokenInterface cTokenCollateral
+
+Output:
+1. uint (error code)
+2. uint (actual repayment amount)
+
+Summary: The function attempts to liquidate a borrower's collateral by first accruing interest on the borrowed asset and the collateral. If successful, it calls liquidateBorrowFresh function to perform the process of repaying borrowed amount and seizing collateral. The function returns an error code and the actual repayment amount.

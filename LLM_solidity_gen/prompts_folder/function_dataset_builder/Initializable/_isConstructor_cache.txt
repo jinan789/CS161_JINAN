@@ -1,0 +1,5 @@
+Function: _isConstructor
+Input: None
+Output: bool
+
+Summary: The function checks if the contract is in a constructor context by verifying the contract's address is not associated with a deployed contract. It returns true if the contract is in a constructor context, and false otherwise.

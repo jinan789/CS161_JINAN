@@ -1,0 +1,10 @@
+<CODE_BEGINNING>
+
+function toUint160(uint256 value) internal pure returns (uint160) {
+    if (value > type(uint160).max)
+        revert UnsafeCast();
+
+    return uint160(value);
+}
+
+<CODE_ENDING>

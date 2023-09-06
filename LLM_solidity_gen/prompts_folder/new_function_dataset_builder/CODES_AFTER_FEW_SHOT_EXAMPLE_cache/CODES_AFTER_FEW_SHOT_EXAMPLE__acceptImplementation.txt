@@ -1,0 +1,26 @@
+TASK 1:
+1. Your code looks correct and it follows the same style as the given examples. It is neatly organized and makes use of appropriate checks for the pendingComptrollerImplementation.
+
+TASK 2:
+Since your code is already correct, no modifications are needed. However, I'll add the <CODE_BEGINNING> and <CODE_ENDING> tokens as requested.
+
+<CODE_BEGINNING>
+function _acceptImplementation() public returns (uint) {
+    // Check that the caller is the pending implementation and not the zero address
+    if (msg.sender != pendingComptrollerImplementation || pendingComptrollerImplementation == address(0)) {
+        return fail(Error.UNAUTHORIZED, FailureInfo.ACCEPT_PENDING_IMPLEMENTATION_ADDRESS_CHECK);
+    }
+
+    // Update the current comptroller implementation
+    address oldImplementation = comptrollerImplementation;
+    comptrollerImplementation = pendingComptrollerImplementation;
+
+    // Clear the pending implementation
+    pendingComptrollerImplementation = address(0);
+
+    // Emit the NewImplementation event
+    emit NewImplementation(oldImplementation, comptrollerImplementation);
+
+    return uint(Error.NO_ERROR);
+}
+<CODE_ENDING>

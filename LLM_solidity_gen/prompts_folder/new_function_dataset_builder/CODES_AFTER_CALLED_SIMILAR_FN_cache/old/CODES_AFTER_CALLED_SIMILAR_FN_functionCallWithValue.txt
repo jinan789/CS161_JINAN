@@ -1,0 +1,37 @@
+TASK 1: Based on the given functions, I must say that you did a great job writing the functionCallWithValue function. There are only two minor issues I found that need to be addressed:
+
+1. In the removed section of the code, you commented out the line that checks if the address's balance is sufficient for the call. Although the 'call' function will revert if the balance is insufficient, it is a good practice to ensure that the balance is checked before attempting the call. It can help with error handling and provide a clearer error message if needed.
+
+2. The isContract function is missing, although it is required to check if the target is a contract address. It would need to be implemented within the contract or imported from another location to complete the 'require' statement that checks if the target is a contract.
+
+TASK 2: Based on the suggestions from TASK 1, here are the corrected/updated codes with the necessary changes and explanations:
+
+<CODE_BEGINNING>
+function functionCallWithValue(
+    address target,
+    bytes memory data,
+    uint256 value,
+    string memory errorMessage
+) internal returns (bytes memory) {
+    // CHANGES BASED ON CALLED CODE MADE: Uncomment the require statement for better error handling
+    require(
+        address(this).balance >= value,
+        "Address: insufficient balance for call"
+    );
+
+    // CHANGES BASED ON CALLED CODE MADE: Added isContract function implementation
+    function isContract(address _addr) internal view returns (bool) {
+        uint256 size;
+        assembly { size := extcodesize(_addr) }
+        return size > 0;
+    }
+
+    require(
+        isContract(target),
+        "Address: target is not a contract"
+    );
+
+    (bool success, bytes memory returndata) = target.call{value: value}(data);
+    return verifyCallResult(success, returndata, errorMessage);
+}
+<CODE_ENDING>

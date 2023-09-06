@@ -1,0 +1,51 @@
+    function propose(address[] memory targets, uint[] memory values, string[] memory signatures, bytes[] memory calldatas, string memory description) public returns (uint) {
+        // Check if proposer has enough voting power
+        require(getCult.getPriorVotes(msg.sender, sub256(block.number, 1)) > proposalThreshold, "GovernorBravo::propose: proposer votes below proposal threshold");
+
+        // Check the number of targets and operations
+        require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length, "GovernorBravo::propose: proposal function information arity mismatch");
+        require(targets.length != 0, "GovernorBravo::propose: must provide actions");
+        require(targets.length <= proposalMaxOperations, "GovernorBravo::propose: too many actions");
+
+        // Set starting and ending block numbers for the proposal's voting
+        uint256 startBlock = add256(block.number, votingDelay);
+        uint256 endBlock = add256(startBlock, votingPeriod);
+
+        // Generate the new proposal's ID
+        uint256 proposalId = latestProposalIds[msg.sender] + 1;
+
+        // Store the proposal in proposals mapping with its ID
+        Proposal storage newProposal = proposals[proposalId];
+        newProposal.id = proposalId;
+        newProposal.proposer = msg.sender;
+        newProposal.startBlock = startBlock;
+        newProposal.endBlock = endBlock;
+        newProposal.forVotes = 0;
+        newProposal.againstVotes = 0;
+        newProposal.abstainVotes = 0;
+
+        // Store the actions for the new proposal
+        for (uint i = 0; i < targets.length; i++) {
+            _validateTargetAndSignature(targets[i], signatures[i], calldatas[i]);
+            
+            newProposal.targets.push(targets[i]);
+            newProposal.values.push(values[i]);
+            newProposal.signatures.push(signatures[i]);
+            newProposal.calldatas.push(calldatas[i]);
+        }
+        
+        // Update the proposer's latest proposal ID
+        latestProposalIds[msg.sender] = proposalId;
+
+        // Emit ProposalCreated event
+        emit ProposalCreated(proposalId, msg.sender, targets, values, signatures, calldatas, startBlock, endBlock, description, investeeDetails[nextInvestee]);
+
+        // Return the new proposal's ID
+        return proposalId;
+    }
+
+
+function _validateTargetAndSignature(address target, string memory signature, bytes memory calldata) internal pure {
+    // Here we can include any additional validations for the target, signature, and calldata
+    // For example, we could check for known malicious contract addresses, or certain with blacklisted functions
+}

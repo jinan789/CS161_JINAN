@@ -1,0 +1,4 @@
+The function signatures that have the most similar functionality to the given target function (repayBorrowFresh) are:
+
+1. function repayBorrowInternal(uint repayAmount) internal nonReentrant returns (uint, uint)
+2. function repayBorrowBehalfInternal(address borrower, uint repayAmount) internal nonReentrant returns (uint, uint)

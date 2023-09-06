@@ -1,0 +1,4 @@
+The two function signatures from the given list that would have the most similar functionality to the given target function are:
+
+1. function mulExp(uint a, uint b) pure internal returns (MathError, Exp memory)
+2. function mulExp3(Exp memory a, Exp memory b, Exp memory c) pure internal returns (MathError, Exp memory)

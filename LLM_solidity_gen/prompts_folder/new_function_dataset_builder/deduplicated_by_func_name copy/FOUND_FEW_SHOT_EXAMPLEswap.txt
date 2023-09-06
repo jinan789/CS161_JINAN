@@ -1,0 +1,31 @@
+The function signatures that have a most similar functionality to the given target function are:
+
+1. function _oneInchTrade(
+        address _srcToken,
+        uint256 _srcAmount,
+        address _destToken,
+        bytes memory _calldata
+    )
+        internal
+        returns (
+            uint256 _destPriceInSrc,
+            uint256 _srcPriceInDest,
+            uint256 _actualDestAmount,
+            uint256 _actualSrcAmount
+        )
+2. function swap(
+        address srcToken,
+        uint256 srcAmount,
+        uint256 minPrice,
+        uint256 maxPrice,
+        address destToken,
+        bytes memory oneInchData
+    )
+        public
+        onlyAdmin
+        returns (
+            uint256 actualDestAmount,
+            uint256 actualSrcAmount
+        )
+
+These two functions are the most similar to the target function since they both deal with trading tokens and have parameters related to source tokens, destination tokens, and amounts, as well as additional data for trading.

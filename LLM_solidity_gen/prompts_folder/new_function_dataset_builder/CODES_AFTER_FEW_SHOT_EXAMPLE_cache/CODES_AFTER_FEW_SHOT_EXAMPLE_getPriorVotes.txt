@@ -1,0 +1,40 @@
+TASK 1:
+1. The code seems to correctly implement the binary search algorithm and follows the few-shot examples in terms of structure and logic.
+2. No major issues or incorrect or inappropriate usage of contextual functions or contracts were detected.
+
+TASK 2:
+As mentioned in TASK 1, there were no major issues with your code, so no modifications are needed. However, I will still provide the same code with the <CODE_BEGINNING> and <CODE_ENDING> tokens as you requested.
+
+<CODE_BEGINNING>
+function getPriorVotes(address account, uint blockNumber) public view returns (uint96) {
+    require(blockNumber < block.number, "INV: blockNumber must be in the past");
+
+    // Most recent balance (last checkpoint)
+    uint32 nCheckpoints = numCheckpoints[account];
+    if (nCheckpoints == 0) {
+        return 0;
+    }
+
+    // Implicit zero balance (no checkpoint)
+    Checkpoint memory cp = checkpoints[account][nCheckpoints - 1];
+    if (cp.fromBlock <= blockNumber) {
+        return cp.votes;
+    }
+
+    // Perform binary search for the vote count at the specified block number
+    uint32 min = 0;
+    uint32 max = nCheckpoints - 1;
+    while (min < max) {
+        uint32 mid = (min + max + 1) / 2;
+        cp = checkpoints[account][mid];
+        if (cp.fromBlock <= blockNumber) {
+            min = mid;
+        } else {
+            max = mid - 1;
+        }
+    }
+    cp = checkpoints[account][min];
+
+    return cp.fromBlock <= blockNumber ? cp.votes : 0;
+}
+<CODE_ENDING>

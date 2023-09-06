@@ -1,0 +1,11 @@
+    function add256(uint256 a, uint256 b) internal pure returns (uint) {
+        uint c = a + b;
+        require(c >= a, "addition overflow");
+        return c;
+    }
+
+    function sub256(uint256 a, uint256 b) internal pure returns (uint) {
+        require(b <= a, "subtraction underflow");
+        return a - b;
+    }
+

@@ -1,0 +1,26 @@
+TASK 1:
+After analyzing the provided code snippet, no gas-wasting patterns are found. The function is well-optimized, and there are no obvious optimizations that could be performed.
+
+TASK 2:
+As there are no changes to be made, the provided code remains the same:
+
+<CODE_BEGINNING>
+function mulUInt(uint a, uint b) internal pure returns (MathError errorCode, uint result) {
+    // Check for overflow condition
+    if (a == 0) {
+        // If a is zero, the result is always zero, no overflow possible
+        return (MathError.NO_ERROR, 0);
+    }
+
+    // Calculate the multiplication result
+    uint256 c = a * b;
+
+    // Check if the division result is equal to the original value of a, if not, it's an overflow
+    if (c / a != b) {
+        return (MathError.INTEGER_OVERFLOW, 0);
+    }
+
+    // If operation was successful, return no error and the multiplication result
+    return (MathError.NO_ERROR, c);
+}
+<CODE_ENDING>

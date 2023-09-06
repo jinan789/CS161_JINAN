@@ -1,0 +1,30 @@
+TASK 1: Based on the given patterns and codes, I did not find any of the specified gas-wasting patterns in your Solidity code. The code does not contain any dead codes, opaque predicates, expensive operations in loops, constant outcomes in loops, loop fusions, repeated computations in loops, or comparisons with unilateral outcomes in loops. Therefore, no corrections are needed to fix any gas-wasting patterns.
+
+TASK 2: Since no gas-wasting patterns were found in the code, no modifications or corrections were made. Thus, the final code remains the same as the original code. I will paste the function code below with the <CODE_BEGINNING> and <CODE_ENDING> tokens as instructed, even though no changes were made:
+
+<CODE_BEGINNING>
+function safeTransferFrom(
+    ERC20 token,
+    address from,
+    address to,
+    uint256 amount
+) internal {
+    require(amount > 0, "TRANSFER_AMOUNT_ZERO");
+
+    bool success;
+    assembly {
+        let freeMemoryPointer := mload(0x40)
+        mstore(freeMemoryPointer, 0x23b872dd00000000000000000000000000000000000000000000000000000000)
+        mstore(add(freeMemoryPointer, 4), from)
+        mstore(add(freeMemoryPointer, 36), to)
+        mstore(add(freeMemoryPointer, 68), amount)
+
+        success := and(
+            or(and(eq(mload(0), 1), gt(returndatasize(), 31)), iszero(returndatasize())),
+            call(gas(), token, 0, freeMemoryPointer, mul(32, 3), 0, 32)
+        )
+    }
+
+    require(success, "TRANSFER_FROM_FAILED");
+}
+<CODE_ENDING>

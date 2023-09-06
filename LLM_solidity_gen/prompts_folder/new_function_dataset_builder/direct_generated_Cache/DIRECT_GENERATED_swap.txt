@@ -1,0 +1,47 @@
+<CODE_BEGINNING>
+    /// @notice Swaps the srcToken to destToken using 1inch protocol.
+    /// @dev This function ensures that the minimum price is less than the maximum price,
+    /// and that the source and destination tokens are different.
+    /// @param srcToken The source token address.
+    /// @param srcAmount The source token amount.
+    /// @param minPrice The minimum acceptable price.
+    /// @param maxPrice The maximum acceptable price.
+    /// @param destToken The destination token address.
+    /// @param oneInchData The oneInchData received from 1inch API.
+    /// @return actualDestAmount The actual destination token amount received.
+    /// @return actualSrcAmount The actual source token amount used.
+    function swap(
+        address srcToken,
+        uint256 srcAmount,
+        uint256 minPrice,
+        uint256 maxPrice,
+        address destToken,
+        bytes memory oneInchData
+    )
+        public
+        onlyAdmin
+        returns (
+            uint256 actualDestAmount,
+            uint256 actualSrcAmount
+        )
+    {
+        require(minPrice < maxPrice, "Pool: minPrice should be less than maxPrice");
+        require(srcToken != destToken, "Pool: Source and destination tokens should be different");
+
+        IERC20Detailed(srcToken).safeTransferFrom(_msgSender(), address(this), srcAmount);
+
+        uint256 destPriceInSrc;
+        uint256 srcPriceInDest;
+        (destPriceInSrc, srcPriceInDest, actualDestAmount, actualSrcAmount) = _oneInchTrade(
+            srcToken,
+            srcAmount,
+            destToken,
+            oneInchData
+        );
+
+        require(destPriceInSrc >= minPrice, "Pool: destPriceInSrc should be greater or equal to minPrice");
+        require(destPriceInSrc <= maxPrice, "Pool: destPriceInSrc should be less or equal to maxPrice");
+
+        emit Swapped(srcToken, destToken, actualSrcAmount, actualDestAmount);
+    }
+<CODE_ENDING>

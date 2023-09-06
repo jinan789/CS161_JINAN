@@ -1,0 +1,10 @@
+Function: _delegate
+
+Input:
+- delegator (address)
+- delegatee (address)
+
+Output:
+- DelegateChanged event
+
+Summary: This function reassigns the delegate of a delegator address to a new delegatee address. It also moves the delegate voting power based on the delegator's balance. An event is emitted to signal the change in delegates.

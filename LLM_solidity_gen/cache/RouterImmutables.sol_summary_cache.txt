@@ -1,0 +1,9 @@
+RouterImmutables.sol
+<START_FUNCTIONS>
+- constructor(RouterParameters memory params): Initializes the contract with router parameters including various platform addresses, factories, init code hashes, and distributors.
+- enum Spenders: Enum type that defines two supported spenders - OpenSea conduit (OSConduit) and Sudoswap.
+<END_FUNCTIONS>
+<START_CONTRACTS>
+Summary of the entire contract:
+The Router Immutable Storage contract is designed to store critical addresses and parameters required for a router to function in a decentralized ecosystem. It includes addresses for platforms like OpenSea, NFTX Zap, Foundation, Sudoswap, Element Market, NFT20 Zap, and Cryptopunks. It also stores Uniswap factory addresses, init code hashes, and rewards distributors. The contract provides an organized structure to easily manage all the required addresses and parameters in one place.
+<END_CONTRACTS>

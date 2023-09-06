@@ -1,0 +1,12 @@
+Function Name: seize
+
+Input:
+- address liquidator: Address of the liquidator.
+- address borrower: Address of the borrower.
+- uint seizeTokens: The number of tokens to be seized.
+
+Output:
+- uint: Returns a uint type value as the status code.
+
+Summary:
+The function seizes a number of tokens from the borrower and transfers them to the liquidator upon certain conditions (e.g. liquidation).

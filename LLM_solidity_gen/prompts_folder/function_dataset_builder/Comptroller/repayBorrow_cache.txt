@@ -1,0 +1,10 @@
+Function to summarize: repayBorrow
+
+Input:
+- uint repayAmount (the amount of token to be repaid)
+
+Output:
+- uint (return code indicating success/error)
+
+Summary:
+The function takes a repay amount as input and allows a user to repay their borrow. It updates the borrow balance, accrues interest, and ensures the repayment is done correctly and is allowed. The function returns a code indicating success or error situations.

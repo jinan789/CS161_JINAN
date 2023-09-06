@@ -1,0 +1,12 @@
+Function: borrowAllowed
+
+Input:
+- address cToken
+- address borrower
+- uint borrowAmount
+
+Output:
+- uint
+
+Summary:
+The borrowAllowed function takes in a cToken address, a borrower address, and a borrowing amount. It returns an unsigned integer value, representing whether the borrower is allowed to borrow the specified amount or not.

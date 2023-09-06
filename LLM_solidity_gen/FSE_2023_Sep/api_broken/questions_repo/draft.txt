@@ -1,0 +1,42 @@
+
+\item \textbf{3. State variable refactoring:} by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+
+
+
+\noindent \textbf{Pattern explanation.} By refactoring or reordering variables, we aim to arrange the memory or storage layout in a more efficient way. In particular, this pattern seeks to specifically rearrange the layout of the contract state variables in storage of a contract by changing the type of variables (e.g. uint256 to uint128), while ensuring that the changed variable type is still compatible with the task at hand.
+
+
+Layout of variables: https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#bytes-and-string
+"State variables of contracts are stored in storage in a compact way such that multiple values sometimes use the same storage slot."
+
+"The first item in a storage slot is stored lower-order aligned."
+
+Store rules: https://github.com/wolflo/evm-opcodes/blob/main/gas.md#a7-sstore
+
+Opcode sequence translation: Remix
+
+Note that this does not apply to constants since constant variables are replaced with their constant value at compilation times. https://ethereum.stackexchange.com/questions/140628/where-are-the-smart-contract-constants-stored
+
+Previous works []
+
+Due to the way Solidity has some int
+
+
+
+\noindent \textbf{Gas Consumption Analysis.}
+Note that the unoptimized codes have the following opcode sequence (with some details omitted):
+
+While the optimized codes have the following opcode sequence (with some details omitted):
+
+Even though they all involve 3 SSTORE operations (operations on storage such as SSTORE and SSLOAD are very expensive, while those on memory such as MSTORE and MLOAD are very cheap), while the optimized version saves a lot of gas. The reason is that the SSTORE operation employs a very complicated set of rules to compute the amount of consumed gas, which depends on the following factors [todo: cite] (to make the numbers more intuitive, the gas costs of a LT (less than) logical comparison is 3 gas, MOD is 5, MSTORE without memory expansion is 3, and a logical jump is 8 https://ethereum.org/en/developers/docs/evm/opcodes/):
+// todo: enumerate
+1. Code access is more expensive (extra 2100 gas) than dirty slots
+2. Storing the same value as the already stored one (i.e. no-op) costs extra 100 gas
+2. Storing non-zero variables 
+3. 
+
+
+
+
+
+

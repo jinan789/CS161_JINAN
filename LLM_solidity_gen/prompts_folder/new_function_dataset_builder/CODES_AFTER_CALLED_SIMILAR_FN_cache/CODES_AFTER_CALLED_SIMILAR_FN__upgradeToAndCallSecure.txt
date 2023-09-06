@@ -1,0 +1,28 @@
+TASK 1: Issue Finding
+
+1. Misused function:
+- You are using _upgradeTo function instead of _upgradeToAndCall function on line 9 in your code.
+- Fix: Change _upgradeTo(newImplementation) to _upgradeToAndCall(newImplementation, data, forceCall) to handle upgrade and delegate call properly, as given in the provided functions list.
+
+2. Unnecessary if condition:
+- Lines 12-13 have an if condition that checks data.length > 0 or forceCall, which is already handled in _upgradeToAndCall function.
+- Fix: Remove this if condition as it is redundant.
+
+TASK 2: Code Modification
+
+<CODE_BEGINNING>
+function _upgradeToAndCallSecure(
+    address newImplementation,
+    bytes memory data,
+    bool forceCall
+) internal {
+    // Step 1: Store the current implementation before upgrading
+    address currentImplementation = _getImplementation();
+
+    // CHANGES BASED ON CALLED CODE MADE: Replaced _upgradeTo with _upgradeToAndCall to handle delegate call properly
+    // Step 2: Upgrade to the new implementation and perform delegate call
+    _upgradeToAndCall(newImplementation, data, forceCall);
+
+    //CHANGES BASED ON CALLED CODE MADE: Removed unnecessary if condition for performing delegate call
+}
+<CODE_ENDING>

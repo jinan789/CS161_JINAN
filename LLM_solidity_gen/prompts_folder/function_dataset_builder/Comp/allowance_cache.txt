@@ -1,0 +1,7 @@
+Input: 
+- 2 address variables (account, spender)
+
+Output: 
+- 1 uint variable
+
+Summary: The function returns the number of tokens that the 'spender' is approved to spend on behalf of the 'account'.

@@ -1,0 +1,9 @@
+<CODE_BEGINNING>
+function transferFrom(address src, address dst, uint256 amount) external {
+    require(msg.sender == src, "Only the source address can call this function.");
+    uint256 srcBalance = balanceOf(src);
+    require(srcBalance >= amount, "Source address has insufficient balance.");
+
+    transfer(dst, amount);
+}
+<CODE_ENDING>

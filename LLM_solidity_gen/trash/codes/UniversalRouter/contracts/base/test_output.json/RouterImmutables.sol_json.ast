@@ -1,0 +1,3114 @@
+{
+  "absolutePath": "RouterImmutables.sol",
+  "exportedSymbols":
+  {
+    "ERC20":
+    [
+      736
+    ],
+    "IAllowanceTransfer":
+    [
+      1041
+    ],
+    "IWETH9":
+    [
+      839
+    ],
+    "RouterImmutables":
+    [
+      336
+    ],
+    "RouterParameters":
+    [
+      160
+    ]
+  },
+  "id": 337,
+  "license": "GPL-3.0-or-later",
+  "nodeType": "SourceUnit",
+  "nodes":
+  [
+    {
+      "id": 113,
+      "literals":
+      [
+        "solidity",
+        "^",
+        "0.8",
+        ".17"
+      ],
+      "nodeType": "PragmaDirective",
+      "src": "45:24:2"
+    },
+    {
+      "absolutePath": "permit2/src/interfaces/IAllowanceTransfer.sol",
+      "file": "permit2/src/interfaces/IAllowanceTransfer.sol",
+      "id": 115,
+      "nameLocation": "-1:-1:-1",
+      "nodeType": "ImportDirective",
+      "scope": 337,
+      "sourceUnit": 1042,
+      "src": "71:81:2",
+      "symbolAliases":
+      [
+        {
+          "foreign":
+          {
+            "id": 114,
+            "name": "IAllowanceTransfer",
+            "nodeType": "Identifier",
+            "overloadedDeclarations": [],
+            "referencedDeclaration": 1041,
+            "src": "79:18:2",
+            "typeDescriptions": {}
+          },
+          "nameLocation": "-1:-1:-1"
+        }
+      ],
+      "unitAlias": ""
+    },
+    {
+      "absolutePath": "solmate/src/tokens/ERC20.sol",
+      "file": "solmate/src/tokens/ERC20.sol",
+      "id": 117,
+      "nameLocation": "-1:-1:-1",
+      "nodeType": "ImportDirective",
+      "scope": 337,
+      "sourceUnit": 737,
+      "src": "153:51:2",
+      "symbolAliases":
+      [
+        {
+          "foreign":
+          {
+            "id": 116,
+            "name": "ERC20",
+            "nodeType": "Identifier",
+            "overloadedDeclarations": [],
+            "referencedDeclaration": 736,
+            "src": "161:5:2",
+            "typeDescriptions": {}
+          },
+          "nameLocation": "-1:-1:-1"
+        }
+      ],
+      "unitAlias": ""
+    },
+    {
+      "absolutePath": "interfaces/external/IWETH9.sol",
+      "file": "../interfaces/external/IWETH9.sol",
+      "id": 119,
+      "nameLocation": "-1:-1:-1",
+      "nodeType": "ImportDirective",
+      "scope": 337,
+      "sourceUnit": 840,
+      "src": "205:57:2",
+      "symbolAliases":
+      [
+        {
+          "foreign":
+          {
+            "id": 118,
+            "name": "IWETH9",
+            "nodeType": "Identifier",
+            "overloadedDeclarations": [],
+            "referencedDeclaration": 839,
+            "src": "213:6:2",
+            "typeDescriptions": {}
+          },
+          "nameLocation": "-1:-1:-1"
+        }
+      ],
+      "unitAlias": ""
+    },
+    {
+      "canonicalName": "RouterParameters",
+      "id": 160,
+      "members":
+      [
+        {
+          "constant": false,
+          "id": 121,
+          "mutability": "mutable",
+          "name": "permit2",
+          "nameLocation": "302:7:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "294:15:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 120,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "294:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 123,
+          "mutability": "mutable",
+          "name": "weth9",
+          "nameLocation": "323:5:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "315:13:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 122,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "315:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 125,
+          "mutability": "mutable",
+          "name": "seaportV1_5",
+          "nameLocation": "342:11:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "334:19:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 124,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "334:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 127,
+          "mutability": "mutable",
+          "name": "seaportV1_4",
+          "nameLocation": "367:11:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "359:19:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 126,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "359:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 129,
+          "mutability": "mutable",
+          "name": "openseaConduit",
+          "nameLocation": "392:14:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "384:22:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 128,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "384:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 131,
+          "mutability": "mutable",
+          "name": "nftxZap",
+          "nameLocation": "420:7:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "412:15:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 130,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "412:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 133,
+          "mutability": "mutable",
+          "name": "x2y2",
+          "nameLocation": "441:4:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "433:12:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 132,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "433:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 135,
+          "mutability": "mutable",
+          "name": "foundation",
+          "nameLocation": "459:10:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "451:18:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 134,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "451:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 137,
+          "mutability": "mutable",
+          "name": "sudoswap",
+          "nameLocation": "483:8:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "475:16:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 136,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "475:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 139,
+          "mutability": "mutable",
+          "name": "elementMarket",
+          "nameLocation": "505:13:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "497:21:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 138,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "497:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 141,
+          "mutability": "mutable",
+          "name": "nft20Zap",
+          "nameLocation": "532:8:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "524:16:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 140,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "524:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 143,
+          "mutability": "mutable",
+          "name": "cryptopunks",
+          "nameLocation": "554:11:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "546:19:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 142,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "546:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 145,
+          "mutability": "mutable",
+          "name": "looksRareV2",
+          "nameLocation": "579:11:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "571:19:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 144,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "571:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 147,
+          "mutability": "mutable",
+          "name": "routerRewardsDistributor",
+          "nameLocation": "604:24:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "596:32:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 146,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "596:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 149,
+          "mutability": "mutable",
+          "name": "looksRareRewardsDistributor",
+          "nameLocation": "642:27:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "634:35:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 148,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "634:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 151,
+          "mutability": "mutable",
+          "name": "looksRareToken",
+          "nameLocation": "683:14:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "675:22:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 150,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "675:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 153,
+          "mutability": "mutable",
+          "name": "v2Factory",
+          "nameLocation": "711:9:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "703:17:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 152,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "703:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 155,
+          "mutability": "mutable",
+          "name": "v3Factory",
+          "nameLocation": "734:9:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "726:17:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 154,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "726:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 157,
+          "mutability": "mutable",
+          "name": "pairInitCodeHash",
+          "nameLocation": "757:16:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "749:24:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_bytes32",
+            "typeString": "bytes32"
+          },
+          "typeName":
+          {
+            "id": 156,
+            "name": "bytes32",
+            "nodeType": "ElementaryTypeName",
+            "src": "749:7:2",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 159,
+          "mutability": "mutable",
+          "name": "poolInitCodeHash",
+          "nameLocation": "787:16:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 160,
+          "src": "779:24:2",
+          "stateVariable": false,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_bytes32",
+            "typeString": "bytes32"
+          },
+          "typeName":
+          {
+            "id": 158,
+            "name": "bytes32",
+            "nodeType": "ElementaryTypeName",
+            "src": "779:7:2",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            }
+          },
+          "visibility": "internal"
+        }
+      ],
+      "name": "RouterParameters",
+      "nameLocation": "271:16:2",
+      "nodeType": "StructDefinition",
+      "scope": 337,
+      "src": "264:542:2",
+      "visibility": "public"
+    },
+    {
+      "abstract": false,
+      "baseContracts": [],
+      "canonicalName": "RouterImmutables",
+      "contractDependencies": [],
+      "contractKind": "contract",
+      "documentation":
+      {
+        "id": 161,
+        "nodeType": "StructuredDocumentation",
+        "src": "808:138:2",
+        "text": "@title Router Immutable Storage contract\n @notice Used along with the `RouterParameters` struct for ease of cross-chain deployment"
+      },
+      "fullyImplemented": true,
+      "id": 336,
+      "linearizedBaseContracts":
+      [
+        336
+      ],
+      "name": "RouterImmutables",
+      "nameLocation": "955:16:2",
+      "nodeType": "ContractDefinition",
+      "nodes":
+      [
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 162,
+            "nodeType": "StructuredDocumentation",
+            "src": "978:22:2",
+            "text": "@dev WETH9 address"
+          },
+          "id": 165,
+          "mutability": "immutable",
+          "name": "WETH9",
+          "nameLocation": "1031:5:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "1005:31:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_contract$_IWETH9_$839",
+            "typeString": "contract IWETH9"
+          },
+          "typeName":
+          {
+            "id": 164,
+            "nodeType": "UserDefinedTypeName",
+            "pathNode":
+            {
+              "id": 163,
+              "name": "IWETH9",
+              "nameLocations":
+              [
+                "1005:6:2"
+              ],
+              "nodeType": "IdentifierPath",
+              "referencedDeclaration": 839,
+              "src": "1005:6:2"
+            },
+            "referencedDeclaration": 839,
+            "src": "1005:6:2",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_contract$_IWETH9_$839",
+              "typeString": "contract IWETH9"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 166,
+            "nodeType": "StructuredDocumentation",
+            "src": "1043:24:2",
+            "text": "@dev Permit2 address"
+          },
+          "id": 169,
+          "mutability": "immutable",
+          "name": "PERMIT2",
+          "nameLocation": "1110:7:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "1072:45:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_contract$_IAllowanceTransfer_$1041",
+            "typeString": "contract IAllowanceTransfer"
+          },
+          "typeName":
+          {
+            "id": 168,
+            "nodeType": "UserDefinedTypeName",
+            "pathNode":
+            {
+              "id": 167,
+              "name": "IAllowanceTransfer",
+              "nameLocations":
+              [
+                "1072:18:2"
+              ],
+              "nodeType": "IdentifierPath",
+              "referencedDeclaration": 1041,
+              "src": "1072:18:2"
+            },
+            "referencedDeclaration": 1041,
+            "src": "1072:18:2",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_contract$_IAllowanceTransfer_$1041",
+              "typeString": "contract IAllowanceTransfer"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 170,
+            "nodeType": "StructuredDocumentation",
+            "src": "1124:28:2",
+            "text": "@dev Seaport 1.5 address"
+          },
+          "id": 172,
+          "mutability": "immutable",
+          "name": "SEAPORT_V1_5",
+          "nameLocation": "1184:12:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "1157:39:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 171,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "1157:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 173,
+            "nodeType": "StructuredDocumentation",
+            "src": "1203:28:2",
+            "text": "@dev Seaport 1.4 address"
+          },
+          "id": 175,
+          "mutability": "immutable",
+          "name": "SEAPORT_V1_4",
+          "nameLocation": "1263:12:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "1236:39:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 174,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "1236:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 176,
+            "nodeType": "StructuredDocumentation",
+            "src": "1282:82:2",
+            "text": "@dev The address of OpenSea's conduit used in both Seaport 1.4 and Seaport 1.5"
+          },
+          "id": 178,
+          "mutability": "immutable",
+          "name": "OPENSEA_CONDUIT",
+          "nameLocation": "1396:15:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "1369:42:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 177,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "1369:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 179,
+            "nodeType": "StructuredDocumentation",
+            "src": "1418:69:2",
+            "text": "@dev The address of NFTX zap contract for interfacing with vaults"
+          },
+          "id": 181,
+          "mutability": "immutable",
+          "name": "NFTX_ZAP",
+          "nameLocation": "1519:8:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "1492:35:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 180,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "1492:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 182,
+            "nodeType": "StructuredDocumentation",
+            "src": "1534:28:2",
+            "text": "@dev The address of X2Y2"
+          },
+          "id": 184,
+          "mutability": "immutable",
+          "name": "X2Y2",
+          "nameLocation": "1594:4:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "1567:31:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 183,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "1567:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 186,
+          "mutability": "immutable",
+          "name": "FOUNDATION",
+          "nameLocation": "1670:10:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "1643:37:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 185,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "1643:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 188,
+          "mutability": "immutable",
+          "name": "SUDOSWAP",
+          "nameLocation": "1759:8:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "1732:35:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 187,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "1732:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 190,
+          "mutability": "immutable",
+          "name": "ELEMENT_MARKET",
+          "nameLocation": "1843:14:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "1816:41:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 189,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "1816:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 192,
+          "mutability": "immutable",
+          "name": "NFT20_ZAP",
+          "nameLocation": "1939:9:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "1912:36:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 191,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "1912:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "id": 194,
+          "mutability": "immutable",
+          "name": "CRYPTOPUNKS",
+          "nameLocation": "2045:11:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "2018:38:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 193,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "2018:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 195,
+            "nodeType": "StructuredDocumentation",
+            "src": "2063:35:2",
+            "text": "@dev The address of LooksRareV2"
+          },
+          "id": 197,
+          "mutability": "immutable",
+          "name": "LOOKS_RARE_V2",
+          "nameLocation": "2130:13:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "2103:40:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 196,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "2103:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 198,
+            "nodeType": "StructuredDocumentation",
+            "src": "2150:39:2",
+            "text": "@dev The address of LooksRare token"
+          },
+          "id": 201,
+          "mutability": "immutable",
+          "name": "LOOKS_RARE_TOKEN",
+          "nameLocation": "2219:16:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "2194:41:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_contract$_ERC20_$736",
+            "typeString": "contract ERC20"
+          },
+          "typeName":
+          {
+            "id": 200,
+            "nodeType": "UserDefinedTypeName",
+            "pathNode":
+            {
+              "id": 199,
+              "name": "ERC20",
+              "nameLocations":
+              [
+                "2194:5:2"
+              ],
+              "nodeType": "IdentifierPath",
+              "referencedDeclaration": 736,
+              "src": "2194:5:2"
+            },
+            "referencedDeclaration": 736,
+            "src": "2194:5:2",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_contract$_ERC20_$736",
+              "typeString": "contract ERC20"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 202,
+            "nodeType": "StructuredDocumentation",
+            "src": "2242:53:2",
+            "text": "@dev The address of LooksRare rewards distributor"
+          },
+          "id": 204,
+          "mutability": "immutable",
+          "name": "LOOKS_RARE_REWARDS_DISTRIBUTOR",
+          "nameLocation": "2327:30:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "2300:57:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 203,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "2300:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 205,
+            "nodeType": "StructuredDocumentation",
+            "src": "2364:50:2",
+            "text": "@dev The address of router rewards distributor"
+          },
+          "id": 207,
+          "mutability": "immutable",
+          "name": "ROUTER_REWARDS_DISTRIBUTOR",
+          "nameLocation": "2446:26:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "2419:53:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 206,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "2419:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 208,
+            "nodeType": "StructuredDocumentation",
+            "src": "2479:40:2",
+            "text": "@dev The address of UniswapV2Factory"
+          },
+          "id": 210,
+          "mutability": "immutable",
+          "name": "UNISWAP_V2_FACTORY",
+          "nameLocation": "2551:18:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "2524:45:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 209,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "2524:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 211,
+            "nodeType": "StructuredDocumentation",
+            "src": "2576:39:2",
+            "text": "@dev The UniswapV2Pair initcodehash"
+          },
+          "id": 213,
+          "mutability": "immutable",
+          "name": "UNISWAP_V2_PAIR_INIT_CODE_HASH",
+          "nameLocation": "2647:30:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "2620:57:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_bytes32",
+            "typeString": "bytes32"
+          },
+          "typeName":
+          {
+            "id": 212,
+            "name": "bytes32",
+            "nodeType": "ElementaryTypeName",
+            "src": "2620:7:2",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 214,
+            "nodeType": "StructuredDocumentation",
+            "src": "2684:40:2",
+            "text": "@dev The address of UniswapV3Factory"
+          },
+          "id": 216,
+          "mutability": "immutable",
+          "name": "UNISWAP_V3_FACTORY",
+          "nameLocation": "2756:18:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "2729:45:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_address",
+            "typeString": "address"
+          },
+          "typeName":
+          {
+            "id": 215,
+            "name": "address",
+            "nodeType": "ElementaryTypeName",
+            "src": "2729:7:2",
+            "stateMutability": "nonpayable",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_address",
+              "typeString": "address"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "constant": false,
+          "documentation":
+          {
+            "id": 217,
+            "nodeType": "StructuredDocumentation",
+            "src": "2781:39:2",
+            "text": "@dev The UniswapV3Pool initcodehash"
+          },
+          "id": 219,
+          "mutability": "immutable",
+          "name": "UNISWAP_V3_POOL_INIT_CODE_HASH",
+          "nameLocation": "2852:30:2",
+          "nodeType": "VariableDeclaration",
+          "scope": 336,
+          "src": "2825:57:2",
+          "stateVariable": true,
+          "storageLocation": "default",
+          "typeDescriptions":
+          {
+            "typeIdentifier": "t_bytes32",
+            "typeString": "bytes32"
+          },
+          "typeName":
+          {
+            "id": 218,
+            "name": "bytes32",
+            "nodeType": "ElementaryTypeName",
+            "src": "2825:7:2",
+            "typeDescriptions":
+            {
+              "typeIdentifier": "t_bytes32",
+              "typeString": "bytes32"
+            }
+          },
+          "visibility": "internal"
+        },
+        {
+          "canonicalName": "RouterImmutables.Spenders",
+          "id": 222,
+          "members":
+          [
+            {
+              "id": 220,
+              "name": "OSConduit",
+              "nameLocation": "2913:9:2",
+              "nodeType": "EnumValue",
+              "src": "2913:9:2"
+            },
+            {
+              "id": 221,
+              "name": "Sudoswap",
+              "nameLocation": "2932:8:2",
+              "nodeType": "EnumValue",
+              "src": "2932:8:2"
+            }
+          ],
+          "name": "Spenders",
+          "nameLocation": "2894:8:2",
+          "nodeType": "EnumDefinition",
+          "src": "2889:57:2"
+        },
+        {
+          "body":
+          {
+            "id": 334,
+            "nodeType": "Block",
+            "src": "2996:973:2",
+            "statements":
+            [
+              {
+                "expression":
+                {
+                  "id": 233,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 228,
+                    "name": "PERMIT2",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 169,
+                    "src": "3006:7:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_contract$_IAllowanceTransfer_$1041",
+                      "typeString": "contract IAllowanceTransfer"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "arguments":
+                    [
+                      {
+                        "expression":
+                        {
+                          "id": 230,
+                          "name": "params",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 225,
+                          "src": "3035:6:2",
+                          "typeDescriptions":
+                          {
+                            "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                            "typeString": "struct RouterParameters memory"
+                          }
+                        },
+                        "id": 231,
+                        "isConstant": false,
+                        "isLValue": true,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "memberLocation": "3042:7:2",
+                        "memberName": "permit2",
+                        "nodeType": "MemberAccess",
+                        "referencedDeclaration": 121,
+                        "src": "3035:14:2",
+                        "typeDescriptions":
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression":
+                    {
+                      "argumentTypes":
+                      [
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "id": 229,
+                      "name": "IAllowanceTransfer",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 1041,
+                      "src": "3016:18:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_type$_t_contract$_IAllowanceTransfer_$1041_$",
+                        "typeString": "type(contract IAllowanceTransfer)"
+                      }
+                    },
+                    "id": 232,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "typeConversion",
+                    "lValueRequested": false,
+                    "nameLocations": [],
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "3016:34:2",
+                    "tryCall": false,
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_contract$_IAllowanceTransfer_$1041",
+                      "typeString": "contract IAllowanceTransfer"
+                    }
+                  },
+                  "src": "3006:44:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_contract$_IAllowanceTransfer_$1041",
+                    "typeString": "contract IAllowanceTransfer"
+                  }
+                },
+                "id": 234,
+                "nodeType": "ExpressionStatement",
+                "src": "3006:44:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 240,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 235,
+                    "name": "WETH9",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 165,
+                    "src": "3060:5:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_contract$_IWETH9_$839",
+                      "typeString": "contract IWETH9"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "arguments":
+                    [
+                      {
+                        "expression":
+                        {
+                          "id": 237,
+                          "name": "params",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 225,
+                          "src": "3075:6:2",
+                          "typeDescriptions":
+                          {
+                            "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                            "typeString": "struct RouterParameters memory"
+                          }
+                        },
+                        "id": 238,
+                        "isConstant": false,
+                        "isLValue": true,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "memberLocation": "3082:5:2",
+                        "memberName": "weth9",
+                        "nodeType": "MemberAccess",
+                        "referencedDeclaration": 123,
+                        "src": "3075:12:2",
+                        "typeDescriptions":
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression":
+                    {
+                      "argumentTypes":
+                      [
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "id": 236,
+                      "name": "IWETH9",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 839,
+                      "src": "3068:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_type$_t_contract$_IWETH9_$839_$",
+                        "typeString": "type(contract IWETH9)"
+                      }
+                    },
+                    "id": 239,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "typeConversion",
+                    "lValueRequested": false,
+                    "nameLocations": [],
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "3068:20:2",
+                    "tryCall": false,
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_contract$_IWETH9_$839",
+                      "typeString": "contract IWETH9"
+                    }
+                  },
+                  "src": "3060:28:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_contract$_IWETH9_$839",
+                    "typeString": "contract IWETH9"
+                  }
+                },
+                "id": 241,
+                "nodeType": "ExpressionStatement",
+                "src": "3060:28:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 245,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 242,
+                    "name": "SEAPORT_V1_5",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 172,
+                    "src": "3098:12:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 243,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3113:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 244,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3120:11:2",
+                    "memberName": "seaportV1_5",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 125,
+                    "src": "3113:18:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3098:33:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 246,
+                "nodeType": "ExpressionStatement",
+                "src": "3098:33:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 250,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 247,
+                    "name": "SEAPORT_V1_4",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 175,
+                    "src": "3141:12:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 248,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3156:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 249,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3163:11:2",
+                    "memberName": "seaportV1_4",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 127,
+                    "src": "3156:18:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3141:33:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 251,
+                "nodeType": "ExpressionStatement",
+                "src": "3141:33:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 255,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 252,
+                    "name": "OPENSEA_CONDUIT",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 178,
+                    "src": "3184:15:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 253,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3202:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 254,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3209:14:2",
+                    "memberName": "openseaConduit",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 129,
+                    "src": "3202:21:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3184:39:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 256,
+                "nodeType": "ExpressionStatement",
+                "src": "3184:39:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 260,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 257,
+                    "name": "NFTX_ZAP",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 181,
+                    "src": "3233:8:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 258,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3244:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 259,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3251:7:2",
+                    "memberName": "nftxZap",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 131,
+                    "src": "3244:14:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3233:25:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 261,
+                "nodeType": "ExpressionStatement",
+                "src": "3233:25:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 265,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 262,
+                    "name": "X2Y2",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 184,
+                    "src": "3268:4:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 263,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3275:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 264,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3282:4:2",
+                    "memberName": "x2y2",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 133,
+                    "src": "3275:11:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3268:18:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 266,
+                "nodeType": "ExpressionStatement",
+                "src": "3268:18:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 270,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 267,
+                    "name": "FOUNDATION",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 186,
+                    "src": "3296:10:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 268,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3309:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 269,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3316:10:2",
+                    "memberName": "foundation",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 135,
+                    "src": "3309:17:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3296:30:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 271,
+                "nodeType": "ExpressionStatement",
+                "src": "3296:30:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 275,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 272,
+                    "name": "SUDOSWAP",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 188,
+                    "src": "3336:8:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 273,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3347:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 274,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3354:8:2",
+                    "memberName": "sudoswap",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 137,
+                    "src": "3347:15:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3336:26:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 276,
+                "nodeType": "ExpressionStatement",
+                "src": "3336:26:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 280,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 277,
+                    "name": "ELEMENT_MARKET",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 190,
+                    "src": "3372:14:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 278,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3389:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 279,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3396:13:2",
+                    "memberName": "elementMarket",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 139,
+                    "src": "3389:20:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3372:37:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 281,
+                "nodeType": "ExpressionStatement",
+                "src": "3372:37:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 285,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 282,
+                    "name": "NFT20_ZAP",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 192,
+                    "src": "3419:9:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 283,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3431:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 284,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3438:8:2",
+                    "memberName": "nft20Zap",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 141,
+                    "src": "3431:15:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3419:27:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 286,
+                "nodeType": "ExpressionStatement",
+                "src": "3419:27:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 290,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 287,
+                    "name": "CRYPTOPUNKS",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 194,
+                    "src": "3456:11:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 288,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3470:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 289,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3477:11:2",
+                    "memberName": "cryptopunks",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 143,
+                    "src": "3470:18:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3456:32:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 291,
+                "nodeType": "ExpressionStatement",
+                "src": "3456:32:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 295,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 292,
+                    "name": "LOOKS_RARE_V2",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 197,
+                    "src": "3498:13:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 293,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3514:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 294,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3521:11:2",
+                    "memberName": "looksRareV2",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 145,
+                    "src": "3514:18:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3498:34:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 296,
+                "nodeType": "ExpressionStatement",
+                "src": "3498:34:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 302,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 297,
+                    "name": "LOOKS_RARE_TOKEN",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 201,
+                    "src": "3542:16:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_contract$_ERC20_$736",
+                      "typeString": "contract ERC20"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "arguments":
+                    [
+                      {
+                        "expression":
+                        {
+                          "id": 299,
+                          "name": "params",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 225,
+                          "src": "3567:6:2",
+                          "typeDescriptions":
+                          {
+                            "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                            "typeString": "struct RouterParameters memory"
+                          }
+                        },
+                        "id": 300,
+                        "isConstant": false,
+                        "isLValue": true,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "memberLocation": "3574:14:2",
+                        "memberName": "looksRareToken",
+                        "nodeType": "MemberAccess",
+                        "referencedDeclaration": 151,
+                        "src": "3567:21:2",
+                        "typeDescriptions":
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      }
+                    ],
+                    "expression":
+                    {
+                      "argumentTypes":
+                      [
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      ],
+                      "id": 298,
+                      "name": "ERC20",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 736,
+                      "src": "3561:5:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_type$_t_contract$_ERC20_$736_$",
+                        "typeString": "type(contract ERC20)"
+                      }
+                    },
+                    "id": 301,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "typeConversion",
+                    "lValueRequested": false,
+                    "nameLocations": [],
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "3561:28:2",
+                    "tryCall": false,
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_contract$_ERC20_$736",
+                      "typeString": "contract ERC20"
+                    }
+                  },
+                  "src": "3542:47:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_contract$_ERC20_$736",
+                    "typeString": "contract ERC20"
+                  }
+                },
+                "id": 303,
+                "nodeType": "ExpressionStatement",
+                "src": "3542:47:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 307,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 304,
+                    "name": "LOOKS_RARE_REWARDS_DISTRIBUTOR",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 204,
+                    "src": "3599:30:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 305,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3632:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 306,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3639:27:2",
+                    "memberName": "looksRareRewardsDistributor",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 149,
+                    "src": "3632:34:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3599:67:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 308,
+                "nodeType": "ExpressionStatement",
+                "src": "3599:67:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 312,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 309,
+                    "name": "ROUTER_REWARDS_DISTRIBUTOR",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 207,
+                    "src": "3676:26:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 310,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3705:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 311,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3712:24:2",
+                    "memberName": "routerRewardsDistributor",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 147,
+                    "src": "3705:31:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3676:60:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 313,
+                "nodeType": "ExpressionStatement",
+                "src": "3676:60:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 317,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 314,
+                    "name": "UNISWAP_V2_FACTORY",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 210,
+                    "src": "3746:18:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 315,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3767:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 316,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3774:9:2",
+                    "memberName": "v2Factory",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 153,
+                    "src": "3767:16:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3746:37:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 318,
+                "nodeType": "ExpressionStatement",
+                "src": "3746:37:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 322,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 319,
+                    "name": "UNISWAP_V2_PAIR_INIT_CODE_HASH",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 213,
+                    "src": "3793:30:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 320,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3826:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 321,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3833:16:2",
+                    "memberName": "pairInitCodeHash",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 157,
+                    "src": "3826:23:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "src": "3793:56:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "id": 323,
+                "nodeType": "ExpressionStatement",
+                "src": "3793:56:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 327,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 324,
+                    "name": "UNISWAP_V3_FACTORY",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 216,
+                    "src": "3859:18:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 325,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3880:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 326,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3887:9:2",
+                    "memberName": "v3Factory",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 155,
+                    "src": "3880:16:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "src": "3859:37:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  }
+                },
+                "id": 328,
+                "nodeType": "ExpressionStatement",
+                "src": "3859:37:2"
+              },
+              {
+                "expression":
+                {
+                  "id": 332,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "lValueRequested": false,
+                  "leftHandSide":
+                  {
+                    "id": 329,
+                    "name": "UNISWAP_V3_POOL_INIT_CODE_HASH",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 219,
+                    "src": "3906:30:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "nodeType": "Assignment",
+                  "operator": "=",
+                  "rightHandSide":
+                  {
+                    "expression":
+                    {
+                      "id": 330,
+                      "name": "params",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 225,
+                      "src": "3939:6:2",
+                      "typeDescriptions":
+                      {
+                        "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                        "typeString": "struct RouterParameters memory"
+                      }
+                    },
+                    "id": 331,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "3946:16:2",
+                    "memberName": "poolInitCodeHash",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 159,
+                    "src": "3939:23:2",
+                    "typeDescriptions":
+                    {
+                      "typeIdentifier": "t_bytes32",
+                      "typeString": "bytes32"
+                    }
+                  },
+                  "src": "3906:56:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "id": 333,
+                "nodeType": "ExpressionStatement",
+                "src": "3906:56:2"
+              }
+            ]
+          },
+          "id": 335,
+          "implemented": true,
+          "kind": "constructor",
+          "modifiers": [],
+          "name": "",
+          "nameLocation": "-1:-1:-1",
+          "nodeType": "FunctionDefinition",
+          "parameters":
+          {
+            "id": 226,
+            "nodeType": "ParameterList",
+            "parameters":
+            [
+              {
+                "constant": false,
+                "id": 225,
+                "mutability": "mutable",
+                "name": "params",
+                "nameLocation": "2988:6:2",
+                "nodeType": "VariableDeclaration",
+                "scope": 335,
+                "src": "2964:30:2",
+                "stateVariable": false,
+                "storageLocation": "memory",
+                "typeDescriptions":
+                {
+                  "typeIdentifier": "t_struct$_RouterParameters_$160_memory_ptr",
+                  "typeString": "struct RouterParameters"
+                },
+                "typeName":
+                {
+                  "id": 224,
+                  "nodeType": "UserDefinedTypeName",
+                  "pathNode":
+                  {
+                    "id": 223,
+                    "name": "RouterParameters",
+                    "nameLocations":
+                    [
+                      "2964:16:2"
+                    ],
+                    "nodeType": "IdentifierPath",
+                    "referencedDeclaration": 160,
+                    "src": "2964:16:2"
+                  },
+                  "referencedDeclaration": 160,
+                  "src": "2964:16:2",
+                  "typeDescriptions":
+                  {
+                    "typeIdentifier": "t_struct$_RouterParameters_$160_storage_ptr",
+                    "typeString": "struct RouterParameters"
+                  }
+                },
+                "visibility": "internal"
+              }
+            ],
+            "src": "2963:32:2"
+          },
+          "returnParameters":
+          {
+            "id": 227,
+            "nodeType": "ParameterList",
+            "parameters": [],
+            "src": "2996:0:2"
+          },
+          "scope": 336,
+          "src": "2952:1017:2",
+          "stateMutability": "nonpayable",
+          "virtual": false,
+          "visibility": "public"
+        }
+      ],
+      "scope": 337,
+      "src": "946:3025:2",
+      "usedErrors": []
+    }
+  ],
+  "src": "45:3927:2"
+}

@@ -1,0 +1,27 @@
+TASK 1: Step-by-step plan to perform the functionality described in the provided summaries under the context of the contract from Information 1:
+
+1. Check if the repayment is allowed by the Comptroller using `comptroller.repayBorrowAllowed()` function. If not allowed, return a failure with a specific error code.
+2. Ensuring the market's block number is up to date by calling the `accrueInterest()` function.
+3. Fetch the borrower's outstanding borrow balance and accumulated interest by calling `borrowBalanceStoredInternal()` function.
+4. Calculate the actual repayment amount (if `repayAmount` is equal to `uint(-1)`, set the `actualRepayAmount` to the full `accountBorrowsNew`, otherwise set the `actualRepayAmount` to the given `repayAmount`).
+5. Ensure the actual repayment amount is less than or equal to the borrower's outstanding borrow balance. If not, return a specific error.
+6. Perform the token transfer from the payer to the contract by calling `doTransferIn()` function.
+7. Update the borrower's principal and the overall borrow amount by subtracting the actual repayment amount from both values.
+8. Store the updated borrower's principal balance in accountBorrows mapping.
+9. Emit a RepayBorrow event.
+
+Considering the steps in TASK 1, your code seems to be complete and in the correct order. However, I noticed one small mistake in your code that needs to be corrected. In this section of the code:
+
+```
+// Store the updated borrower's principal balance
+accountBorrows[borrower] = accountBorrowsNew;
+```
+
+`accountBorrows` should be `accountBorrowsMap` if you have a mapping to store borrowers' principal balances. Here's the corrected line:
+
+```solidity
+// Store the updated borrower's principal balance
+accountBorrowsMap[borrower] = accountBorrowsNew;
+```
+
+Once you make this change, your code should work correctly as per the provided instructions.

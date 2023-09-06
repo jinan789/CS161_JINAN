@@ -1,0 +1,27 @@
+
+The function that I want you to summarize is transfer, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signature, with the purpose of providing richer background information for you. The codes are: 
+pragma solidity ^0.5.16;
+
+/**
+ * @title ERC 20 Token Standard Interface
+ *  https://eips.ethereum.org/EIPS/eip-20
+ */
+interface EIP20Interface {
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function decimals() external view returns (uint8);
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address owner) external view returns (uint256 balance);
+    function transfer(address dst, uint256 amount) external returns (bool success);
+
+    /**
+      * @notice Transfer `amount` tokens from `src` to `dst`
+      * @param src The address of the source account
+      * @param dst The address of the destination account
+      * @param amount The number of tokens to transfer
+      * @return Whether or not the transfer succeeded
+      */
+    function transferFrom(address src, address dst, uint256 amount) external returns (bool success);
+    function approve(address spender, uint256 amount) external returns (bool success);
+    function allowance(address owner, address spender) external view returns (uint256 remaining);
+}

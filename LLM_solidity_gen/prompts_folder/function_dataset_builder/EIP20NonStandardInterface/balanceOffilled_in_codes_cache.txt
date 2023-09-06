@@ -1,0 +1,13 @@
+<CODE_BEGINNING>
+
+/**
+ * @notice Get the balance of the specified address
+ * @param owner The address to query the balance of
+ * @return balance The balance of the specified address
+ */
+function balanceOf(address owner) external view returns (uint256 balance) {
+    require(owner != address(0), "Invalid address");
+    return balances[owner];
+}
+
+<CODE_ENDING>

@@ -1,0 +1,8 @@
+Function: transfer
+Input:
+- address dst (destination address)
+- uint256 amount (amount of tokens to transfer)
+
+Output: bool (whether the transfer was successful or not)
+
+Summary: The transfer function allows the sender to transfer a specified amount of tokens to a given destination address.

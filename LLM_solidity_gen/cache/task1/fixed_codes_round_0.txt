@@ -1,0 +1,55 @@
+Based on the feedback provided, I have updated the Solidity function to improve readability, maintainability, and overall code structure:
+
+```solidity
+pragma solidity ^0.6.0;
+
+import "./ComptrollerInterface.sol";
+import "./ErrorReporter.sol";
+
+contract Liquidation is ComptrollerErrorReporter {
+    ComptrollerInterface public comptroller;
+
+    constructor(address comptrollerAddress) public {
+        comptroller = ComptrollerInterface(comptrollerAddress);
+    }
+
+    function liquidateBorrowAllowed(
+        address cTokenBorrowed,
+        address cTokenCollateral,
+        address liquidator,
+        address borrower,
+        uint repayAmount
+    ) external returns (uint) {
+        // Check if both the cTokenBorrowed and cTokenCollateral markets are listed
+        (bool isBorrowedMarketListed, bool isCollateralMarketListed) = _areBothMarketsListed(cTokenBorrowed, cTokenCollateral);
+        
+        if (!isBorrowedMarketListed || !isCollateralMarketListed) {
+            return fail(Error.MARKET_NOT_LISTED, FailureInfo.LIQUIDATE_BORROW_ALLOWED_MARKET_NOT_LISTED);
+        }
+
+        // Calculate seize tokens
+        (uint seizeTokens, uint seizeCollateralTokens) = _calculateSeizeTokens(cTokenBorrowed, cTokenCollateral, repayAmount);
+
+        // Check if liquidation is valid and allowed
+        if (_areSeizeTokensInvalid(seizeTokens, seizeCollateralTokens)) {
+            return fail(Error.INVALID_ACCOUNT_PAIR, FailureInfo.LIQUIDATE_BORROW_ALLOWED_INVALID_ACCOUNT_PAIR);
+        }
+
+        return uint(Error.NO_ERROR);
+    }
+
+    function _areBothMarketsListed(address cTokenBorrowed, address cTokenCollateral) internal view returns (bool, bool) {
+        return comptroller.checkMarketsListed(cTokenBorrowed, cTokenCollateral);
+    }
+
+    function _calculateSeizeTokens(address cTokenBorrowed, address cTokenCollateral, uint repayAmount) internal view returns (uint, uint) {
+        return comptroller.liquidateCalculateSeizeTokens(cTokenBorrowed, cTokenCollateral, repayAmount);
+    }
+
+    function _areSeizeTokensInvalid(uint seizeTokens, uint seizeCollateralTokens) internal pure returns (bool) {
+        return seizeTokens == 0 || seizeCollateralTokens == 0;
+    }
+}
+```
+
+This new version has abstracted helper functions to improve readability and follows the best practice of using internal functions when possible. The function parameters are broken into multiple lines for better readability.

@@ -1,0 +1,12 @@
+Function: liquidateBorrow
+
+Inputs:
+1. address borrower
+2. uint repayAmount
+3. CTokenInterface cTokenCollateral
+
+Output:
+1. uint
+
+Summary: 
+This function allows a user to liquidate a borrower's under-collateralized debt. It takes the borrower's address, the amount to be repaid, and the collateral token as inputs, and returns a uint value after the liquidation process.

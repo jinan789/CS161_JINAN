@@ -1,0 +1,16 @@
+<CODE_BEGINNING>
+/**
+ * @notice Computes the balance of the owner's underlying tokens
+ * @param owner The address of the owner
+ * @return uint The calculated balance of owner's underlying tokens
+ */
+function balanceOfUnderlying(address owner) external returns (uint) {
+    (, uint accountTokens, , ) = getAccountSnapshot(owner);
+    uint exchangeRate = exchangeRateCurrent();
+    MathError mathErr;
+    uint underlyingBalance;
+    (mathErr, underlyingBalance) = mulScalarTruncate(Exp({mantissa: exchangeRate}), accountTokens);
+    require(mathErr == MathError.NO_ERROR, "Underlying balance calculation failed");
+    return underlyingBalance;
+}
+<CODE_ENDING>

@@ -1,0 +1,4 @@
+Input: 1 variable - address owner (address)
+Output: 1 variable - uint256 (balance)
+
+The function "balanceOf" returns the balance of a given account. It takes an account address as input and returns the corresponding token balance for that account as a uint256 value.

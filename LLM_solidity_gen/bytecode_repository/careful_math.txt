@@ -1,0 +1,49 @@
+[0] DUP1
+[2] PUSH1 0x40
+[3] MSTORE
+[4] CALLVALUE
+[5] DUP1
+[6] ISZERO
+[8] PUSH1 0x0f
+[9] JUMPI
+[11] PUSH1 0x00
+[12] DUP1
+[13] REVERT
+[14] JUMPDEST
+[15] POP
+[17] PUSH1 0x3e
+[18] DUP1
+[20] PUSH1 0x1d
+[22] PUSH1 0x00
+[23] CODECOPY
+[25] PUSH1 0x00
+[26] RETURN
+[27] 'fe'(Unknown Opcode)
+[29] PUSH1 0x80
+[31] PUSH1 0x40
+[32] MSTORE
+[34] PUSH1 0x00
+[35] DUP1
+[36] REVERT
+[37] 'fe'(Unknown Opcode)
+[38] LOG2
+[45] PUSH6 0x627a7a723158
+[46] SHA3
+[49] PUSH2 0xed57
+[50] SHL
+[51] SWAP2
+[52] '1e'(Unknown Opcode)
+[53] 'b4'(Unknown Opcode)
+[54] ADDMOD
+[55] 'ba'(Unknown Opcode)
+[56] 'a9'(Unknown Opcode)
+[57] 'de'(Unknown Opcode)
+[58] GASLIMIT
+[64] PUSH5 0x5481734905
+[65] '0e'(Unknown Opcode)
+[66] SWAP10
+[67] MULMOD
+[68] '4e'(Unknown Opcode)
+[69] 'ac'(Unknown Opcode)
+[70] OR
+[71] SWAP6

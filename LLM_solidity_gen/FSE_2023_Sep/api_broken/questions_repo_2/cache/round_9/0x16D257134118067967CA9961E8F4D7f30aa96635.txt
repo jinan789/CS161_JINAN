@@ -1,0 +1,290 @@
+I want you to help me find new gas-wasting patterns for Solidity. Gas is a unique pricing mechanism in Solidity, which measures the amount of computational resources put into the execution of Solidity codes. The goal of gas optimization is to find an equivalent code instruction sequence that produces the same output while consuming less gas, which may misalign from the way people typically write codes, since code writers aim for readability and maintainability, while gas optimization might seem a little unintuitive to newcomers. For example, storage variables in Solidity are expensive in terms of gas, while memory is not, so storage operations should be avoided whenever possible. Gas is paid in real money, so saving gas is saving money.
+
+First, I will give you a list of known gas-wasting patterns. The list is numbered, with each bullet point specifying one gas-wasting pattern, which is followed by an explanation of why this pattern wastes gas. I want you to read through these and learn how to find new gas-wasting patterns from it. The list is as follows:
+
+1. Repeated computation of the same expression: including repetitive reads of the same expensive storage variable (e.g. Overuse of expensive storage variables). This could be solved by introducing an intermediate variable to hold the value.
+ 
+2. Extractable code chunks: if there are multiple chunks of codes that perform the same/similar functionalities, then we could abstract them into one function (or modifier) to save deployment costs 
+
+3. Variable refactoring: by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+
+4. Redundant operations with same effects: redundant operations that overwrite the effect of the previous operation, making the previous useless
+
+5. Pre-computable operations on constants: performing comparisons (or say other operations) to constants is useless and could be pre-computed
+
+6. Persistent conditional checks: some of the condition checks may always evaluate to true or always evaluate to false, which could be directly replaced by their evaluated values
+
+7. Simplifiable conditional operations: expressions that involve logical operations that could be simplified to reduce the amount of computational workload.
+
+8. "dead codes." codes that are guaranteed not to be executed (e.g. unreachable conditional branch) should be removed.
+9. "Opaque predicate." If the outcome of a predicate could be inferred to be true/false without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+10. "Expensive operations in a loop." If an gas-expensive operation is executed multiple times in a loop, while there is a way to equivalently move it out of the loop to execute only once (e.g. storing a storage variable in a memory variable and performing operations on the memory variable inside the loop), then we should do it to save gas.
+11. "Constant outcome of a loop." If the outcome of a loop could be inferred without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+12. "Loop fusion." If two loops have the same starting and stopping conditions with the same increment steps, then we could consider combining them into one (e.g. delete the second loop, and put its loop body codes into the first one) if they have no dependencies. This way, we save the logical comparisons, conditional jumps, as well as the incremental steps of the second loop, which saves computation and thus gas.
+13. "Repeated computations in a loop." If there are expressions that produce the same outcome in each iteration of a loop, we could move it out of the loop and execute only once, which saves computation.
+14. "Struct variable refactoring." If a struct used in a contract contains some fields that are used more often and some that are less often, then by breaking up the struct into two, where the frequently used fields are now put as a separate struct, we get to avoid unnecessary reads on the less often used fields and save gas.s
+
+Next, I will give you a chunk of Solidity codes from which you will find gas-inefficient patterns; note that I have removed simple functions from the contract and only kept complex ones, with the hope that you could focus on the most complicated function codes
+contract ReaderTokens1155 is
+  function mintToOpenedPack(
+    address to,
+    uint256 packId
+  ) external virtual nonReentrant {
+    if (s_allowedMinter[GENESIS_ISSUE_01_ID] == address(0)) {
+      revert ReaderTokens__ExternalContractNotSet();
+    }
+    if (to == address(0)) {
+      revert ReaderTokens__InvalidAddress();
+    }
+    if (msg.sender != s_allowedMinter[GENESIS_ISSUE_01_ID]) {
+      revert ReaderTokens__OnlyAllowedMinterCanCall();
+    }
+    if (s_packIdToAddress[packId] != address(0)) {
+      revert ReaderTokens__PackAlreadyOpened();
+    }
+    if (
+      (totalSupply(GENESIS_ISSUE_01_ID) +
+        s_tokenIdToRedemptions[GENESIS_ISSUE_01_ID]) >= TOKEN_1_MAX_SUPPLY
+    ) {
+      revert ReaderTokens__QuantityExceedsMax();
+    }
+
+    _mint(to, GENESIS_ISSUE_01_ID, 1, "");
+    s_packIdToAddress[packId] = to;
+    emit MintedFromPack(packId, 1, to);
+  }
+
+  /**
+   * @notice checks if account is a holder of Sentinels, Keycard, BiPlaneBobo,
+   * StudioBadge, or TasteMakerz
+   * @dev contract addresses must be set or it will revert
+   * @param account address to check
+   * @return true if account is a token holder of at least one of the tokens
+   */
+  function initialize() public initializer {
+    __ERC1155_init("");
+    __Ownable_init();
+    __ERC1155Supply_init();
+    __UUPSUpgradeable_init();
+    __ReentrancyGuard_init();
+    __ERC2981_init();
+    __UpdatableOperatorFiltererUpgradeable_init(
+      0x000000000000AAeB6D7670E522A718067333cd4E,
+      0x3cc6CddA760b79bAfa08dF41ECFA224f810dCeB6,
+      true
+    );
+  }
+  function isTokenHolder(address account) public view returns (bool) {
+    return (s_sentinelsContract.balanceOf(account) > 0 ||
+      s_keycardContract.balanceOf(account) > 0 ||
+      s_biplaneBoboContract.balanceOf(account) > 0 ||
+      s_studioBadgeContract.balanceOf(account) > 0 ||
+      s_tasteMakerzContract.balanceOf(account, 1) > 0);
+  }
+  function mintApoPrivate(
+    uint256 quantityArtistEdition,
+    uint256 quantityOpenEdition,
+    address vault
+  ) external payable {
+    if (!s_tokenIdToMintEnabled[APPLIED_PRIMATE_ORIGINS_01_TOXIC_ID]) {
+      revert ReaderTokens__NotEnabled();
+    }
+
+    address requester = msg.sender;
+    if (vault != address(0)) {
+      if (
+        !s_delegationRegistry.checkDelegateForContract(
+          msg.sender,
+          vault,
+          address(this)
+        )
+      ) {
+        revert ReaderTokens__InvalidAddress();
+      }
+      requester = vault;
+    }
+
+    if (!isTokenHolder(requester)) {
+      revert ReaderTokens__MustBeHolder();
+    }
+
+    _mintApo(quantityArtistEdition, quantityOpenEdition, requester);
+  }
+
+  /**
+   * @notice mints Applied Primate Origins 01 and Artist Edition tokens.
+   * A silver token is rewarded for every 10 tokens purchased and
+   * a gold token is rewarded for every 25 tokens purchased in this transaction.
+   * @param quantityArtistEdition number of Artist Edition tokens to mint
+   * @param quantityOpenEdition number of Open Edition tokens to mint
+   * @param vault address used as a cold wallet in delegate.xyz or address(0)
+   */
+  function mintApoApe(
+    uint256 quantityArtistEdition,
+    uint256 quantityOpenEdition,
+    address vault
+  ) external payable {
+    if (!s_tokenIdToMintEnabled[APPLIED_PRIMATE_ORIGINS_01_ARTIST_ID]) {
+      revert ReaderTokens__NotEnabled();
+    }
+    address requester = msg.sender;
+    if (vault != address(0)) {
+      if (
+        !s_delegationRegistry.checkDelegateForContract(
+          msg.sender,
+          vault,
+          address(this)
+        )
+      ) {
+        revert ReaderTokens__InvalidAddress();
+      }
+      requester = vault;
+    }
+
+    if (!isApeHolder(requester)) {
+      revert ReaderTokens__MustBeHolder();
+    }
+    _mintApo(quantityArtistEdition, quantityOpenEdition, requester);
+  }
+
+  /**
+   * @notice mints Applied Primate Origins 01 and Artist Edition tokens.
+   * A silver token is rewarded for every 10 tokens purchased and
+   * a gold token is rewarded for every 25 tokens purchased in this transaction.
+   * @param quantityArtistEdition number of Artist Edition tokens to mint
+   * @param quantityOpenEdition number of Open Edition tokens to mint
+   * @param vault address used as a cold wallet in delegate.xyz or address(0)
+   */
+  function mintApoPublic(
+    uint256 quantityArtistEdition,
+    uint256 quantityOpenEdition,
+    address vault
+  ) external payable {
+    if (!s_tokenIdToMintEnabled[APPLIED_PRIMATE_ORIGINS_01_ID]) {
+      revert ReaderTokens__NotEnabled();
+    }
+    address requester = msg.sender;
+    if (vault != address(0)) {
+      if (
+        !s_delegationRegistry.checkDelegateForContract(
+          msg.sender,
+          vault,
+          address(this)
+        )
+      ) {
+        revert ReaderTokens__InvalidAddress();
+      }
+      requester = vault;
+    }
+    _mintApo(quantityArtistEdition, quantityOpenEdition, requester);
+  }
+
+  function _mintApo(
+    uint256 quantityArtistEdition,
+    uint256 quantityOpenEdition,
+    address requester
+  ) private nonReentrant {
+    if (
+      totalSupply(APPLIED_PRIMATE_ORIGINS_01_ARTIST_ID) +
+        quantityArtistEdition >
+      APO_01_ARTIST_MAX_SUPPLY
+    ) {
+      revert ReaderTokens__QuantityExceedsMax();
+    }
+    if (
+      msg.value <
+      s_tokenIdToPrice[APPLIED_PRIMATE_ORIGINS_01_ARTIST_ID] *
+        quantityArtistEdition +
+        s_tokenIdToPrice[APPLIED_PRIMATE_ORIGINS_01_ID] *
+        quantityOpenEdition
+    ) {
+      revert ReaderTokens__PaymentInsufficient();
+    }
+    if (quantityArtistEdition > 0) {
+      _mint(
+        requester,
+        APPLIED_PRIMATE_ORIGINS_01_ARTIST_ID,
+        quantityArtistEdition,
+        ""
+      );
+      emit MintedToken(
+        APPLIED_PRIMATE_ORIGINS_01_ARTIST_ID,
+        quantityArtistEdition,
+        requester
+      );
+    }
+    if (quantityOpenEdition > 0) {
+      _mint(requester, APPLIED_PRIMATE_ORIGINS_01_ID, quantityOpenEdition, "");
+      emit MintedToken(
+        APPLIED_PRIMATE_ORIGINS_01_ID,
+        quantityOpenEdition,
+        requester
+      );
+    }
+
+    uint256 totalQuantity = quantityArtistEdition + quantityOpenEdition;
+    if (totalQuantity >= 10) {
+      uint256 quantitySilver = totalQuantity / 10;
+      if (
+        totalSupply(APPLIED_PRIMATE_ORIGINS_01_SILVER_ID) + quantitySilver >
+        APO_01_SILVER_MAX_SUPPLY
+      ) {
+        quantitySilver =
+          APO_01_SILVER_MAX_SUPPLY -
+          totalSupply(APPLIED_PRIMATE_ORIGINS_01_SILVER_ID);
+      }
+      if (quantitySilver > 0) {
+        _mint(
+          requester,
+          APPLIED_PRIMATE_ORIGINS_01_SILVER_ID,
+          quantitySilver,
+          ""
+        );
+        emit MintedToken(
+          APPLIED_PRIMATE_ORIGINS_01_SILVER_ID,
+          quantitySilver,
+          requester
+        );
+      }
+    }
+    if (totalQuantity >= 25) {
+      uint256 quantityGold = totalQuantity / 25;
+      if (
+        totalSupply(APPLIED_PRIMATE_ORIGINS_01_GOLD_ID) + quantityGold >
+        APO_01_GOLD_MAX_SUPPLY
+      ) {
+        quantityGold =
+          APO_01_GOLD_MAX_SUPPLY -
+          totalSupply(APPLIED_PRIMATE_ORIGINS_01_GOLD_ID);
+      }
+      if (quantityGold > 0) {
+        _mint(requester, APPLIED_PRIMATE_ORIGINS_01_GOLD_ID, quantityGold, "");
+        emit MintedToken(
+          APPLIED_PRIMATE_ORIGINS_01_GOLD_ID,
+          quantityGold,
+          requester
+        );
+      }
+    }
+  }
+
+  /**
+   * @notice claim toxic edition for studio badge and keycard holders
+   * @dev To avoid creating a new storage slot, we are using s_tokenIdToStudioBadgeClaimed
+   * with the apo silver token ID to track whether a keycard holder has claimed
+   * @param badgeIds token IDs to claim for
+   * @param keycardIds token IDs to claim for
+   * @param vault address used as a cold wallet in delegate.xyz or address(0)
+   */
+  }
+Now that I have given you the necessary information, I want you to help me find new gas-wasting patterns from the above codes, based on what you learn from the list of patterns. Please be creative and think out of the box beyond the patterns listed above. Please put the new gas wasting patterns in bullet points (in the form of '1.', '2.', etc), and answer the following questions for each of the found patterns (in sub-bullet-points under each bullet point):
+
+1. How did you find this pattern? Could you explain the reasoning process, step by step, behind the discovery?
+
+2. What should I do, step by step, to fix the found gas-wasting patterns? Could you explain the reasoning process, step by step, behind the reason why such a fix works?
+
+3. On a score of 0 to 5, could you please tell me how would you rate this found new pattern, in terms of how much it is sacrificing readability, security, and maintainability in exchange for gas optimization (5 is the least impacted. For example, Security score of 5 means implementing the found gas-optimization pattern would have no effect on security, whereas 1 means it would reduce security)? Please format your answer as in "Readability: 5; Security: 4; Maintainability: 3". Please also provide explanations.
+
+Here are some additional requirements:
+1. If you think my prompt to you has any issues (e.g. ambiguity or lack of information), please tell me how I should improve it in the next time.
+2. please help me format your answer in the form of a Latex section (e.g. \section*{Analysis of Provided Solidity Code}), since I want to assert it to a Latex document.

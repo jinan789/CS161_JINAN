@@ -1,0 +1,4 @@
+The two function signatures that have the most similar functionality to the target function `getExp(uint num, uint denom)` are:
+
+1. `function divScalarByExp(uint scalar, Exp memory divisor) pure internal returns (MathError, Exp memory)`
+2. `function divScalarByExpTruncate(uint scalar, Exp memory divisor) pure internal returns (MathError, uint)`

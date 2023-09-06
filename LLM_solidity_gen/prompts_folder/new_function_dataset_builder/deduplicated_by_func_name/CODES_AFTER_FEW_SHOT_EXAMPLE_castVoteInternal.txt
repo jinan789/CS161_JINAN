@@ -1,0 +1,29 @@
+//MODIFICATIONS MADE: Changed the function visibility to internal
+function castVoteInternal(address voter, uint proposalId, uint8 support) internal returns (uint256) {
+    require(state(proposalId) == ProposalState.Active, "GovernorBravo::_castVoteInternal: voting is closed");
+    require(support <= 2, "GovernorBravo::_castVoteInternal: invalid voting option");
+    //MODIFICATIONS MADE: Replaced msg.sender with voter
+    require(!isWhitelisted(voter),"GovernorBravo::_castVoteInternal: Top stakers cannot cast vote");
+
+    Proposal storage proposal = proposals[proposalId];
+    Receipt storage receipt = proposal.receipts[voter];
+    require(receipt.hasVoted == false, "GovernorBravo::_castVoteInternal: voter already voted");
+
+    uint96 votes = getPriorVotes(voter, proposal.startBlock);
+
+    if (support == 0) {
+        proposal.againstVotes = add256(proposal.againstVotes, votes);
+    } else if (support == 1) {
+        proposal.forVotes = add256(proposal.forVotes, votes);
+    } else if (support == 2) {
+        proposal.abstainVotes = add256(proposal.abstainVotes, votes);
+    }
+
+    receipt.hasVoted = true;
+    receipt.support = support;
+    receipt.votes = votes;
+
+    emit VoteCast(voter, proposalId, support, votes, "");
+
+    return votes;
+}

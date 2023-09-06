@@ -1,0 +1,24 @@
+function safeTransferFrom(
+    ERC20 token,
+    address from,
+    address to,
+    uint256 amount
+) internal {
+    // Step 1: Ensure that the amount to be transferred is greater than 0
+    require(amount > 0, "TRANSFER_AMOUNT_ZERO");
+
+    // Step 2: Construct the transaction for the transferFrom function
+    bytes4 private constant SELECTOR = bytes4(keccak256(bytes("transferFrom(address,address,uint256)")));
+    bytes memory callData = abi.encodeWithSelector(SELECTOR, from, to, amount);
+
+    // Step 3: Call the token contract with the constructed transaction
+    (bool success, bytes memory returndata) = address(token).call(callData);
+
+    // Step 4: Check if the transaction was successful
+    require(success, "TRANSFER_FROM_FAILED");
+
+    // Step 5: If the transaction has a return value, ensure that it corresponds to a successful transfer
+    if (returndata.length > 0) {
+        require(abi.decode(returndata, (bool)), "TRANSFER_FROM_FAILED");
+    }
+}

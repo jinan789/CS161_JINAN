@@ -1,0 +1,11 @@
+Function to summarize: getBorrowRate
+
+Input: 
+- uint cash: The total amount of cash the market has
+- uint borrows: The total amount of borrows the market has outstanding
+- uint reserves: The total amount of reserves the market has
+
+Output: 
+- uint: The borrow rate per block (as a percentage, and scaled by 1e18)
+
+Summary: The getBorrowRate function calculates the current borrow interest rate per block in a market, given the total amount of cash, total amount of borrows, and total amount of reserves.

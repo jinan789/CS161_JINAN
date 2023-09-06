@@ -1,0 +1,5 @@
+Input: 2 variables - Exp memory a (struct with mantissa field representing a fixed-precision decimal value), uint scalar (unsigned integer)
+
+Output: 2 variables - MathError (enum representing error status), uint (truncated product of the operation)
+
+Summary: The function multiplies a fixed-precision decimal value by a scalar, then truncates the result and returns the error status and the truncated product.

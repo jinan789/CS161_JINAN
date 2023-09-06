@@ -1,0 +1,22 @@
+    function redeemInternal(uint redeemTokens) internal nonReentrant returns (uint) {
+        uint error = accrueInterest();
+        if (error != uint(Error.NO_ERROR)) {
+            // accrueInterest emits logs on errors, but we still want to log the fact that an attempted redeem failed
+            return fail(Error(error), FailureInfo.REDEEM_ACCRUE_INTEREST_FAILED);
+        }
+        // redeemFresh emits redeem-specific logs on errors, so we don't need to
+        return redeemFresh(msg.sender, redeemTokens, 0);
+    }
+
+    function redeemUnderlyingInternal(uint redeemAmount) internal nonReentrant returns (uint) {
+        uint error = accrueInterest();
+        if (error != uint(Error.NO_ERROR)) {
+            // accrueInterest emits logs on errors, but we still want to log the fact that an attempted redeem failed
+            return fail(Error(error), FailureInfo.REDEEM_ACCRUE_INTEREST_FAILED);
+        }
+        // redeemFresh emits redeem-specific logs on errors, so we don't need to
+        return redeemFresh(msg.sender, 0, redeemAmount);
+    }
+
+
+

@@ -1,0 +1,7 @@
+Function: getBlockNumber()
+
+Input: None
+
+Output: One uint variable
+
+Summary: This function returns the current block number.

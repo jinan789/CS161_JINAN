@@ -1,0 +1,34 @@
+function mintFreshInternal(address minter, uint mintAmount) internal returns (uint, uint) {
+    // Check if the mint operation is allowed
+    (Error err, uint allowed) = comptroller.mintAllowed(address(this), minter, mintAmount); //MODIFICATIONS MADE: Changed controller.allowMint to comptroller.mintAllowed
+    if (err != Error.NO_ERROR) {
+        return (uint(err), 0);
+    }
+
+    // Check for market freshness
+    if (!isFresh()) {
+        return (uint(Error.MARKET_NOT_FRESH), 0);
+    }
+
+    // Calculate exchange rate and the number of cTokens to mint
+    (MathError mathErr, uint exchangeRateMantissa) = exchangeRateStoredInternal();
+    if (mathErr != MathError.NO_ERROR) {
+        return (uint(Error.MATH_ERROR), 0);
+    }
+    (mathErr, uint cTokensToMint) = divScalarByExpTruncate(mintAmount, Exp({mantissa: exchangeRateMantissa}));
+    if (mathErr != MathError.NO_ERROR) {
+        return (uint(Error.MATH_ERROR), 0);
+    }
+
+    // Update minter's token balance
+    accountTokens[minter] = add_(accountTokens[minter], cTokensToMint);
+
+    // Update total supply
+    totalSupply = add_(totalSupply, cTokensToMint); //MODIFICATIONS MADE: Moved this line after updating the minter's token balance
+
+    // Emit Mint and Transfer events
+    emit Mint(minter, mintAmount, cTokensToMint, exchangeRateMantissa);
+    emit Transfer(address(0), minter, cTokensToMint); //MODIFICATIONS MADE: Changed address(this) to address(0)
+
+    return (uint(Error.NO_ERROR), cTokensToMint);
+}

@@ -1,0 +1,49 @@
+function swap(
+    address srcToken,
+    uint256 srcAmount,
+    uint256 minPrice,
+    uint256 maxPrice,
+    address destToken,
+    bytes memory oneInchData
+)
+    public
+    onlyDao //MODIFICATIONS MADE: Changed from onlyAdmin to onlyDao, to match the instructions and provided example
+    returns (
+        uint256 actualDestAmount,
+        uint256 actualSrcAmount
+    )
+{
+    require(minPrice < maxPrice, "Pool: minPrice should be less than maxPrice");
+    require(srcToken != destToken, "Pool: Source and destination tokens should be different");
+
+    //MODIFICATIONS MADE: Moved the safeTransferFrom function below require statements for efficiency
+    IERC20Detailed(srcToken).safeTransferFrom(_msgSender(), address(this), srcAmount);
+
+    uint256 destPriceInSrc;
+    uint256 srcPriceInDest;
+
+    //CHANGES BASED ON CALLED CODE MADE: Create local variables with memory keyword and assign values returned from _oneInchTrade()
+    (uint256 _destPriceInSrc, uint256 _srcPriceInDest, uint256 _actualDestAmount, uint256 _actualSrcAmount) = _oneInchTrade(
+        srcToken,
+        srcAmount,
+        destToken,
+        oneInchData
+    );
+
+    //CHANGES BASED ON CALLED CODE MADE: Update the values of the destPriceInSrc and srcPriceInDest variables with newly returned values from _oneInchTrade()
+    destPriceInSrc = _destPriceInSrc;
+    srcPriceInDest = _srcPriceInDest;
+    actualDestAmount = _actualDestAmount;
+    actualSrcAmount = _actualSrcAmount;
+
+    require(
+        destPriceInSrc >= minPrice,
+        "Pool: Swap rate is lower than the minimum acceptable price"
+    );
+    require(
+        destPriceInSrc <= maxPrice,
+        "Pool: Swap rate is higher than the maximum acceptable price"
+    );
+
+    emit Swapped(srcToken, destToken, actualSrcAmount, actualDestAmount);
+}

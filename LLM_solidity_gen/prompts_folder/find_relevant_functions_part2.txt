@@ -1,0 +1,2 @@
+The task we are trying to accomplish will be given below. Please give me a list of the functions, taken from the above list, that are most relevant to our task. Each function should be a direct copy-and-paste from the bullet points given above. Do not include functions that are not helpful for our task. Here is the task we are trying to accomplish:
+

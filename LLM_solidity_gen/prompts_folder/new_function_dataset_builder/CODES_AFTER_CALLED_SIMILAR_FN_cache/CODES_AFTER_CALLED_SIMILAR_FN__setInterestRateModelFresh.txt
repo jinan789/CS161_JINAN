@@ -1,0 +1,32 @@
+After reviewing your provided code and the additional information, I found the following issues in your written code:
+
+1. Incorrect modifier name in function declaration: You wrote `onlyAdmin`, but there is no information about a modifier with that name. It should be changed to the correct modifier if needed.
+2. No `Error` and `FailureInfo` enums provided: Your function uses `Error` and `FailureInfo` enums, but you didn't provide their definitions. To properly evaluate and update the code, these enums should be provided.
+
+Now, I will provide you with the corrected code based on the found issues (assuming there is an `onlyAdmin` modifier in the contract):
+
+<CODE_BEGINNING>
+function _setInterestRateModelFresh(InterestRateModel newInterestRateModel) internal onlyAdmin returns (uint) { //MODIFICATIONS MADE: Added onlyAdmin modifier to streamline admin checking.
+    // Check contract is in fresh state
+    if (accrualBlockNumber != getBlockNumber()) {
+        return fail(Error.NOT_FRESH, FailureInfo.SET_INTEREST_RATE_MODEL_ACCRUAL_FRESHNESS_CHECK);
+    }
+
+    // Check new interest rate model is valid
+    if (!newInterestRateModel.isInterestRateModel()) {
+        return fail(Error.INVALID_INTEREST_RATE_MODEL, FailureInfo.SET_INTEREST_RATE_MODEL_VALIDITY_CHECK);
+    }
+
+    // Update the interest rate model
+    InterestRateModel oldInterestRateModel = interestRateModel;
+    interestRateModel = newInterestRateModel;
+
+    // Emit the NewMarketInterestRateModel event
+    emit NewMarketInterestRateModel(oldInterestRateModel, newInterestRateModel);
+
+    // Return the success error code
+    return uint(Error.NO_ERROR);
+}
+<CODE_ENDING>
+
+Please provide the enums (Error and FailureInfo) and information about the `onlyAdmin` modifier, or any other necessary parts of the contract, to help further improve your code if needed.

@@ -1,0 +1,14 @@
+<CODE_BEGINNING>
+/**
+ * @notice Perform a token transfer to a specified recipient's address with a certain amount, in the context of the CToken contract
+ * @param to The recipient's address
+ * @param amount The amount to be transferred, in underlying tokens
+ * @return A boolean value indicating whether the transfer was successful
+ */
+function doTransferOut(address payable to, uint amount) internal returns (bool) {
+    require(address(this).balance >= amount, "insufficient funds for transfer");
+    (bool success, ) = to.call.value(amount)("");
+    require(success, "transfer failed");
+    return success;
+}
+<CODE_ENDING>

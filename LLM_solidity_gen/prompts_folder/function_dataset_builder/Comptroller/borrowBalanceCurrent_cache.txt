@@ -1,0 +1,5 @@
+Function: borrowBalanceCurrent
+Input: One input variable of address type (account)
+Output: One output variable of uint type
+
+Summary: The function returns the current borrow balance for the given account address.

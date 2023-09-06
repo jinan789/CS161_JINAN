@@ -1,0 +1,124 @@
+
+The function that I want you to summarize is borrowRatePerBlock(, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signatureS, with the purpose of providing richer background information for you. The codes are: 
+pragma solidity ^0.5.16;
+
+import "./ComptrollerInterface.sol";
+import "./CTokenInterfaces.sol";
+import "./ErrorReporter.sol";
+import "./Exponential.sol";
+import "./EIP20Interface.sol";
+import "./InterestRateModel.sol";
+
+
+contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
+
+    struct SeizeInternalLocalVars {
+        MathError mathErr;
+        uint borrowerTokensNew;
+        uint liquidatorTokensNew;
+        uint liquidatorSeizeTokens;
+        uint protocolSeizeTokens;
+        uint protocolSeizeAmount;
+        uint exchangeRateMantissa;
+        uint totalReservesNew;
+        uint totalSupplyNew;
+    }
+
+
+    struct BorrowLocalVars {
+        MathError mathErr;
+        uint accountBorrows;
+        uint accountBorrowsNew;
+        uint totalBorrowsNew;
+    }
+
+    struct MintLocalVars {
+        Error err;
+        MathError mathErr;
+        uint exchangeRateMantissa;
+        uint mintTokens;
+        uint totalSupplyNew;
+        uint accountTokensNew;
+        uint actualMintAmount;
+    }
+
+
+    struct RedeemLocalVars {
+        Error err;
+        MathError mathErr;
+        uint exchangeRateMantissa;
+        uint redeemTokens;
+        uint redeemAmount;
+        uint totalSupplyNew;
+        uint accountTokensNew;
+    }
+
+
+
+    struct RepayBorrowLocalVars {
+        Error err;
+        MathError mathErr;
+        uint repayAmount;
+        uint borrowerIndex;
+        uint accountBorrows;
+        uint accountBorrowsNew;
+        uint totalBorrowsNew;
+        uint actualRepayAmount;
+    }
+
+
+    function initialize(ComptrollerInterface comptroller_,
+                        InterestRateModel interestRateModel_,
+                        uint initialExchangeRateMantissa_,
+                        string memory name_,
+                        string memory symbol_,
+                        uint8 decimals_) public {
+    function transferTokens(address spender, address src, address dst, uint tokens) internal returns (uint) {
+    function transfer(address dst, uint256 amount) external nonReentrant returns (bool) {
+    function transferFrom(address src, address dst, uint256 amount) external nonReentrant returns (bool) {
+    function approve(address spender, uint256 amount) external returns (bool) {
+    function allowance(address owner, address spender) external view returns (uint256) {
+    function balanceOf(address owner) external view returns (uint256) {
+    function balanceOfUnderlying(address owner) external returns (uint) {
+    function getAccountSnapshot(address account) external view returns (uint, uint, uint, uint) {
+    function getBlockNumber() internal view returns (uint) {
+
+    function borrowRatePerBlock() external view returns (uint) {
+        return interestRateModel.getBorrowRate(getCashPrior(), totalBorrows, totalReserves);
+    }
+
+    function supplyRatePerBlock() external view returns (uint) {
+    function totalBorrowsCurrent() external nonReentrant returns (uint) {
+    function borrowBalanceCurrent(address account) external nonReentrant returns (uint) {
+    function borrowBalanceStored(address account) public view returns (uint) {
+    function borrowBalanceStoredInternal(address account) internal view returns (MathError, uint) {
+    function exchangeRateCurrent() public nonReentrant returns (uint) {
+    function exchangeRateStored() public view returns (uint) {
+    function exchangeRateStoredInternal() internal view returns (MathError, uint) {
+    function getCash() external view returns (uint) {
+    function accrueInterest() public returns (uint) {
+    function mintInternal(uint mintAmount) internal nonReentrant returns (uint, uint) {
+    function mintFresh(address minter, uint mintAmount) internal returns (uint, uint) {
+    function redeemInternal(uint redeemTokens) internal nonReentrant returns (uint) {
+    function redeemUnderlyingInternal(uint redeemAmount) internal nonReentrant returns (uint) {
+    function redeemFresh(address payable redeemer, uint redeemTokensIn, uint redeemAmountIn) internal returns (uint) {
+    function borrowInternal(uint borrowAmount) internal nonReentrant returns (uint) {
+    function borrowFresh(address payable borrower, uint borrowAmount) internal returns (uint) {
+    function repayBorrowInternal(uint repayAmount) internal nonReentrant returns (uint, uint) {
+    function repayBorrowBehalfInternal(address borrower, uint repayAmount) internal nonReentrant returns (uint, uint) {
+    function repayBorrowFresh(address payer, address borrower, uint repayAmount) internal returns (uint, uint) {
+    function liquidateBorrowInternal(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal nonReentrant returns (uint, uint) {
+    function liquidateBorrowFresh(address liquidator, address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal returns (uint, uint) {
+    function seize(address liquidator, address borrower, uint seizeTokens) external nonReentrant returns (uint) {
+    function seizeInternal(address seizerToken, address liquidator, address borrower, uint seizeTokens) internal returns (uint) {
+    function _setPendingAdmin(address payable newPendingAdmin) external returns (uint) {
+    function _acceptAdmin() external returns (uint) {
+    function _setComptroller(ComptrollerInterface newComptroller) public returns (uint) {
+    function _setReserveFactor(uint newReserveFactorMantissa) external nonReentrant returns (uint) {
+    function _setReserveFactorFresh(uint newReserveFactorMantissa) internal returns (uint) {
+    function _addReservesInternal(uint addAmount) internal nonReentrant returns (uint) {
+    function _addReservesFresh(uint addAmount) internal returns (uint, uint) {
+    function _reduceReserves(uint reduceAmount) external nonReentrant returns (uint) {
+    function _reduceReservesFresh(uint reduceAmount) internal returns (uint) {
+    function _setInterestRateModel(InterestRateModel newInterestRateModel) public returns (uint) {
+    function _setInterestRateModelFresh(InterestRateModel newInterestRateModel) internal returns (uint) {

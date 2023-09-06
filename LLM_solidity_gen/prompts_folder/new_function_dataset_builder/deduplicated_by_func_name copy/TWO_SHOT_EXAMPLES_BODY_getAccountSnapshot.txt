@@ -1,0 +1,9 @@
+    function balanceOf(address owner) external view returns (uint256) {
+        return accountTokens[owner];
+    }
+    function borrowBalanceStored(address account) public view returns (uint) {
+        (MathError err, uint result) = borrowBalanceStoredInternal(account);
+        require(err == MathError.NO_ERROR, "borrowBalanceStored: borrowBalanceStoredInternal failed");
+        return result;
+    }
+

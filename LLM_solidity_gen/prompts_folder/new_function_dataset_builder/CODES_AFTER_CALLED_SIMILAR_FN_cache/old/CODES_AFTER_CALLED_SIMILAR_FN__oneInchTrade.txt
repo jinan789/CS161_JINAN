@@ -1,0 +1,9 @@
+TASK 1:
+
+1. In the comment line, you have mentioned "MODIFICATIONS MADE" for adjusting variable naming to match the instructions given. However, these modifications are not relevant to the bullet points in this task since they were made by you before sharing the code. So, I'm not considering them as issues in this task.
+
+2. `_getDecimals` function is used in the calculation of `srcPriceInDest` and `destPriceInSrc`. However, the implementation code for `_getDecimals` is missing. It's crucial to have this function implemented to correctly fetch the decimals for the given token addresses.
+
+TASK 2:
+
+The code seems to be mostly correct, except for the missing `_getDecimals` function implementation. I can't modify the code since the implementation of `_getDecimals` is not provided. Please provide the implementation of `_getDecimals` function or update your contract to use a correct way to fetch decimals for the given token addresses.

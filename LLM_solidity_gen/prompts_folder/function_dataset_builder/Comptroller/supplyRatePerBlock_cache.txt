@@ -1,0 +1,5 @@
+Function: supplyRatePerBlock()
+Input: None
+Output: single uint256 value
+
+Summary: This function returns the current supply rate per block for the given contract.

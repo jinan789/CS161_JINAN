@@ -1,0 +1,34 @@
+TASK 1:
+Based on the given patterns and codes, I found the following matching patterns:
+
+1. Pattern 6 - Repeated computations in a loop.
+   Description: The "approval" event is emitted in every iteration of the loop. But since the event contains the latest allowance value, emitting the event outside of the loop should suffice.
+   Suggestion: Move the "emit Approval(src, msg.sender, allowances[src][msg.sender]);" line outside of the if statement. This will save gas as the event will only be emitted once, and the most up-to-date allowance is available.
+
+TASK 2:
+Here is the modified code:
+
+<CODE_BEGINNING>
+function transferFrom(address src, address dst, uint rawAmount) external returns (bool) {
+    uint96 amount = safe96(rawAmount, "INV::transferFrom: invalid amount");
+
+    // Check if msg.sender has an allowance to transfer from src.
+    uint96 spenderAllowance = allowances[src][msg.sender];
+    require(spenderAllowance >= amount, "INV::transferFrom: not enough allowance for transfer");
+
+    // Update the spender's allowance if needed
+    if (spenderAllowance != uint96(-1)) {
+        uint newAllowance = sub96(spenderAllowance, amount, "INV::transferFrom: allowance overflow");
+        allowances[src][msg.sender] = newAllowance;
+        
+        //GAS OPTIMIZATIONS MADE HERE: Moved the "approval" event outside the if statement, since it's only necessary to emit once with the most up-to-date allowance.
+    }
+    
+    // Emit the approval event with the most up-to-date allowance.
+    emit Approval(src, msg.sender, allowances[src][msg.sender]);
+
+    // Transfer tokens from src to dst
+    _transferTokens(src, dst, amount); //CHANGES BASED ON CALLED CODE MADE: No changes needed.
+    return true;
+}
+<CODE_ENDING>

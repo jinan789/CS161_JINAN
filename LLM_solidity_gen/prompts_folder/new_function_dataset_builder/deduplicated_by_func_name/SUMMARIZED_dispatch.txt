@@ -1,0 +1,11 @@
+The `dispatch` function takes two parameters:
+
+1. `commandType` (bytes1): The type of command to execute
+2. `inputs` (bytes calldata): The inputs to execute the command with
+
+The function returns two values:
+
+1. `success` (bool): Indicates if the command was executed successfully
+2. `output` (bytes memory): Contains the output, if any, or error messages from the executed command
+
+Summary: The `dispatch` function decodes and executes the given command with the provided inputs. The function supports a variety of command types, including various token transfers, swaps, and approvals. The function also checks for conditions like owner and balance checks for ERC721 and ERC1155 tokens.

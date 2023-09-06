@@ -1,0 +1,33 @@
+TASK 1:
+Upon analyzing the given code, it does not seem to match any of the gas-wasting patterns provided. The code appears to be relatively optimized and free from patterns that might lead to excessive gas consumption. Therefore, no modifications related to those patterns are necessary.
+
+TASK 2:
+Since the code does not match any gas-wasting patterns, no modifications are required. I will still present the code as requested, with the <CODE_BEGINNING> and <CODE_ENDING> tokens added.
+
+<CODE_BEGINNING>
+function _callOptionalReturn(IERC20 token, bytes memory data) private { //MODIFICATIONS MADE: Change "internal" to "private" for better encapsulation.
+    require(address(token).isContract(), "SafeERC20: call to non-contract");
+
+    // solhint-disable-next-line avoid-low-level-calls
+    (bool callSuccess, bytes memory returndata) = address(token).call(data); // CHANGES BASED ON CALLED CODE MADE: Renamed "success" to "callSuccess" for better readability
+    if (!callSuccess) {
+        // Lookup the revert reason and bubble it up if present
+        if (returndata.length > 0) {
+            // The easiest way to bubble the revert reason is using memory via assembly
+            // solhint-disable-next-line no-inline-assembly
+            assembly {
+                let returndata_size := mload(returndata)
+                revert(add(32, returndata), returndata_size)
+            }
+        } else {
+            revert("SafeERC20: low-level call failed");
+        }
+    } else {
+        if (returndata.length > 0) {
+            // Return data is optional
+            (bool returnValue) = abi.decode(returndata, (bool));
+            require(returnValue, "SafeERC20: ERC20 operation did not succeed");
+        }
+    }
+}
+<CODE_ENDING>

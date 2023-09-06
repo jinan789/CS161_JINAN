@@ -1,0 +1,27 @@
+    function _setInterestRateModelFresh(InterestRateModel newInterestRateModel) internal returns (uint) {
+        // Check caller is admin
+        if (msg.sender != admin) {
+            return fail(Error.UNAUTHORIZED, FailureInfo.SET_INTEREST_RATE_MODEL_OWNER_CHECK);
+        }
+        
+        // Check contract is in fresh state
+        if (accrualBlockNumber != getBlockNumber()) {
+            return fail(Error.NOT_FRESH, FailureInfo.SET_INTEREST_RATE_MODEL_ACCRUAL_FRESHNESS_CHECK);
+        }
+        
+        // Check new interest rate model is valid
+        if (!newInterestRateModel.isInterestRateModel()) {
+            return fail(Error.INVALID_INTEREST_RATE_MODEL, FailureInfo.SET_INTEREST_RATE_MODEL_VALIDITY_CHECK);
+        }
+
+        // Update the interest rate model
+        InterestRateModel oldInterestRateModel = interestRateModel;
+        interestRateModel = newInterestRateModel;
+
+        // Emit the NewMarketInterestRateModel event
+        emit NewMarketInterestRateModel(oldInterestRateModel, newInterestRateModel);
+
+        // Return the success error code
+        return uint(Error.NO_ERROR);
+    }
+

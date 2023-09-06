@@ -1,0 +1,64 @@
+Sure, I'll review the provided Solidity code and propose new patterns of gas inefficiencies based on my analysis:
+
+## New Gas-Wasting Pattern 1
+- **Pattern**: "Excessive conditional checks for address validity". In the provided Solidity code, there are multiple instances where the address provided as a parameter is checked if it is equal to `address(0)`. This check is unnecessary in some cases where the address being checked is `msg.sender` because `msg.sender` will never be `address(0)`. 
+
+- **Discovery Process**: While reviewing the code, I noticed that both the `msg.sender` and `vault` parameters are checked against `address(0)` in the `mintApoPrivate`, `mintApoApe`, and `mintApoPublic` functions. However, `msg.sender` will never be `address(0)` in a transaction, making this check redundant and thus a waste of gas.
+
+- **Fix**: The checks against `address(0)` for `msg.sender` should be removed. The checks against `address(0)` for `vault` can remain as it is a function input and could be the zero address. For example, in the `mintApoPrivate` function, the following code:
+    ```solidity
+    address requester = msg.sender;
+    if (vault != address(0)) {
+      if (
+        !s_delegationRegistry.checkDelegateForContract(
+          msg.sender,
+          vault,
+          address(this)
+        )
+      ) {
+        revert ReaderTokens__InvalidAddress();
+      }
+      requester = vault;
+    }
+    ```
+    could be simplified to:
+    ```solidity
+    address requester = (vault == address(0)) ? msg.sender : vault;
+    if (
+      vault != address(0) &&
+      !s_delegationRegistry.checkDelegateForContract(
+        msg.sender,
+        vault,
+        address(this)
+      )
+    ) {
+      revert ReaderTokens__InvalidAddress();
+    }
+    ```
+    This fix removes the redundancy and therefore saves gas, without compromising the function's functionality.
+    
+- **Impact Score**: Readability: 4; Security: 5; Maintainability: 4. This change has a slight impact on readability as the ternary operator might be less intuitive for some developers. However, it doesn't affect the security of the contract and only slightly impacts maintainability.
+
+## New Gas-Wasting Pattern 2
+- **Pattern**: "Redundant storage reads due to lack of function reusability". The functions `mintApoPrivate`, `mintApoApe`, and `mintApoPublic` each perform the same series of operations with only minimal differences.
+
+- **Discovery Process**: I noticed that these functions share a lot of identical code, such as the checks for whether the token is enabled, whether the sender or vault is a valid address, and the actual minting process. This redundancy leads to repeated storage reads and therefore wasted gas.
+
+- **Fix**: Extract the common logic into a private helper function that these functions can call. This will reduce the amount of redundant code and storage reads, thus saving gas. Here's an example of what the helper function might look like:
+    ```solidity
+    function _mintApoHelper(
+      uint256 tokenId,
+      uint256 quantityArtistEdition,
+      uint256 quantityOpenEdition,
+      address vault
+    ) private nonReentrant {
+      // Place the common logic here.
+    }
+    ```
+    Then, in the `mintApoPrivate`, `mintApoApe`, and `mintApoPublic` functions, call `_mintApoHelper` with the appropriate arguments.
+
+- **Impact Score**: Readability: 5; Security: 5; Maintainability: 5. This change improves readability and maintainability by removing code redundancy, and it doesn't affect the contract's security.
+
+**Additional Requirements**
+1. Your prompt was clear and provided enough details for me to understand the task at hand. However, providing some context about why gas optimization is important in this particular use case might help understand the urgency or priority of this task.
+2. In the process of reviewing the code, I tried to identify patterns of redundancy and inefficiency. Next time, I could improve my process by systematically going through the functions in the contract, ensuring that I don't miss any potential issues. For this task, I made sure to thoroughly understand the code before beginning my analysis, which helped me identify the patterns more accurately. I believe this is a necessary step as it ensures a comprehensive understanding of the code, leading to more accurate findings.

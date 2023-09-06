@@ -1,0 +1,5 @@
+The two function signatures that have the most similar functionality to the given target function are:
+
+1. function liquidateBorrowInternal(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) internal nonReentrant returns (uint, uint)
+
+2. function seize(address liquidator, address borrower, uint seizeTokens) external nonReentrant returns (uint)

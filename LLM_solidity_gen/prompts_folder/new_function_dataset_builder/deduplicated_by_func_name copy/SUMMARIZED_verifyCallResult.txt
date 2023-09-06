@@ -1,0 +1,8 @@
+Input: 
+- bool 'success'
+- bytes 'returndata'
+- string 'errorMessage'
+
+Output: bytes
+
+Summary: This function checks if a call operation was successful. If successful, it returns the returndata. If unsuccessful, it checks for a revert reason and returns it, else it reverts with the provided errorMessage.

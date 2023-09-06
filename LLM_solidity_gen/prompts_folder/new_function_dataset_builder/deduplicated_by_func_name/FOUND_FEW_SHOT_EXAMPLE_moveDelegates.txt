@@ -1,0 +1,4 @@
+Based on the function names, return types, and parameter lists, the two most similar function signatures to the target function are:
+
+1. function _delegate(address delegator, address delegatee) internal
+2. function _writeCheckpoint(address delegatee, uint32 nCheckpoints, uint96 oldVotes, uint96 newVotes) internal

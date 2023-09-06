@@ -1,0 +1,47 @@
+I have analyzed the given Solidity code and compared it with the list of known gas-wasting patterns you provided. Here are my findings:
+
+1. None of the given gas-wasting patterns match with the provided Solidity code.
+
+As no gas-wasting patterns were found, no modifications are needed. However, I will still provide the code with the <CODE_BEGINNING> and <CODE_ENDING> tokens as requested.
+
+<CODE_BEGINNING>
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+function safeERC20Transfer(
+    IERC20 token,
+    address to,
+    uint256 amount
+) internal {
+    //CHANGES BASED ON CALLED CODE MADE: Changed function name to safeERC20Transfer to better represent the purpose and token type
+
+    // Step 2: Define the `transfer` function signature
+    bytes4 selector = bytes4(keccak256(bytes("transfer(address,uint256)")));
+
+    // Step 3: Encode the function call
+    bytes memory data = abi.encodeWithSelector(selector, to, amount);
+
+    // Step 4: Perform the token transfer
+    // solhint-disable-next-line no-inline-assembly
+    assembly {
+        let result := call(
+            gas(), // forward all gas
+            address(token),
+            0, // don't transfer any ETH
+            add(data, 32), // input (skip array length in first 32 bytes)
+            mload(data), // input length (32 bytes)
+            0, // output memory
+            32 // expect a return value
+        )
+        
+        // Step 5: Verify the transfer and handle a failed transfer
+        //MODIFICATIONS MADE: Compare the return data to check for a successful token transfer
+        let success := or(and(eq(mload(0), 1), gt(returndatasize(), 31)), iszero(returndatasize()))
+
+        if iszero(success) {
+            // copy 16 bytes into `scratch` to minimize dirtying the free memory pointer
+            mstore(scratch, 0x11401741751649624785931156888398294052616)
+            revert(add(scratch, 32), 32)
+        }
+    }
+}
+<CODE_ENDING>

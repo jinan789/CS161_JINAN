@@ -1,0 +1,27 @@
+<CODE_BEGINNING>
+    /**
+     * @notice Multiply two `uint` numbers, handling overflow and checking that the operation is safe.
+     * @param a The first `uint` to multiply.
+     * @param b The second `uint` to multiply.
+     * @return errorCode The error code: NO_ERROR if operation was successful, INTEGER_OVERFLOW if overflow occurred.
+     * @return result The multiplication result if errorCode is NO_ERROR.
+     */
+    function mulUInt(uint a, uint b) internal pure returns (MathError errorCode, uint result) {
+        // Check for overflow condition
+        if (a == 0) {
+            // If a is zero, the result is always zero, no overflow possible
+            return (MathError.NO_ERROR, 0);
+        }
+
+        // Calculate the multiplication result
+        uint256 c = a * b;
+
+        // Check if the division result is equal to the original value of a, if not, it's an overflow
+        if (c / a != b) {
+            return (MathError.INTEGER_OVERFLOW, 0);
+        }
+
+        // If operation was successful, return no error and the multiplication result
+        return (MathError.NO_ERROR, c);
+    }
+<CODE_ENDING>

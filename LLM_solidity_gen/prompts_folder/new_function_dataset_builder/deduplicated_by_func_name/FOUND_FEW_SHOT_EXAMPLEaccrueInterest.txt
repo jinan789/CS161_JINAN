@@ -1,0 +1,4 @@
+The two functions with the most similar functionality to the given target function `accrueInterest()` are:
+
+1. `function exchangeRateCurrent() public nonReentrant returns (uint)`
+2. `function totalBorrowsCurrent() external nonReentrant returns (uint)`

@@ -1,0 +1,12 @@
+TASK 1:
+1. Issue: Missing error handling for the case when "b" is zero.
+   Fix: Add a require statement to check if "b" is not zero, and throw an error with the specified error message if it is.
+
+TASK 2:
+<CODE_BEGINNING>
+function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    //CHANGES BASED ON CALLED CODE MADE: Added require statement to handle division by zero
+    require(b != 0, errorMessage);
+    return a % b;
+}
+<CODE_ENDING>

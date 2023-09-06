@@ -1,0 +1,27 @@
+TASK 1:
+After analyzing your code, I didn't find any gas-wasting patterns that match the list provided. Your code is efficient, and it doesn't contain any dead codes, opaque predicates, expensive operations in a loop, constant outcomes of a loop, loop fusion, repeated computations in a loop, or comparisons with unilateral outcomes in a loop. Therefore, no modifications are suggested based on the gas-wasting patterns list.
+
+TASK 2:
+Since no gas-wasting patterns were found in your code, I'll provide the same code with <CODE_BEGINNING> and <CODE_ENDING> tokens added. No additional comments required as no changes were made.
+
+<CODE_BEGINNING>
+function _setPendingAdmin(address payable newPendingAdmin) external nonReentrant returns (uint) {
+    //MODIFICATIONS MADE: Added nonReentrant modifier for consistency and security against reentrancy attacks
+
+    // Check caller is admin
+    //MODIFICATIONS MADE: Replaced require with if condition and fail function for error handling consistency with example functions
+    if (msg.sender != admin) {
+        return fail(Error.UNAUTHORIZED, FailureInfo.SET_PENDING_ADMIN_OWNER_CHECK);
+    }
+
+    //CHANGES BASED ON CALLED CODE MADE: Added require statement to check that the newPendingAdmin address is non-zero
+    require(newPendingAdmin != address(0), "New pending admin address must be non-zero");
+    
+    address oldPendingAdmin = pendingAdmin;
+    pendingAdmin = newPendingAdmin;
+
+    emit NewPendingAdmin(oldPendingAdmin, newPendingAdmin);
+
+    return uint(Error.NO_ERROR);
+}
+<CODE_ENDING>

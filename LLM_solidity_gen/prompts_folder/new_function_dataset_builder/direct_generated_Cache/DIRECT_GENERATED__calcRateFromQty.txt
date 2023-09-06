@@ -1,0 +1,26 @@
+<CODE_BEGINNING>
+    /**
+     * @dev Calculate the rate between two amounts with different decimal resolutions.
+     * @param srcAmount The source amount used to calculate the rate.
+     * @param destAmount The destination amount used to calculate the rate.
+     * @param srcDecimals The decimal resolution of the source amount.
+     * @param dstDecimals The decimal resolution of the destination amount.
+     * @return rate The calculated rate as uint256.
+     */
+    function _calcRateFromQty(uint256 srcAmount, uint256 destAmount, uint256 srcDecimals, uint256 dstDecimals) internal pure returns (uint256 rate) {
+        // Ensure the source amount is not greater than the maximum allowed quantity
+        require(srcAmount <= _MAX_QTY, "Source amount exceeds maximum allowed quantity");
+
+        // Ensure the destination amount is not greater than the maximum allowed quantity
+        require(destAmount <= _MAX_QTY, "Destination amount exceeds maximum allowed quantity");
+
+        // Calculate the rate using the provided decimal resolutions
+        if (dstDecimals >= srcDecimals) {
+            uint256 multiplier = 10 ** (dstDecimals - srcDecimals);
+            rate = (destAmount.mul(_PRECISION)).div(srcAmount.mul(multiplier));
+        } else {
+            uint256 divisor = 10 ** (srcDecimals - dstDecimals);
+            rate = (destAmount.mul(_PRECISION)).div(srcAmount.div(divisor));
+        }
+    }
+<CODE_ENDING>

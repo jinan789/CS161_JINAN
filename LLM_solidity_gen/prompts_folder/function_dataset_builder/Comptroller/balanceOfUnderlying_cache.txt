@@ -1,0 +1,4 @@
+Input: Address variable "owner"
+Output: Unsigned integer variable
+
+The balanceOfUnderlying function calculates and returns the balance of the underlying asset owned by a specific user represented by their address passed as an argument.

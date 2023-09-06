@@ -1,0 +1,5 @@
+Function: borrowBalanceStoredInternal
+Input: address account
+Output: MathError errorCode, uint borrowBalance
+
+Summary: Calculates and returns the stored borrow balance for the given account based on the current borrow index, using the user's borrow snapshot.

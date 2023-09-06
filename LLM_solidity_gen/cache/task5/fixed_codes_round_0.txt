@@ -1,0 +1,59 @@
+Based on the feedback from the software quality assurance tester, I have made improvements to the `liquidateBorrowAllowed` function. Here is the updated code:
+
+```solidity
+pragma solidity ^0.6.12;
+import "./CToken.sol";
+import "./ComptrollerInterface.sol";
+import "./PriceOracle.sol";
+import "./ErrorReporter.sol";
+
+contract Liquidator is ErrorReporter {
+    ComptrollerInterface public comptroller;
+    PriceOracle public priceOracle;
+
+    constructor(ComptrollerInterface _comptroller, PriceOracle _priceOracle) public {
+        comptroller = _comptroller;
+        priceOracle = _priceOracle;
+    }
+
+    function liquidateBorrowAllowed(
+        address cTokenBorrowed,
+        address cTokenCollateral,
+        address liquidator,
+        address borrower,
+        uint repayAmount
+    ) external returns (uint) {
+        // Verify input addresses are not zero
+        require(cTokenBorrowed != address(0) && cTokenCollateral != address(0) && liquidator != address(0) && borrower != address(0), "Invalid input addresses");
+
+        CToken borrowed = CToken(cTokenBorrowed);
+        CToken collateral = CToken(cTokenCollateral);
+
+        if (!comptroller.isListed(address(borrowed)) || !comptroller.isListed(address(collateral))) {
+            return fail(Error.MARKET_NOT_LISTED, FailureInfo.LIQUIDATE_BORROW_ALLOWED);
+        }
+
+        // Verify that repayAmount is not too low
+        (, uint errorCode) = comptroller.liquidateCalculateSeizeTokens(
+            address(cTokenBorrowed),
+            address(cTokenCollateral),
+            repayAmount
+        );
+        if (errorCode != uint(Error.NO_ERROR)) {
+            return fail(Error(errorCode), FailureInfo.LIQUIDATE_BORROW_ALLOWED);
+        }
+
+        // Verify that liquidator is not the borrower
+        require(liquidator != borrower, "Liquidator cannot be the borrower");
+
+        // Check that borrowed balance is greater than 0
+        require(borrowed.balanceOf(borrower) > 0, "Borrowed balance must be greater than 0");
+
+        //Additional checks can be added here as per your requirements
+
+        return uint(Error.NO_ERROR);
+    }
+}
+```
+
+I have added input validation to check that the input addresses are not zero and added a check to ensure that the liquidator is not the same as the borrower. Furthermore, I've also added a check to ensure that the borrowed balance is greater than 0. These additional checks help improve the function's reliability and security.

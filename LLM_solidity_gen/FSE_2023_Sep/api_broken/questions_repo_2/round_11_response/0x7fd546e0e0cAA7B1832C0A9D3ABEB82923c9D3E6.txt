@@ -1,0 +1,23 @@
+Below are the new gas-wasting patterns that I found in the given Solidity code:
+
+1. **Repeated calls to `address(this).balance`:** The contract balance is repeatedly queried in the `swapBackTokens()` function. Each call to `address(this).balance` has a gas cost, and repeating this operation unnecessarily could waste gas. 
+
+   - How did I find this pattern? I noticed that `address(this).balance` is called multiple times in the `swapBackTokens()` function, which could be optimized by storing the result in a local variable. 
+   - To fix this, replace the multiple calls to `address(this).balance` with a single call and store the result in a local variable. Then, use this local variable wherever `address(this).balance` is called. This works because it reduces the number of external calls to check the contract balance, thus saving gas.
+   - Readability: 5; Security: 5; Maintainability: 5. This change does not impact readability, security, or maintainability.
+
+2. **Unnecessary condition checks in `_transfer()`:** There are several repeated condition checks in `_transfer()`, such as `ammPairs[from]` or `ammPairs[to]`. Each condition check consumes gas, and repeating these checks unnecessarily wastes gas.
+
+   - How did I find this pattern? I noticed that there are many conditions checking whether `from` or `to` is in `ammPairs`. These checks could be optimized by storing the results in local variables.
+   - To fix this, introduce two Boolean variables at the start of the function, such as `bool isFromAMMPair = ammPairs[from]` and `bool isToAMMPair = ammPairs[to]`. Then, replace every check on `ammPairs[from]` and `ammPairs[to]` with these local variables. This works because it reduces the number of times we access the mapping `ammPairs`, saving gas.
+   - Readability: 5; Security: 5; Maintainability: 5. This change would not affect readability, security, or maintainability.
+
+3. **Use of `div` operation in calculating fees:** The `div` operation is used frequently when calculating fees in the `_transfer()` function. Division is an expensive operation in terms of gas and should be avoided when possible.
+
+   - How did I find this pattern? By recognizing that division is an expensive operation in Solidity and noticing its use in calculating fees.
+   - To fix this, consider restructuring your fee calculations to minimize the use of division. One way might be to use a fixed-point arithmetic library or use shift operators if possible. This works because it reduces the number of division operations, therefore saving gas.
+   - Readability: 3; Security: 4; Maintainability: 4. This change may somewhat affect readability as fixed-point arithmetic or shift operators could be less intuitive. However, the impact on security and maintainability should be minimal.
+
+Regarding the completion of the task, the prompt was clear and provided sufficient information. The reasoning process involved understanding the Solidity code and identifying areas where gas could be saved.
+
+For future improvements, it might be beneficial to have a deeper understanding of the gas costs associated with different Solidity operations, which could help identify more potential gas optimizations. This understanding could be gained through further study of the Solidity language and the Ethereum Virtual Machine (EVM).

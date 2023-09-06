@@ -1,0 +1,10 @@
+code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/ErrorReporter.sol
+<START_FUNCTIONS>
+- fail(Error err, FailureInfo info) internal returns (uint): Reports a known error from the money market or a non-upgradeable collaborator and emits a Failure event with error, info and 0 as detail. Returns the error code as a uint.
+- failOpaque(Error err, FailureInfo info, uint opaqueError) internal returns (uint): Reports an opaque error from an upgradeable collaborator contract and emits a Failure event with error, info and opaqueError as detail. Returns the error code as a uint.
+<END_FUNCTIONS>
+
+<START_CONTRACTS>
+Summary of the entire contract:
+The ComptrollerErrorReporter and TokenErrorReporter contracts provide error reporting functionality for other contracts in the system. They allow reporting known errors from money markets and non-upgradeable collaborators, as well as opaque errors from upgradeable collaborator contracts. These contracts define enums for Error and FailureInfo and use internal functions (fail, failOpaque) to emit Failure events and return error codes as uints.
+<END_CONTRACTS>

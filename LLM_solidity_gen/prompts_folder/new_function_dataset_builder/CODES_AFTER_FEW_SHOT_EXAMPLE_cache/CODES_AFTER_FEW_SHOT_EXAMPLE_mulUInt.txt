@@ -1,0 +1,26 @@
+TASK 1:
+1. There is no issue in the function implementation. The code is correct and matches the style of the examples.
+
+TASK 2:
+Since there were no issues found in TASK 1, no modifications are required. However, I will provide the same code with the <CODE_BEGINNING> and <CODE_ENDING> tokens.
+
+<CODE_BEGINNING>
+function mulUInt(uint a, uint b) internal pure returns (MathError errorCode, uint result) {
+    // Check for overflow condition
+    if (a == 0) {
+        // If a is zero, the result is always zero, no overflow possible
+        return (MathError.NO_ERROR, 0);
+    }
+
+    // Calculate the multiplication result
+    uint256 c = a * b;
+
+    // Check if the division result is equal to the original value of a, if not, it's an overflow
+    if (c / a != b) {
+        return (MathError.INTEGER_OVERFLOW, 0);
+    }
+
+    // If operation was successful, return no error and the multiplication result
+    return (MathError.NO_ERROR, c);
+}
+<CODE_ENDING>

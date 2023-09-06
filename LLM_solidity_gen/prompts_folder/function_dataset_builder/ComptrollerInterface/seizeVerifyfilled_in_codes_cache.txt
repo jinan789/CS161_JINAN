@@ -1,0 +1,20 @@
+<CODE_BEGINNING>
+/**
+* @notice Checks the validity of a seize action where a user's collateral is being taken by a liquidator, after a failed loan repayment scenario.
+* @param cTokenCollateral The address of the collateral cToken
+* @param cTokenBorrowed The address of the borrowed cToken
+* @param liquidator The address of the liquidator
+* @param borrower The address of the borrower
+* @param seizeTokens The amount of tokens being seized
+*/
+function seizeVerify(address cTokenCollateral, address cTokenBorrowed, address liquidator, address borrower, uint seizeTokens) external {
+    // Perform any necessary checks to validate the seize action here
+    // For example, you may want to ensure that the liquidator and borrower are not the same address or that the seizeTokens is greater than 0.
+    // You may also want to verify that cTokenCollateral and cTokenBorrowed correspond to valid cToken contracts in your system.
+
+    // Example checks:
+    require(liquidator != borrower, "Liquidator and borrower cannot be the same address.");
+    require(seizeTokens > 0, "Seize tokens should be greater than zero.");
+    // Add any other checks as necessary
+}
+<CODE_ENDING>

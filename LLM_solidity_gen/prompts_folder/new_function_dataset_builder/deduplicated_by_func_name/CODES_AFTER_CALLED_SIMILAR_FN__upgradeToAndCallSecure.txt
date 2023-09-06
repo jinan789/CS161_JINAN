@@ -1,0 +1,14 @@
+function _upgradeToAndCallSecure(
+    address newImplementation,
+    bytes memory data,
+    bool forceCall
+) internal {
+    // Step 1: Store the current implementation before upgrading
+    address currentImplementation = _getImplementation();
+
+    // CHANGES BASED ON CALLED CODE MADE: Replaced _upgradeTo with _upgradeToAndCall to handle delegate call properly
+    // Step 2: Upgrade to the new implementation and perform delegate call
+    _upgradeToAndCall(newImplementation, data, forceCall);
+
+    //CHANGES BASED ON CALLED CODE MADE: Removed unnecessary if condition for performing delegate call
+}

@@ -1,0 +1,1 @@
+FOUND: Optimize repeated calls to a function within conditionals: In the current implementation, we have three separate conditionals which call the "SafeMath.add" function. Instead, we can use a single call to the "add" function outside of the conditionals, and store an intermediate result in a variable. This will make the code slightly more efficient and easier to read.

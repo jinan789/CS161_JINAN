@@ -1,0 +1,12 @@
+Function: getAccountSnapshot(address account)
+
+Input:
+- account: address
+
+Output: (4 variables)
+- uint indicating the error code (0 for no error)
+- uint representing the cToken balance of the given account
+- uint representing the borrow balance of the given account
+- uint representing the current exchange rate mantissa
+
+Summary: The function retrieves the cToken balance, borrow balance, and exchange rate mantissa for a specified account address. In case of a math error, the error code is returned in the first output value.

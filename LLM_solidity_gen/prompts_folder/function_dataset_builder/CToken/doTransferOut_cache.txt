@@ -1,0 +1,6 @@
+Function: doTransferOut
+Input:
+- address payable 'to' (the recipient's address)
+- uint 'amount' (the amount to be transferred, in underlying tokens)
+
+Summary: This function performs a token transfer to a specified recipient's address with a certain amount, in the context of the CToken contract.

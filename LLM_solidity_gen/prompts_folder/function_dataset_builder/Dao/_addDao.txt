@@ -1,0 +1,35 @@
+
+The function that I want you to summarize is _addDao, which is defined in the codes given below. Please note that I have hidden the definition of all other functions, but I still kept their signature, with the purpose of providing richer background information for you. The codes are: 
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import '@openzeppelin/contracts/utils/Context.sol';
+import "../Roles.sol";
+
+contract DaoRole is Context {
+    using Roles for Roles.Role;
+
+    event DaoAdded(address indexed account);
+    event DaoRemoved(address indexed account);
+
+    Roles.Role private _daos;
+
+    constructor () {
+        _addDao(_msgSender());
+    }
+
+    modifier onlyDao() {
+        require(isDao(_msgSender()), "DaoRole: caller does not have the Dao role");
+        _;
+    }
+
+    function isDao(address account) public view returns (bool) {
+    function addDao(address account) public onlyDao {
+    function renounceDao() public {
+    function _addDao(address account) internal {
+        _daos.add(account);
+        emit DaoAdded(account);
+    }
+
+    function _removeDao(address account) internal {
+}

@@ -1,0 +1,8 @@
+Input: 
+1. IERC20 token (type: IERC20)
+2. address spender (type: address)
+3. uint256 value (type: uint256)
+
+Output: None
+
+Summary: The function safely decreases the allowance of a spender by a given value for a specific token. It checks that the new allowance is not below zero before updating it.

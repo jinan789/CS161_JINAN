@@ -1,0 +1,19 @@
+<CODE_BEGINNING>
+/**
+* @notice Sets the pending admin (only callable by the current admin)
+* @dev Admin function to begin changing the admin
+* @param newPendingAdmin New pending admin.
+* @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+*/
+function _setPendingAdmin(address payable newPendingAdmin) external returns (uint) {
+    // Check caller is admin
+    require(msg.sender == admin, "only admin can set pending admin");
+
+    address oldPendingAdmin = pendingAdmin;
+    pendingAdmin = newPendingAdmin;
+
+    emit NewPendingAdmin(oldPendingAdmin, newPendingAdmin);
+
+    return uint(Error.NO_ERROR);
+}
+<CODE_ENDING>

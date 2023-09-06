@@ -1,0 +1,54 @@
+TASK 1:
+I noticed the following issues in your provided code:
+
+1. In Step 4b, you are using `mstore(result, returndata)` which is incorrect. You should use the length of `returndata` as the second parameter followed by the data of `returndata`.
+2. In Step 4, the memory allocation and copying must handle the full 32-byte chunks of `returndata`.
+
+TASK 2:
+
+Here's the modified code for your review:
+
+<CODE_BEGINNING>
+function verifyCallResult(
+    bool success,
+    bytes memory returndata,
+    string memory errorMessage
+) internal pure returns (bytes memory) {
+    
+    // Step 1
+    if (success) {
+        // Step 2
+        return returndata;
+    } else {
+        // Step 3
+        if (returndata.length > 0) {
+            // Step 4
+            assembly {
+                let result := mload(0x40) // Step 4a
+                mstore(0x40, add(result, and(add(add(returndata, 32), mload(returndata)), 0xfffffffffffffff0)))
+
+                //MODIFICATIONS MADE: Changed the second parameter to returndata and added the correct memcpy operation
+                mstore(result, mload(returndata))
+                let dataSize := and(add(mload(returndata), 63), 0xfffffffffffffff0)
+                memcpy(add(result, 32), add(returndata, 32), dataSize)
+
+                // Step 4b
+                revert(result, add(32, mload(returndata))) // Step 4c
+            }
+        } else {
+            // Step 5
+            revert(errorMessage);
+        }
+    }
+}
+<CODE_ENDING>
+
+I added and modified the following lines:
+
+//MODIFICATIONS MADE: Changed the second parameter to returndata and added the correct memcpy operation
+mstore(result, mload(returndata));
+let dataSize := and(add(mload(returndata), 63), 0xfffffffffffffff0);
+memcpy(add(result, 32), add(returndata, 32), dataSize);
+
+The reason behind these modifications is to correctly store the length of returndata and
+then copy the whole returndata by handling the 32-byte chunks properly using a memcpy function.

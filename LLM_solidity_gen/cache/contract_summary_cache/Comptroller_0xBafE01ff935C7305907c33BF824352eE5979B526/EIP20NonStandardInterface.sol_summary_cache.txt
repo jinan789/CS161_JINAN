@@ -1,0 +1,13 @@
+code_repository/Comptroller_0xBafE01ff935C7305907c33BF824352eE5979B526/EIP20NonStandardInterface.sol
+<START_FUNCTIONS>
+- totalSupply() external view returns (uint256): Returns the total number of tokens in circulation.
+- balanceOf(address owner) external view returns (uint256 balance): Returns the balance of the specified `owner` address.
+- transfer(address dst, uint256 amount) external: Transfers `amount` of tokens from the caller (msg.sender) to the `dst` address without returning a value (violates ERC20 standard).
+- transferFrom(address src, address dst, uint256 amount) external: Transfers `amount` of tokens from the `src` address to the `dst` address without returning a value (violates ERC20 standard).
+- approve(address spender, uint256 amount) external returns (bool success): Approves the `spender` to transfer up to `amount` tokens and returns true or false depending on whether the approval succeeded or not.
+- allowance(address owner, address spender) external view returns (uint256 remaining): Returns the current allowance of tokens that `spender` is allowed to transfer from `owner` address.
+<END_FUNCTIONS>
+<START_CONTRACTS>
+Summary of the entire contract:
+The EIP20NonStandardInterface contract is a variation of the ERC20 token standard, where the `transfer` and `transferFrom` functions do not return any values, which is a violation of the ERC20 specification. Nonetheless, it provides functionalities for transferring tokens, checking balances, approving spenders, and managing allowances, similar to the standard ERC20 token contract.
+<END_CONTRACTS>

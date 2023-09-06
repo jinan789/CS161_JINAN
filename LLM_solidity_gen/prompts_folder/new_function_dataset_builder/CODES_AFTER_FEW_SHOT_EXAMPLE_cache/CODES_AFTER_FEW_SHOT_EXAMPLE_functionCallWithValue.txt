@@ -1,0 +1,28 @@
+TASK 1:
+1. The function "functionCallWithValue" doesn't have any major issues as such and is well-written.
+2. The commented out section is correct because the 'call' function does check for balance automatically.
+
+TASK 2: As there is no major issues with the code to correct, the function "functionCallWithValue" remains unchanged.
+
+<CODE_BEGINNING>
+function functionCallWithValue(
+    address target,
+    bytes memory data,
+    uint256 value,
+    string memory errorMessage
+) internal returns (bytes memory) {
+    // Removed this section as the Solidity 'call' function will check the balance automatically
+    //require(
+    //    address(this).balance >= value,
+    //    "Address: insufficient balance for call"
+    //);
+
+    require(
+        isContract(target),
+        "Address: target is not a contract"
+    );
+
+    (bool success, bytes memory returndata) = target.call{value: value}(data);
+    return verifyCallResult(success, returndata, errorMessage);
+}
+<CODE_ENDING>

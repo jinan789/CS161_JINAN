@@ -1,0 +1,30 @@
+TASK 1: Step-by-step plan for the approve function:
+
+1. Validate if the spender's address is not the zero address (to avoid wasting gas and emitting events to the zero address).
+2. Convert the rawAmount (uint) provided to a uint96 value, ensuring it does not exceed the maximum allowable limit (96 bits).
+3. Update the approval allowance by setting the allowance of the spender for the message sender (msg.sender) to the amount converted in step 2.
+4. Emit an Approval event to record the approval transaction, containing the message sender's address, spender's address, and the rawAmount approved.
+5. Return true as a boolean value to indicate the success of the operation.
+
+Now let's examine your provided code and make any necessary improvements:
+
+function approve(address spender, uint rawAmount) public returns (bool) {
+    require(spender != address(0), "INV: approve to the zero address");
+    uint96 amount = safe96(rawAmount, "INV: amount exceeds 96 bits");
+    allowances[msg.sender][spender] = amount;
+
+    emit Approval(msg.sender, spender, rawAmount);
+
+    return true;
+}
+
+After analyzing the code, it seems that all the steps are organized in a logical and coherent manner. Your code implementation correctly follows the step-by-step plan listed above.
+
+The code does the following:
+1. It checks if the spender's address is not the zero address.
+2. It converts the rawAmount to a uint96 value safely using the "safe96" function to ensure it does not exceed 96 bits.
+3. Sets the allowance for the spender on behalf of the message sender (msg.sender) to the calculated amount.
+4. Emits the Approval event with the necessary information.
+5. Returns true to indicate that the function executed successfully.
+
+Overall, your implementation aligns with the contract requirements and the approve function's intended functionalities. There is no need for any changes or improvements to the given code. Good job!

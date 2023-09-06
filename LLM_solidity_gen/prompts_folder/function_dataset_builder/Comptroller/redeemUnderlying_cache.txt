@@ -1,0 +1,5 @@
+Function: redeemUnderlying
+Input: 1 uint variable (redeemAmount)
+Output: 1 uint variable
+
+Summary: This function allows a user to redeem a specified amount of underlying assets from the contract. The function processes the redemption internally and returns the result as a single uint value.

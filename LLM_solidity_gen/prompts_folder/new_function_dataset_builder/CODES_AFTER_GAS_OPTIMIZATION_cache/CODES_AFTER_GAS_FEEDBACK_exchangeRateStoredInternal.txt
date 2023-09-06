@@ -1,0 +1,33 @@
+TASK 1:
+After reviewing the provided Solidity code, I did not find any gas-wasting patterns that match the given list.
+
+TASK 2:
+Since there were no gas-wasting patterns found in the code, no modifications or comments need to be added for gas optimization. However, here is the provided code with the requested tokens added:
+
+<CODE_BEGINNING>
+function exchangeRateStoredInternal() internal view returns (MathError, uint) {
+    // CHANGES BASED ON CALLED CODE MADE: Replaced this.totalSupply() with totalSupply for correct variable usage
+    // Step 1: Check if totalSupply is 0
+    if (totalSupply == 0) {
+        // Step 1a: Return the initial exchange rate
+        return (MathError.NO_ERROR, initialExchangeRateMantissa);
+    } else {
+        // Step 2: Retrieve total cash stored in the contract
+        (MathError err, uint totalCash) = getCashPrior();
+        if (err != MathError.NO_ERROR) {
+            // Step 2b: Return error and 0 for exchange rate
+            return (err, 0);
+        }
+
+        // Step 3: Calculate the total collateral
+        // CHANGES BASED ON CALLED CODE MADE: Fixed the totalCollateral calculation
+        uint totalCollateral = totalCash.add(totalBorrows).sub(totalReserves);
+
+        // Step 4: Calculate the exchange rate mantissa
+        (MathError mathErr, uint256 exchangeRateMantissa) = divScalarByExpTruncate(totalCollateral, Exp({mantissa: totalSupply}));
+
+        // Step 5: Return the result
+        return (MathError.NO_ERROR, exchangeRateMantissa);
+    }
+}
+<CODE_ENDING>

@@ -1,0 +1,5 @@
+Function: exchangeRateStored
+Input: None
+Output: uint (exchange rate)
+
+The function "exchangeRateStored" returns the current stored exchange rate which is a conversion factor for the underlying asset to the token.

@@ -1,0 +1,68 @@
+TASK 1:
+Here are the issues I found in your code:
+
+1. You are calling `borrowFresh` as an external function, but in the example provided, it is called as an internal function. In your code context, it should be an internal function since it is only used within the contract.
+2. You have a deleted line `accrueInterest();`. This function call is redundant since you are already calling `accrueInterest()` at the beginning of the `borrowFresh` function.
+3. The provided few-shot examples use the `fail` and `failOpaque` functions to return errors. You should use them consistently in your implementation.
+4. `borrowIndex` should be checked against `currentBlockNumber` after the interest has been accrued.
+5. The check for the contract's cash balance should be done before validating the current block number.
+6. Instead of checking if the `borrowIndex` is equal to the `currentBlockNumber`, you should check if `borrowSnapshot.interestIndex` is equal to the `currentBlockNumber`.
+
+TASK 2:
+Here is the corrected code according to the issues mentioned above:
+
+<CODE_BEGINNING>
+function borrowFresh(address payable borrower, uint borrowAmount) internal nonReentrant returns (uint) { //MODIFICATIONS MADE: Changed from external to internal
+    // Step 1: Update the interest rates
+    accrueInterest();
+
+    // Step 2: Get the borrower's account liquidity
+    (uint allowed, uint liquidity, uint shortfall) = comptroller.getAccountLiquidity(borrower);
+
+    // Step 3: Check if the borrower is allowed to borrow
+    if (allowed != 0 || shortfall != 0) {
+        return fail(Error.BORROW_COMPTROLLER_REJECTION, FailureInfo.BORROW_COMPTROLLER_REJECTION);
+    }
+
+    // Step 4: Check the contract's cash balance
+    uint cash = getCash();
+
+    // Step 5: Check if the contract has enough cash
+    if (cash < borrowAmount) {
+        return fail(Error.TOKEN_INSUFFICIENT_CASH, FailureInfo.BORROW_INSUFFICIENT_CASH);
+    }
+
+    // Step 6: Get the current block number
+    uint currentBlockNumber = getBlockNumber();
+
+    // Step 7: Validate the current block number
+    BorrowSnapshot storage borrowSnapshot = accountBorrows[borrower];
+    if (borrowSnapshot.interestIndex == currentBlockNumber) { //MODIFICATIONS MADE: Changed the condition to check borrowSnapshot.interestIndex instead of borrowIndex
+        return fail(Error.BORROW_ACCUMULATED_BALANCE_CALCULATION_FAILED, FailureInfo.BORROW_ACCUMULATED_BALANCE_CALCULATION_FAILED);
+    }
+
+    // Step 8: Transfer the requested amount to the borrower
+    doTransferOut(borrower, borrowAmount);
+
+    // Step 9: Update the borrower's borrow balance
+    uint principalBefore = borrowSnapshot.principal;
+    MathError mathErr;
+    uint accruedBorrowAmount;
+    (mathErr, accruedBorrowAmount) = mulScalar(borrowAmount, borrowSnapshot.interestIndex);
+    if (mathErr != MathError.NO_ERROR) {
+        return failOpaque(Error.MATH_ERROR, FailureInfo.BORROW_ACCUMULATED_BALANCE_CALCULATION_FAILED, uint(mathErr));
+    }
+    uint principalAfter = principalBefore.add(accruedBorrowAmount);
+    borrowSnapshot.principal = principalAfter;
+    borrowSnapshot.interestIndex = borrowIndex;
+
+    // Step 10: Update the total borrows
+    totalBorrows = totalBorrows.add(borrowAmount);
+
+    // Step 11: Emit a Borrow event
+    emit Borrow(borrower, borrowAmount, principalBefore, principalAfter);
+
+    // Step 12: Return no error
+    return uint(Error.NO_ERROR);
+}
+<CODE_ENDING>

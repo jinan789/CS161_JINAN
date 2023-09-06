@@ -1,0 +1,18 @@
+<CODE_BEGINNING>
+    /**
+     * @dev Checks if the contract is in a constructor context by verifying the contract's address
+     * is not associated with a deployed contract.
+     *
+     * @return true if the contract is in a constructor context, false otherwise.
+     */
+    function _isConstructor() private view returns (bool) {
+        address currentAddress = address(this);
+        bytes32 codehash;
+
+        assembly {
+            codehash := extcodehash(currentAddress)
+        }
+
+        return (codehash == bytes32(0));
+    }
+<CODE_ENDING>

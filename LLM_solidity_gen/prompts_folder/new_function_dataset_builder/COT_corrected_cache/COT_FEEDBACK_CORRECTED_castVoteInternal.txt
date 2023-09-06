@@ -1,0 +1,50 @@
+TASK 1: Step-by-step plan for castVoteInternal function
+
+1. Check the current state of the proposal with the given proposalId, ensure the state is "Active" (ProposalState.Active)
+2. Verify that the support value is within the allowed range (0, 1, or 2)
+3. Check if the voter (msg.sender) is not a top staker (using the isWhitelisted() function)
+4. Retrieve the proposal storage based on the proposalId
+5. Validate if the voter has not voted for this proposal already (using the proposal's receipts mapping)
+6. Get the number of votes (voting power) the voter has at the proposal's startBlock (using the getPriorVotes() function)
+7. Update the proposal's total votes (against, for, or abstain) based on the support value and the voter's voting power
+8. Update the receipt with the following information: set hasVoted to true, set support with the given voting option, and set votes with the voter's voting power
+9. Emit a VoteCast event with the voter's address, proposalId, support, votes, and an empty reason string.
+10. Return the number of votes by the voter
+
+Now we will compare these steps with the provided code and make improvements if necessary.
+
+Based on the given code, all the necessary steps are already included. The steps are presented in a logical way and cover the necessary functionality described in the task summary. It appears that the code correctly implements the intended functionality without the need for any further updates.
+
+Here is the provided code for reference:
+
+```solidity
+function castVoteInternal(address voter, uint proposalId, uint8 support) public returns (uint256) {
+    require(state(proposalId) == ProposalState.Active, "GovernorBravo::_castVoteInternal: voting is closed");
+    require(support <= 2, "GovernorBravo::_castVoteInternal: invalid voting option");
+    require(!isWhitelisted(msg.sender),"GovernorBravo::_castVoteInternal: Top stakers cannot cast vote");
+
+    Proposal storage proposal = proposals[proposalId];
+    Receipt storage receipt = proposal.receipts[voter];
+    require(receipt.hasVoted == false, "GovernorBravo::_castVoteInternal: voter already voted");
+
+    uint96 votes = getPriorVotes(voter, proposal.startBlock);
+
+    if (support == 0) {
+        proposal.againstVotes = add256(proposal.againstVotes, votes);
+    } else if (support == 1) {
+        proposal.forVotes = add256(proposal.forVotes, votes);
+    } else if (support == 2) {
+        proposal.abstainVotes = add256(proposal.abstainVotes, votes);
+    }
+
+    receipt.hasVoted = true;
+    receipt.support = support;
+    receipt.votes = votes;
+
+    emit VoteCast(voter, proposalId, support, votes, "");
+
+    return votes;
+}
+```
+
+No further modifications are needed, since the code follows the step-by-step plan and implements the intended functionality.

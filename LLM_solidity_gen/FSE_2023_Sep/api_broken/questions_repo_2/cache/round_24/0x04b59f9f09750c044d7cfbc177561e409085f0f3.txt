@@ -1,0 +1,215 @@
+I want you to help me find new gas-wasting patterns for Solidity. Gas is a unique pricing mechanism in Solidity, which measures the amount of computational resources put into the execution of Solidity codes. The goal of gas optimization is to find an equivalent code instruction sequence that produces the same output while consuming less gas, which may misalign from the way people typically write codes, since code writers aim for readability and maintainability, while gas optimization might seem a little unintuitive to newcomers. For example, storage variables in Solidity are expensive in terms of gas, while memory is not, so storage operations should be avoided whenever possible. Gas is paid in real money, so saving gas is saving money.
+
+First, I will give you a list of known gas-wasting patterns. The list is numbered, with each bullet point specifying one gas-wasting pattern, which is followed by an explanation of why this pattern wastes gas. I want you to read through these and learn how to find new gas-wasting patterns from it. The list is as follows:
+
+1. Repeated computation of the same expression: including repetitive reads of the same expensive storage variable (e.g. Overuse of expensive storage variables). This could be solved by introducing an intermediate variable to hold the value.
+ 
+2. Extractable code chunks: if there are multiple chunks of codes that perform the same/similar functionalities, then we could abstract them into one function (or modifier) to save deployment costs 
+
+3. Variable refactoring: by refactoring variable types and thus adjusting memory layout, we could save gas by saving the amount of storage space needed
+
+4. Redundant operations with same effects: redundant operations that overwrite the effect of the previous operation, making the previous useless
+
+5. Pre-computable operations on constants: performing comparisons (or say other operations) to constants is useless and could be pre-computed
+
+6. Persistent conditional checks: some of the condition checks may always evaluate to true or always evaluate to false, which could be directly replaced by their evaluated values
+
+7. Simplifiable conditional operations: expressions that involve logical operations that could be simplified to reduce the amount of computational workload.
+
+8. "dead codes." codes that are guaranteed not to be executed (e.g. unreachable conditional branch) should be removed.
+9. "Opaque predicate." If the outcome of a predicate could be inferred to be true/false without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+10. "Expensive operations in a loop." If an gas-expensive operation is executed multiple times in a loop, while there is a way to equivalently move it out of the loop to execute only once (e.g. storing a storage variable in a memory variable and performing operations on the memory variable inside the loop), then we should do it to save gas.
+11. "Constant outcome of a loop." If the outcome of a loop could be inferred without execution, then we could just replace it with the corresponding value to save the compuation during runtime.
+12. "Loop fusion." If two loops have the same starting and stopping conditions with the same increment steps, then we could consider combining them into one (e.g. delete the second loop, and put its loop body codes into the first one) if they have no dependencies. This way, we save the logical comparisons, conditional jumps, as well as the incremental steps of the second loop, which saves computation and thus gas.
+13. "Repeated computations in a loop." If there are expressions that produce the same outcome in each iteration of a loop, we could move it out of the loop and execute only once, which saves computation.
+14. "Struct variable refactoring." If a struct used in a contract contains some fields that are used more often and some that are less often, then by breaking up the struct into two, where the frequently used fields are now put as a separate struct, we get to avoid unnecessary reads on the less often used fields and save gas.s
+
+Next, I will give you a chunk of Solidity codes from which you will find gas-inefficient patterns; note that I have removed simple functions from the contract and only kept complex ones, with the hope that you could focus on the most complicated function codes
+contract DebtIssuanceModuleV2 is DebtIssuanceModule {
+    function getRequiredComponentIssuanceUnits(
+        ISetToken _setToken,
+        uint256 _quantity
+    )
+        external
+        view
+        override
+        returns (address[] memory, uint256[] memory, uint256[] memory)
+    {
+        (
+            uint256 totalQuantity,,
+        ) = calculateTotalFees(_setToken, _quantity, true);
+
+        if(_setToken.totalSupply() == 0) {
+            return _calculateRequiredComponentIssuanceUnits(_setToken, totalQuantity, true);
+        } else {
+            (
+                address[] memory components,
+                uint256[] memory equityUnits,
+                uint256[] memory debtUnits
+            ) = _getTotalIssuanceUnitsFromBalances(_setToken);
+
+            uint256 componentsLength = components.length;
+            uint256[] memory totalEquityUnits = new uint256[](componentsLength);
+            uint256[] memory totalDebtUnits = new uint256[](componentsLength);
+            for (uint256 i = 0; i < components.length; i++) {
+                // Use preciseMulCeil to round up to ensure overcollateration of equity when small issue quantities are provided
+                // and use preciseMul to round debt calculations down to make sure we don't return too much debt to issuer
+                totalEquityUnits[i] = equityUnits[i].preciseMulCeil(totalQuantity);
+                totalDebtUnits[i] = debtUnits[i].preciseMul(totalQuantity);
+            }
+
+            return (components, totalEquityUnits, totalDebtUnits);
+        }
+    }
+
+    /* ============ Internal Functions ============ */
+
+    /**
+     * Resolve equity positions associated with SetToken. On issuance, the total equity position for an asset (including default and external
+     * positions) is transferred in. Then any external position hooks are called to transfer the external positions to their necessary place.
+     * On redemption all external positions are recalled by the external position hook, then those position plus any default position are
+     * transferred back to the _to address.
+     */
+    function issue(
+        ISetToken _setToken,
+        uint256 _quantity,
+        address _to
+    )
+        external
+        override
+        nonReentrant
+        onlyValidAndInitializedSet(_setToken)
+    {
+        require(_quantity > 0, "Issue quantity must be > 0");
+
+        address hookContract = _callManagerPreIssueHooks(_setToken, _quantity, msg.sender, _to);
+
+        _callModulePreIssueHooks(_setToken, _quantity);
+
+
+        uint256 initialSetSupply = _setToken.totalSupply();
+
+        (
+            uint256 quantityWithFees,
+            uint256 managerFee,
+            uint256 protocolFee
+        ) = calculateTotalFees(_setToken, _quantity, true);
+
+        // Prevent stack too deep
+        {
+            (
+                address[] memory components,
+                uint256[] memory equityUnits,
+                uint256[] memory debtUnits
+            ) = _calculateRequiredComponentIssuanceUnits(_setToken, quantityWithFees, true);
+
+            uint256 finalSetSupply = initialSetSupply.add(quantityWithFees);
+
+            _resolveEquityPositions(_setToken, quantityWithFees, _to, true, components, equityUnits, initialSetSupply, finalSetSupply);
+            _resolveDebtPositions(_setToken, quantityWithFees, true, components, debtUnits, initialSetSupply, finalSetSupply);
+            _resolveFees(_setToken, managerFee, protocolFee);
+        }
+
+        _setToken.mint(_to, _quantity);
+
+        emit SetTokenIssued(
+            _setToken,
+            msg.sender,
+            _to,
+            hookContract,
+            _quantity,
+            managerFee,
+            protocolFee
+        );
+    }
+
+    /**
+     * Returns components from the SetToken, unwinds any external module component positions and burns the SetToken.
+     * If the token has debt positions, the module transfers in the required debt amounts from the caller and uses
+     * those funds to repay the debts on behalf of the SetToken. All debt will be paid down first then equity positions
+     * will be returned to the minting address. If specified, a fee will be charged on redeem.
+     *
+     * NOTE: Overrides DebtIssuanceModule#redeem internal function and adds undercollateralization checks in place of the
+     * previous default strict balances checks. The undercollateralization checks are implemented in IssuanceValidationUtils library
+     * and they revert upon undercollateralization of the SetToken post component transfer.
+     *
+     * @param _setToken         Instance of the SetToken to redeem
+     * @param _quantity         Quantity of SetToken to redeem
+     * @param _to               Address to send collateral to
+     */
+    function redeem(
+        ISetToken _setToken,
+        uint256 _quantity,
+        address _to
+    )
+        external
+        override
+        nonReentrant
+        onlyValidAndInitializedSet(_setToken)
+    {
+        require(_quantity > 0, "Redeem quantity must be > 0");
+
+        _callModulePreRedeemHooks(_setToken, _quantity);
+
+        uint256 initialSetSupply = _setToken.totalSupply();
+
+        // Place burn after pre-redeem hooks because burning tokens may lead to false accounting of synced positions
+        _setToken.burn(msg.sender, _quantity);
+
+        (
+            uint256 quantityNetFees,
+            uint256 managerFee,
+            uint256 protocolFee
+        ) = calculateTotalFees(_setToken, _quantity, false);
+
+        // Prevent stack too deep
+        {
+            (
+                address[] memory components,
+                uint256[] memory equityUnits,
+                uint256[] memory debtUnits
+            ) = _calculateRequiredComponentIssuanceUnits(_setToken, quantityNetFees, false);
+
+            uint256 finalSetSupply = initialSetSupply.sub(quantityNetFees);
+
+            _resolveDebtPositions(_setToken, quantityNetFees, false, components, debtUnits, initialSetSupply, finalSetSupply);
+            _resolveEquityPositions(_setToken, quantityNetFees, _to, false, components, equityUnits, initialSetSupply, finalSetSupply);
+            _resolveFees(_setToken, managerFee, protocolFee);
+        }
+
+        emit SetTokenRedeemed(
+            _setToken,
+            msg.sender,
+            _to,
+            _quantity,
+            managerFee,
+            protocolFee
+        );
+    }
+
+    /* ============ External View Functions ============ */
+
+    /**
+     * Calculates the amount of each component needed to collateralize passed issue quantity plus fees of Sets as well as amount of debt
+     * that will be returned to caller. Default equity alues are calculated based on token balances and not position units in order to more
+     * closely track any accrued tokens that will be synced during issuance. External equity and debt positions will use the stored position
+     * units. IF TOKEN VALUES ARE NOT BEING SYNCED DURING ISSUANCE THIS FUNCTION WILL OVER ESTIMATE THE AMOUNT OF REQUIRED TOKENS.
+     *
+     * @param _setToken         Instance of the SetToken to issue
+     * @param _quantity         Amount of Sets to be issued
+     *
+     * @return address[]        Array of component addresses making up the Set
+     * @return uint256[]        Array of equity notional amounts of each component, respectively, represented as uint256
+     * @return uint256[]        Array of debt notional amounts of each component, respectively, represented as uint256
+     */
+Now that I have given you the necessary information, I want you to help me find new gas-wasting patterns from the above codes, based on what you learn from the list of patterns. Please be creative and think out of the box beyond the patterns listed above. Please put the new gas wasting patterns in bullet points (in the form of '1.', '2.', etc), and answer the following questions for each of the found patterns (in sub-bullet-points under each bullet point):
+
+1. How did you find this pattern? Could you explain the reasoning process, step by step, behind the discovery?
+
+2. What should I do, step by step, to fix the found gas-wasting patterns? Could you explain the reasoning process, step by step, behind the reason why such a fix works?
+
+3. On a score of 0 to 5, could you please tell me how would you rate this found new pattern, in terms of how much it is sacrificing readability, security, and maintainability in exchange for gas optimization (5 is the least impacted. For example, Security score of 5 means implementing the found gas-optimization pattern would have no effect on security, whereas 1 means it would reduce security)? Please format your answer as in "Readability: 5; Security: 4; Maintainability: 3". Please also provide explanations.
+
+Here are some additional requirements:
+1. If you think my prompt to you has any issues (e.g. ambiguity or lack of information), please tell me how I should improve it in the next time.
+2. please help me format your answer in the form of a Latex section (e.g. \section*{Analysis of Provided Solidity Code}), since I want to assert it to a Latex document.

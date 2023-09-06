@@ -1,0 +1,21 @@
+    function _calcRateFromQty(
+        uint256 srcAmount,
+        uint256 destAmount,
+        uint256 srcDecimals,
+        uint256 dstDecimals
+    ) internal pure returns (uint256) {
+        require(srcAmount <= _MAX_QTY && destAmount <= _MAX_QTY, "_calcRateFromQty: More then allowed max!");
+
+        if (dstDecimals >= srcDecimals) {
+            require((dstDecimals - srcDecimals) <= _MAX_DECIMALS);
+            return ((destAmount * _PRECISION) /
+                ((10**(dstDecimals - srcDecimals)) * srcAmount));
+        } else {
+            require((srcDecimals - dstDecimals) <= _MAX_DECIMALS);
+            return ((destAmount *
+                _PRECISION *
+                (10**(srcDecimals - dstDecimals))) / srcAmount);
+        }
+    }
+
+

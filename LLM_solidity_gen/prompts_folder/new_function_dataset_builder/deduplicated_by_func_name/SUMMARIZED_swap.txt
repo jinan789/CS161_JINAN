@@ -1,0 +1,16 @@
+Function: swap
+
+Input:
+1. address srcToken
+2. uint256 srcAmount
+3. uint256 minPrice
+4. uint256 maxPrice
+5. address destToken
+6. bytes oneInchData
+
+Output:
+1. uint256 actualDestAmount
+2. uint256 actualSrcAmount
+
+Summary:
+The swap function swaps the srcToken to destToken using 1inch protocol. It takes in the source token address, source token amount, minimum and maximum acceptable prices, destination token address, and oneInchData. The function ensures that the minimum price is less than the maximum price and that the source and destination tokens are different. The function returns the actual destination token amount received and the actual source token amount used.

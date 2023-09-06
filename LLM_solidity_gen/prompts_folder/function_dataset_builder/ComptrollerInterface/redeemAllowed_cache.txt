@@ -1,0 +1,12 @@
+Function: redeemAllowed
+
+Input:
+1. cToken (address)
+2. redeemer (address)
+3. redeemTokens (uint)
+
+Output:
+1. result (uint)
+
+Summary:
+The function checks if a redeemer is allowed to redeem a specific amount of tokens of a certain cToken type. It returns an unsigned integer result representing any potential error or success value.

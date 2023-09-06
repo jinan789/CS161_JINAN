@@ -1,0 +1,14 @@
+Function: permit(address _owner, address spender, uint rawAmount, uint deadline, uint8 v, bytes32 r, bytes32 s)
+
+Input: 
+1. _owner (address)
+2. spender (address)
+3. rawAmount (uint)
+4. deadline (uint)
+5. v (uint8)
+6. r (bytes32)
+7. s (bytes32)
+
+Output: Emits Approval event with (_owner, spender, amount)
+
+Summary: The function allows the owner of tokens to grant permission to a spender to spend a specific rawAmount up to the deadline, validated using EIP-712 signature (v,r,s). It sets an allowance and emits an Approval event.
