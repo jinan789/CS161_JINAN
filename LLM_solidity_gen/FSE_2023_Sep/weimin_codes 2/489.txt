@@ -1,0 +1,53 @@
+contract Vault is Ownable {
+    IUniswapV2Router02 public immutable router;
+
+    constructor(IUniswapV2Router02 _router) {
+        router = _router;
+    }
+
+    function addLiquidityETH(
+        address token,
+        uint amountTokenDesired,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint ethValue
+    )
+        external
+        onlyOwner
+        returns (
+            uint amountToken,
+            uint amountETH,
+            uint liquidity
+        )
+    {
+
+
+
+        (amountToken, amountETH, liquidity) = router.addLiquidityETH{value: ethValue}(
+            token,
+            amountTokenDesired,
+            amountTokenMin,
+            amountETHMin,
+            to,
+            block.timestamp
+        );
+
+    }
+
+    function recover(uint256 amount) external onlyOwner {
+        msg.sender.call{value: amount}(new bytes(0));
+    }
+
+    fallback() external payable onlyOwner {
+
+
+
+        (bool success, ) = address(router).call{value: msg.value}(msg.data);
+        require(success, "forward router faild");
+
+
+    }
+
+    receive() external payable {}
+}

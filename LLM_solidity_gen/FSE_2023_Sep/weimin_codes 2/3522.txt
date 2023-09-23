@@ -1,0 +1,158 @@
+contract PresalePepeInvasion is Ownable {
+    using SafeMath for uint256;
+    using SafeERC20 for IERC20;
+
+
+
+    IERC20 public USDT;
+    IERC20 public token;
+
+    uint256 public TokenpricePerUSDT;
+    uint256 public USDTpricePerETH;
+    uint256 public Token_Sold;
+    uint256 public maxTokeninPresale;
+
+    mapping (address => bool) public isBlacklist;
+
+    bool public presaleStatus;
+    bool public CanClaim;
+
+ 
+  
+
+ 
+    mapping(address => uint256) public Claimable;
+    event Recovered(address token, uint256 amount);
+   
+
+    constructor(IERC20 _USDT, IERC20 _token)  {
+       TokenpricePerUSDT=625000000000000000000000;  // 625000 Token per USDT
+       maxTokeninPresale=23330000000000*(1E18);
+       USDTpricePerETH=1900000000; //1900 usdt per eth
+       USDT=_USDT;
+       token=_token;
+    }
+
+     receive() external payable {
+            // React to receiving ETH
+        }
+
+    function BuyTokenWithETH() external payable 
+    {
+        require(Token_Sold.add(getTokenvalueperETH(msg.value))<=maxTokeninPresale,"Hardcap Reached!");
+        require(presaleStatus == true, "Presale : Presale is paused");  
+        require(msg.value > 0, "Presale : Unsuitable Amount"); 
+        require(isBlacklist[msg.sender]==false,"Presale : you are blacklisted");
+        require(tx.origin == msg.sender,"Presale : caller is a contract");
+        Claimable[msg.sender]+=getTokenvalueperETH(msg.value);
+        Token_Sold =Token_Sold.add(getTokenvalueperETH(msg.value)); 
+    }
+
+
+    function BuyTokenWithUSDT(uint256 _amt) external {
+
+        require(Token_Sold.add(getTokenvalueperUSDT(_amt))<=maxTokeninPresale,"Hardcap Reached!");
+        require(presaleStatus == true, "Presale : Presale is paused");  
+        require(_amt > 0, "Presale : Unsuitable Amount"); 
+        require(isBlacklist[msg.sender]==false,"Presale : you are blacklisted");
+        require(tx.origin == msg.sender,"Presale : caller is a contract");
+        IERC20(USDT).safeTransferFrom(msg.sender,address(this),_amt);
+        Claimable[msg.sender]+=getTokenvalueperUSDT(_amt);
+        Token_Sold =Token_Sold.add(getTokenvalueperUSDT(_amt)); 
+    }
+
+    function claim() external {
+        require(CanClaim==true,"Claim is not open yet");
+        require(isBlacklist[msg.sender]==false,"Presale : you are blacklisted");
+        require(tx.origin == msg.sender,"Presale : caller is a contract");
+        uint256 claimable=Claimable[msg.sender];
+        require(claimable>0,"no claimable found");
+        token.transfer(msg.sender, claimable);
+        Claimable[msg.sender]=0;
+    }
+
+
+
+
+    function getTokenvalueperETH(uint256 _ethvalue) public view returns(uint256){
+        uint256 usdtamount=(USDTpricePerETH.mul(_ethvalue)).div(1e18);
+       return   (TokenpricePerUSDT.mul(usdtamount)).div(1e6);
+    }
+
+    function getTokenvalueperUSDT(uint256 _amt) public view returns(uint256){
+    
+       return   (TokenpricePerUSDT.mul(_amt)).div(1e6);
+    }
+
+    
+
+    function setRewardTokenPriceperUSDT(uint256 _count) external onlyOwner {
+        TokenpricePerUSDT = _count;
+    }
+    function SetUSDTpricePerETH(uint256 _count) external onlyOwner{
+        USDTpricePerETH=_count;
+    }
+
+    function stopPresale() external onlyOwner {
+        presaleStatus = false;
+    }
+
+    function StartClaim() external onlyOwner{
+        CanClaim=true;
+    }
+
+       function StopClaim() external onlyOwner{
+        CanClaim=false;
+    }
+
+    function resumePresale() external onlyOwner {
+        presaleStatus = true;
+    }
+
+    function setmaxTokeninPresale(uint256 _value) external onlyOwner{
+        maxTokeninPresale=_value;
+    }
+
+    function setUSDT(IERC20 _usdt) external onlyOwner{
+        USDT=_usdt;
+    }
+
+    
+
+
+    function contractbalance() public view returns(uint256)
+    {
+      return address(this).balance;
+    }
+
+
+
+    function recoverERC20(address tokenAddress, uint256 tokenAmount) external onlyOwner {
+        IERC20(tokenAddress).transfer(this.owner(), tokenAmount);
+        emit Recovered(tokenAddress, tokenAmount);
+    }
+
+     function EmergencyUSDT( address _usdt ,uint256 tokenAmount) external onlyOwner {
+        IERC20(_usdt).safeTransfer(this.owner(),tokenAmount);
+
+        emit Recovered(address(_usdt), tokenAmount);
+    }
+
+
+    function settoken(IERC20 _token) external onlyOwner{
+        token=_token;
+    }
+
+
+    function setBlacklist(address _addr,bool _state) external onlyOwner{
+        isBlacklist[_addr]=_state;
+    }
+
+
+       function releaseFunds() external onlyOwner 
+    {
+        payable(msg.sender).transfer(address(this).balance);
+    }
+
+
+}

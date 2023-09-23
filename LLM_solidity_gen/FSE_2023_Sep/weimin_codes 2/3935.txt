@@ -1,0 +1,50 @@
+contract SprotonCommand is Ownable {
+    INFT _SPEPES;
+    INFT _PFP;
+    INFT _GEN;
+
+    constructor(address SPEPES, address PFP, address GEN) {
+        _SPEPES = INFT(SPEPES);
+        _PFP = INFT(PFP);
+        _GEN = INFT(GEN);
+    }
+
+    function batchMint() public {
+        uint i = 0;
+        uint balance = _SPEPES.balanceOf(msg.sender);
+        while (i < balance) {
+            uint tokenId = _SPEPES.tokenOfOwnerByIndex(msg.sender, i);
+            if (!_PFP.exist(tokenId)) { // skip if minted already
+                require(!_PFP.exist(tokenId), "error PFP.exist");
+                require(
+                    msg.sender == _SPEPES.ownerOf(tokenId),
+                    "error SPEPES.owner"
+                );
+                _PFP.mintPFP(msg.sender, tokenId);
+                _GEN.mintGEN(msg.sender, tokenId);
+            }
+            i++;
+        }
+    }
+
+    function batchRecall() public {
+        uint i = 0;
+        uint balance = _SPEPES.balanceOf(msg.sender);
+        while (i < balance) {
+            uint tokenId = _SPEPES.tokenOfOwnerByIndex(msg.sender, i); 
+            require(
+                msg.sender == _SPEPES.ownerOf(tokenId), // ensure sender is owner
+                "error SPEPES.owner"
+            );
+            if (_PFP.exist(tokenId)) { // skip if not minted yet
+                require(_PFP.exist(tokenId), "error PFP.exist"); // has been minted
+                if (msg.sender != _PFP.ownerOf(tokenId)) {
+                    address pfpOwner = _PFP.ownerOf(tokenId);
+                    _PFP.transferFrom(pfpOwner, msg.sender, tokenId);
+                    _GEN.transferFrom(pfpOwner, msg.sender, tokenId);
+                }
+            }
+            i++;
+        }
+    }
+}

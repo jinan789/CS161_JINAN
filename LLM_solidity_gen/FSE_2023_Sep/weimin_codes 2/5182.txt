@@ -1,0 +1,31 @@
+contract UpdateL1CoreTimelockAction {
+    ProxyAdmin public immutable govProxyAdmin;
+    L1AddressRegistry public immutable l1AddressRegistry;
+    address public immutable newTimelockImplementation;
+
+    constructor(
+        ProxyAdmin _govProxyAdmin,
+        L1AddressRegistry _11AddressRegistry,
+        address _newTimelockImplementation
+    ) {
+        require(
+            Address.isContract(_newTimelockImplementation),
+            "UpdateL1CoreTimelockAction: _newTimelockImplementation is contract"
+        );
+        govProxyAdmin = _govProxyAdmin;
+        l1AddressRegistry = _11AddressRegistry;
+        newTimelockImplementation = _newTimelockImplementation;
+    }
+
+    function perform() public {
+        TransparentUpgradeableProxy timelockProxy =
+            TransparentUpgradeableProxy(payable(address(l1AddressRegistry.l1Timelock())));
+        govProxyAdmin.upgrade(timelockProxy, newTimelockImplementation);
+
+        // verify
+        require(
+            govProxyAdmin.getProxyImplementation(timelockProxy) == newTimelockImplementation,
+            "UpdateL1CoreTimelockAction: new implementation set"
+        );
+    }
+}

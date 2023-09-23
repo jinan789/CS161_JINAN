@@ -1,0 +1,307 @@
+contract DistributionContract is Ownable {
+    using FullMath for uint256;
+    event RevenueSent(uint256 honoAmount, uint256 timestamp);
+    
+    HonoToken public HONO;
+    IERC20 public WETH;
+    IERC20 public USDC;
+    IERC20 public LINK;
+    IUniswapV3Router public router;
+
+    uint24 public  feeForETHLINK = 3000;
+    uint256 public  minimumLinkToSwap = 100000000000000000;
+    uint24 public  feeForHONOUSDC = 3000;
+    uint256 public  minimumUSDCToSwap = 100000000000000000000;
+    uint256 public  minimumHONOToRedeem = 100000000000000000000;
+    uint256 public  minimumWETHToRedeem = 100000000000000000000;
+    uint256 public  minimumETHToDistribute = 100000000000000000;
+    uint256 public HonoBackingP = 4000;
+    uint256 public AddLPP = 500;
+
+    uint256 public OperationWalletP = 2500;
+    address payable public OperationWallet = 0x1784cf268e4a5D48562F01506C6f570aBc35F9c1;
+
+    uint256 public HONOStakingRewardP = 2000;
+    address payable public HONOStakingReward = 0xf39D0162e3d03fD95ea8355611cD331B3E068B18;
+
+    uint256 public PoolMinterP = 1000;
+    address payable public PoolMinter = 0x0aC73C4559E08C05C7c3E0B5255f8E6cdd4639b0;
+
+    uint256 public sqrt_price_high;
+    uint256 public sqrt_price_low;
+
+    IUniswapV3Pool public _pool; 
+    INonfungiblePositionManager public _posMgr;
+    HonoLPEngine public _lpEngine;
+    uint256 public _tokenId;
+    uint256 maxApprove = 11579208923731619542357098500868790785326998466564056403945758400791312963993;
+
+
+    function updateMinimumLinkToSwap(uint256 _newAmount) external onlyOwner {
+        minimumLinkToSwap = _newAmount;
+    }
+
+    function updateMinimumUSDCToSwap(uint256 _newAmount) external onlyOwner {
+        minimumUSDCToSwap = _newAmount;
+    }
+
+    function updateminimumHONOToRedeem(uint256 _newAmount) external onlyOwner {
+        minimumHONOToRedeem = _newAmount;
+    }
+
+    function updateminimumWETHToRedeem(uint256 _newAmount) external onlyOwner {
+        minimumWETHToRedeem = _newAmount;
+    }
+
+    function updateminimumETHToDistribute(uint256 _newAmount) external onlyOwner {
+        minimumETHToDistribute = _newAmount;
+    }
+
+    function updateETHLinkFee(uint24 _BP) external onlyOwner {
+        feeForETHLINK = _BP;
+    }
+
+    function UpdateHONOUSDTFEE(uint24 _BP) external onlyOwner {
+        feeForHONOUSDC = _BP;
+    }
+
+    function UpdateAddLPP(uint256 _BP) external onlyOwner {
+        AddLPP = _BP;
+    }
+
+    function UpdateHonoBackingP(uint256 _BP) external onlyOwner {
+        HonoBackingP = _BP;
+    }
+
+    function UpdateHONOStakingReward(address payable _newRecipient, uint256 _BP) external onlyOwner {
+        HONOStakingReward = _newRecipient;
+        HONOStakingRewardP = _BP;
+    }
+
+    function UpdatePoolMinter(address payable _newRecipient, uint256 _BP) external onlyOwner {
+        PoolMinter = _newRecipient;
+        PoolMinterP = _BP;
+    }
+
+    function UpdateOperationWallet(address payable _newRecipient, uint256 _BP) external onlyOwner {
+        OperationWallet = _newRecipient;
+        OperationWalletP = _BP;
+    }
+
+    constructor(address honoAddress, address posMgr, address lpengine, uint256 tokenId,  address routerAddress, address weth, address link, uint256 usdc) {
+        HONO = HonoToken(honoAddress);
+        _posMgr = INonfungiblePositionManager(posMgr);
+        _lpEngine = HonoLPEngine(lpengine);
+        router = IUniswapV3Router(routerAddress);
+        WETH = IERC20(weth);
+        LINK = IERC20(link);
+        USDC = IERC20(usdc);
+        _tokenId = tokenId;
+        _preconfig(_tokenId);
+    }
+
+    // Owner can drain tokens that are sent here by mistake
+    function drainToken(IERC20 _token, uint256 _amount, address _to) external onlyOwner {
+        _token.transfer(_to,_amount);
+    }
+    
+    function distributeFee() external {
+
+        if(LINK.balanceOf(address(this)) > minimumLinkToSwap)
+        {
+            univ3swapWithLINKInput(LINK.balanceOf(address(this)));
+        }
+
+        if(USDC.balanceOf(address(this)) > minimumUSDCToSwap)
+        {
+            univ3swapWithUSDCInputHonoOutput(USDC.balanceOf(address(this)));
+        }
+
+        if(HONO.balanceOf(address(this)) > minimumHONOToRedeem)
+        {
+            HONO.redeem(HONO.balanceOf(address(this)));
+        }
+
+        if(WETH.balanceOf(address(this)) > minimumWETHToRedeem)
+        {
+            IWETH(address(WETH)).withdraw(WETH.balanceOf(address(this)));
+        }
+
+        uint totalETH =  address(this).balance;
+        if(totalETH > minimumETHToDistribute)
+        {
+            if(HONOStakingRewardP > 0)
+            sendEth(HONOStakingReward,totalETH*HONOStakingRewardP/10000);
+            if(PoolMinterP > 0)
+                sendEth(PoolMinter, totalETH*PoolMinterP/10000);
+            if(HonoBackingP > 0)
+                HONO.deposit{value: totalETH*HonoBackingP/10000}();
+            if(OperationWalletP > 0)    
+                sendEth(OperationWallet, totalETH*OperationWalletP/10000);
+            if(AddLPP > 0)     
+                swapAndAddLp(address(this).balance);
+            emit RevenueSent(totalETH, block.timestamp);
+        }
+        
+    }
+
+    function withdrawFunds() external onlyOwner {
+        uint256 contractBalance = address(this).balance;
+        require(contractBalance > 0, "No value to withdraw");
+        payable(owner()).transfer(contractBalance);
+    }
+    
+    receive() payable external {
+        
+    } 
+
+    function sendEth(address _address, uint256 _value) internal {
+        (bool success, ) = _address.call{value: _value}("");
+        require(success, "ETH Transfer failed.");
+    }
+
+    function sqrtPriceX96ToUint(uint160 sqrtPriceX96, uint8 decimalsToken0)
+    internal
+    pure
+    returns (uint256)
+    {
+        uint256 numerator1 = uint256(sqrtPriceX96) * uint256(sqrtPriceX96);
+        uint256 numerator2 = 10**decimalsToken0;
+        return FullMath.mulDiv(numerator1, numerator2, 1 << 192);
+    }
+
+    function swapAndAddLp(uint256 totalEth) internal
+    {
+        (uint256 ethToAddLp, uint256  ethToSwap) = _calculateCorrectAmount(totalEth);
+        uint256 amountLINK =  univ3swapWithETHInput(ethToSwap);
+        LINK.approve(address(_lpEngine),amountLINK);
+        _lpEngine.increaseLiquidityCurrentRange{value:ethToAddLp}(_tokenId,amountLINK,ethToAddLp,feeForETHLINK,0x0000000000000000000000000000000000000000);
+    }
+
+    function swapAndAddLp() external payable onlyOwner
+    {
+        (uint256 ethToAddLp, uint256  ethToSwap) = _calculateCorrectAmount(msg.value);
+        uint256 amountLINK =  univ3swapWithETHInput(ethToSwap);
+        LINK.approve(address(_lpEngine),amountLINK );
+        _lpEngine.increaseLiquidityCurrentRange{value:ethToAddLp}(_tokenId,amountLINK,ethToAddLp,feeForETHLINK,0x0000000000000000000000000000000000000000);
+    }
+
+    function calculateCorrectAmount(uint256 totalETH) external view returns (uint256, uint256)
+    {
+        return _calculateCorrectAmount(totalETH);
+    }
+
+    function _calculateCorrectAmount(uint256 totalETH) internal view returns (uint256, uint256)
+    {
+        //we know eth is the token0, so can do this, if it is reverse need to change a bit
+        (uint160 sqrtRatioX96,,,,,,) = _pool.slot0();
+        uint256 amountLINK = FullMath.mulDiv(_pool.liquidity(), 0x1000000000000000000000000, sqrtRatioX96);
+        uint256 amountETH = FullMath.mulDiv(_pool.liquidity(), sqrtRatioX96, 0x1000000000000000000000000);
+        // x USDE for 10**18 ETH
+        if(amountLINK > amountETH)
+        {
+            uint256 amountUNeededFor1ETHAddLp  = 10**18 / _getAmount1Needed(10**18);
+            uint256 amountUNeededFor1ETHSwap  = amountLINK/amountETH;
+            //a little hack to make computing for gas efficient
+            uint256 amountETHToAddLp = FullMath.mulDiv(amountUNeededFor1ETHSwap, totalETH, amountUNeededFor1ETHSwap + amountUNeededFor1ETHAddLp);
+            return(amountETHToAddLp, totalETH - amountETHToAddLp);
+        } 
+        else
+        {
+            //toolazy it shouldnt happen lul
+        }
+    }
+
+    function computeAddress(address token0, address token1, uint24 fee) external view returns (address )
+    {
+       return  PoolAddress.computeAddress(
+                _posMgr.factory(), PoolAddress.PoolKey({token0: token0, token1: token1, fee: fee})
+            );
+    }
+
+    function _preconfig(uint256 tokenId) internal
+    {
+        _tokenId = tokenId;
+        (,, address token0, address token1, uint24 fee,int24 tickLower ,int24 tickUpper,,,,,) = _posMgr.positions(tokenId);
+
+        _pool = IUniswapV3Pool(
+            PoolAddress.computeAddress(
+                _posMgr.factory(), PoolAddress.PoolKey({token0: token0, token1: token1, fee: fee})
+            )
+        );
+        IERC20(token0).approve(address(router),maxApprove);
+        IERC20(token1).approve(address(router),maxApprove);
+
+        IERC20(token0).approve(address(_lpEngine), maxApprove);
+        IERC20(token1).approve(address(_lpEngine), maxApprove);
+
+        LINK.approve(address(router),maxApprove);
+        USDC.approve(address(router),maxApprove);
+
+        sqrt_price_high = TickMath.getSqrtRatioAtTick(tickUpper);
+        sqrt_price_low = TickMath.getSqrtRatioAtTick(tickLower);
+
+    }
+
+    function PreConfig(uint256 tokenId) external onlyOwner
+    {
+        _preconfig(tokenId);
+    }
+
+    function _getAmount1Needed(uint256 totalToken0) internal view returns (uint256 token1needed)
+    {
+        (uint160 sqrtRatioX96,,,,,,) = _pool.slot0();
+        token1needed = FullMath.mulDiv(sqrt_price_high, sqrtRatioX96 - sqrt_price_low, 2**96);
+        token1needed = FullMath.mulDiv(sqrtRatioX96,token1needed,2**96);
+        token1needed = FullMath.mulDiv(totalToken0,token1needed, sqrt_price_high - sqrtRatioX96);
+    }
+
+    function getAmount1Needed(uint256 totalToken0) external view returns (uint256 token1needed)
+    {
+        token1needed = _getAmount1Needed(totalToken0);
+    }
+
+    function univ3swapWithETHInput(uint256 amount) internal returns  (uint256) {
+        uint deadline = block.timestamp + 3000;
+        IUniswapV3Router.ExactInputParams memory params =
+            IUniswapV3Router.ExactInputParams({
+                path: abi.encodePacked(WETH, feeForETHLINK, LINK),
+                recipient: address(this),
+                deadline: deadline,
+                amountIn: amount,
+                amountOutMinimum: 0
+            });
+        // Executes the swap.
+        return router.exactInput{value: amount}(params);
+    }
+
+    function univ3swapWithLINKInput(uint256 amount) internal returns  (uint256) {
+        uint deadline = block.timestamp + 3000;
+        
+        IUniswapV3Router.ExactInputParams memory params =
+            IUniswapV3Router.ExactInputParams({
+                path: abi.encodePacked(LINK, feeForETHLINK, WETH),
+                recipient: address(this),
+                deadline: deadline,
+                amountIn: amount,
+                amountOutMinimum: 0
+            });
+        // Executes the swap.
+        return router.exactInput(params);
+    }
+
+    function univ3swapWithUSDCInputHonoOutput(uint256 amount) internal returns  (uint256) {
+        uint deadline = block.timestamp + 3000;
+        
+        IUniswapV3Router.ExactInputParams memory params =
+            IUniswapV3Router.ExactInputParams({
+                path: abi.encodePacked(USDC, feeForHONOUSDC, HONO),
+                recipient: address(this),
+                deadline: deadline,
+                amountIn: amount,
+                amountOutMinimum: 0
+            });
+        // Executes the swap.
+        return router.exactInput(params);
+    }
+}

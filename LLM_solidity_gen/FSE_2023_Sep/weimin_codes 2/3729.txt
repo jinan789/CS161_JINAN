@@ -1,0 +1,59 @@
+contract SHARES_LP_LOCKER {
+    address public sharesdev;
+    address public nftContract;
+    uint256 public lockUpEndTime;
+    bool public isNFTLocked;
+    bool public isWithdrawalTriggered;
+
+    modifier onlysharesdev() {
+        require(msg.sender == sharesdev, "Only sharesdev can call this function");
+        _;
+    }
+
+    constructor(address _nftContract) { // Set to 0xc36442b4a4522e871399cd717abdd847ab11fe88
+        sharesdev = msg.sender;
+        nftContract = _nftContract; 
+        isNFTLocked = false;
+        isWithdrawalTriggered = false;
+    }
+
+    function lockNFT(uint256 tokenId) external onlysharesdev {
+        require(!isNFTLocked, "NFT is already locked");
+
+        IERC721(nftContract).transferFrom(msg.sender, address(this), tokenId); // LP token ID is 509557
+
+        isNFTLocked = true;
+    }
+
+    function triggerWithdrawal() external onlysharesdev {
+        require(isNFTLocked, "NFT is not locked");
+        require(lockUpEndTime == 0, "Withdrawal is already triggered");
+        lockUpEndTime = block.timestamp + 365 days; 
+        isWithdrawalTriggered = true;
+    }
+
+    function cancelWithdrawalTrigger() external onlysharesdev {
+        require(isNFTLocked, "NFT is not locked");
+        require(lockUpEndTime != 0, "Withdrawal is not triggered");
+
+        lockUpEndTime = 0;
+        isWithdrawalTriggered = false;
+    }
+
+    function withdrawNFT(uint256 tokenId) external onlysharesdev {
+        require(isNFTLocked, "NFT is not locked");
+        require(lockUpEndTime != 0, "Withdrawal is not triggered");
+        require(block.timestamp >= lockUpEndTime, "Lock-up period has not ended yet");
+
+        IERC721(nftContract).transferFrom(address(this), msg.sender, tokenId); // LP token ID is 509557
+
+        isNFTLocked = false;
+        lockUpEndTime = 0;
+        isWithdrawalTriggered = false;
+    }
+
+    function changeOwner(address newOwner) external onlysharesdev {
+        require(newOwner != address(0), "Invalid new owner address");
+        sharesdev = newOwner;
+    }
+}

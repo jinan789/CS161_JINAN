@@ -1,0 +1,55 @@
+contract MatchCriteriaERC1155 is IMatchingCriteria {
+    function matchMakerAsk(Order calldata makerAsk, Order calldata takerBid)
+        external
+        pure
+        override
+        returns (
+            bool,
+            uint256,
+            uint256,
+            uint256,
+            AssetType
+        )
+    {
+        return (
+            (makerAsk.side != takerBid.side) &&
+            (makerAsk.paymentToken == takerBid.paymentToken) &&
+            (makerAsk.collection == takerBid.collection) &&
+            (makerAsk.tokenId == takerBid.tokenId) &&
+            (makerAsk.amount == takerBid.amount) &&
+            (makerAsk.matchingCriteria == takerBid.matchingCriteria) &&
+            (makerAsk.price == takerBid.price),
+            makerAsk.price,
+            makerAsk.tokenId,
+            makerAsk.amount,
+            AssetType.ERC1155
+        );
+    }
+
+    function matchMakerBid(Order calldata makerBid, Order calldata takerAsk)
+        external
+        pure
+        override
+        returns (
+            bool,
+            uint256,
+            uint256,
+            uint256,
+            AssetType
+        )
+    {
+        return (
+            (makerBid.side != takerAsk.side) &&
+            (makerBid.paymentToken == takerAsk.paymentToken) &&
+            (makerBid.collection == takerAsk.collection) &&
+            (makerBid.tokenId == takerAsk.tokenId) &&
+            (makerBid.amount == takerAsk.amount) &&
+            (makerBid.matchingCriteria == takerAsk.matchingCriteria) &&
+            (makerBid.price == takerAsk.price),
+            makerBid.price,
+            makerBid.tokenId,
+            makerBid.amount,
+            AssetType.ERC1155
+        );
+    }
+}

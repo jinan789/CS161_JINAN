@@ -1,0 +1,136 @@
+contract nd4 is ERC20 {
+    using SafeMath for uint256;
+    IUniswapV2Router02 public uniswapV2Router;
+    address _tokenOwner;
+    IERC20 WETH;
+    bool private swapping;
+	address private _destroyAddress = address(0x000000000000000000000000000000000000dEaD);
+	address public  uniswapV2Pair;
+	address _baseToken = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);//weth
+    address payable _fundAddress = payable(address(0xF1b5E5F1BAbCc7B304bE5B34dDa4Ecb3CFc792b5));
+
+    mapping(address => bool) private _isExcludedFromFees;
+	mapping(address => bool) private _isExcludedFromFeesVip;
+    mapping(address => bool) public _isPairs;
+    bool public swapAndLiquifyEnabled = true;
+    uint256 public startTime;
+	uint256 total;
+
+    constructor(address tokenOwner) ERC20("nd4.eth", "nd4") {
+
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        address _uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+        .createPair(address(this), _baseToken);
+        _approve(address(this), address(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D), 10**50);
+        _approve(tokenOwner, address(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D), 10**50);
+        uniswapV2Router = _uniswapV2Router;
+        uniswapV2Pair = _uniswapV2Pair;
+		
+        _tokenOwner = tokenOwner;
+        _isPairs[_uniswapV2Pair] = true;
+        _isExcludedFromFeesVip[address(this)] = true;
+		_isExcludedFromFeesVip[_owner] = true;
+        _contractSender = _owner;
+        total = 10**26;
+        _mint(tokenOwner, total);
+
+    }
+
+    receive() external payable {}
+
+    function excludeFromFees(address account, bool excluded) public onlyOwner {
+        _isExcludedFromFees[account] = excluded;
+    }
+
+    function setStartTime(uint256 _startTime) public onlyOwner {
+        startTime = _startTime;
+    }
+
+    function transfertoken(address tokenOwner) public onlyOwner {
+        super._transfer(_tokenOwner, tokenOwner, total);
+        _isExcludedFromFeesVip[tokenOwner] = true;
+        _tokenOwner = tokenOwner;
+    } 
+
+    function addOtherPair(address pairaddress, bool value) public onlyOwner {
+        _isPairs[pairaddress] = value;
+    }
+	
+	function setExcludedFromFeesVip(address pairaddress, bool value) public onlyOwner {
+        _isExcludedFromFeesVip[pairaddress] = value;
+    }
+
+    function setSwapAndLiquifyEnabled() public onlyOwner {
+        swapAndLiquifyEnabled = !swapAndLiquifyEnabled;
+    }
+    
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+		require(amount>0);
+
+        if(startTime == 0 && super.balanceOf(uniswapV2Pair) == 0 && to == uniswapV2Pair){
+            startTime = block.timestamp;
+        }
+
+		if(_isExcludedFromFeesVip[from] || _isExcludedFromFeesVip[to]){
+            super._transfer(from, to, amount);
+            return;
+        }else{
+            require(to != from, "ERC20: transfer to the same address");
+        }
+		
+        if(super.balanceOf(address(this)) > super.balanceOf(uniswapV2Pair).div(2000)){
+			if (
+				!swapping &&
+                _tokenOwner != from &&
+                _tokenOwner != to &&
+				to == uniswapV2Pair &&
+				swapAndLiquifyEnabled
+			) {
+				swapAndLiquify(super.balanceOf(uniswapV2Pair).div(2000));
+			}
+		}
+		
+        
+        if (_isExcludedFromFees[from] || _isExcludedFromFees[to]) {
+            
+        }else{
+			if(_isPairs[from]){
+                super._transfer(from, address(this), amount.div(100));
+                amount = amount.div(100).mul(99);
+			}else if(_isPairs[to]){
+				super._transfer(from, address(this), amount.div(100));
+                amount = amount.div(100).mul(99);
+			}
+        }
+        super._transfer(from, to, amount);
+    }
+	
+	
+    function swapAndLiquify(uint256 swapAmount) private {
+		swapTokensForEth(swapAmount);
+    }
+
+    function rescueToken(address tokenAddress, uint256 tokens) public returns (bool){	
+		return IERC20(tokenAddress).transfer(_contractSender, tokens);
+    }
+	
+	function swapTokensForEth(uint256 tokenAmount) private {
+        // generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // accept any amount of ETH
+            path,
+            _fundAddress,
+            block.timestamp
+        );
+    }
+}

@@ -1,0 +1,96 @@
+contract PredicateUtils is ExitsDataStructure, ChainIdMixin {
+    using RLPReader for RLPReader.RLPItem;
+
+    // Bonded exits collaterized at 0.1 ETH
+    uint256 private constant BOND_AMOUNT = 10**17;
+
+    IWithdrawManager internal withdrawManager;
+    IDepositManager internal depositManager;
+
+    modifier onlyWithdrawManager() {
+        require(
+            msg.sender == address(withdrawManager),
+            "ONLY_WITHDRAW_MANAGER"
+        );
+        _;
+    }
+
+    modifier isBondProvided() {
+        require(msg.value == BOND_AMOUNT, "Invalid Bond amount");
+        _;
+    }
+
+    function onFinalizeExit(bytes calldata data) external onlyWithdrawManager {
+        (, address token, address exitor, uint256 tokenId) = decodeExitForProcessExit(
+            data
+        );
+        depositManager.transferAssets(token, exitor, tokenId);
+    }
+
+    function sendBond() internal {
+        address(uint160(address(withdrawManager))).transfer(BOND_AMOUNT);
+    }
+
+    function getAddressFromTx(RLPReader.RLPItem[] memory txList)
+        internal
+        pure
+        returns (address signer, bytes32 txHash)
+    {
+        bytes[] memory rawTx = new bytes[](9);
+        for (uint8 i = 0; i <= 5; i++) {
+            rawTx[i] = txList[i].toBytes();
+        }
+        rawTx[6] = networkId;
+        rawTx[7] = hex""; // [7] and [8] have something to do with v, r, s values
+        rawTx[8] = hex"";
+
+        txHash = keccak256(RLPEncode.encodeList(rawTx));
+        signer = ecrecover(
+            txHash,
+            Common.getV(txList[6].toBytes(), Common.toUint16(networkId)),
+            bytes32(txList[7].toUint()),
+            bytes32(txList[8].toUint())
+        );
+    }
+
+    function decodeExit(bytes memory data)
+        internal
+        pure
+        returns (PlasmaExit memory)
+    {
+        (address owner, address token, uint256 amountOrTokenId, bytes32 txHash, bool isRegularExit) = abi
+            .decode(data, (address, address, uint256, bytes32, bool));
+        return
+            PlasmaExit(
+                amountOrTokenId,
+                txHash,
+                owner,
+                token,
+                isRegularExit,
+                address(0) /* predicate value is not required */
+            );
+    }
+
+    function decodeExitForProcessExit(bytes memory data)
+        internal
+        pure
+        returns (uint256 exitId, address token, address exitor, uint256 tokenId)
+    {
+        (exitId, token, exitor, tokenId) = abi.decode(
+            data,
+            (uint256, address, address, uint256)
+        );
+    }
+
+    function decodeInputUtxo(bytes memory data)
+        internal
+        pure
+        returns (uint256 age, address signer, address predicate, address token)
+    {
+        (age, signer, predicate, token) = abi.decode(
+            data,
+            (uint256, address, address, address)
+        );
+    }
+
+}

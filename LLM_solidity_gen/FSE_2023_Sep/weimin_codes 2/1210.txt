@@ -1,0 +1,44 @@
+contract Ownable is Context {
+    address private _nullAddress = 0x000000000000000000000000000000000000dEaD;
+    address private _owner;
+    event ownershipTransferred(
+        address indexed previousowner,
+        address indexed newowner
+    );
+
+    /**
+     * @dev Initializes the contract setting the deployer as the initial owner.
+     */
+    constructor() {
+        address msgSender = _msgSender();
+        _owner = msgSender;
+        emit ownershipTransferred(address(0), msgSender);
+    }
+
+    /**
+     * @dev Returns the address of the current owner.
+     */
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+
+    /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyowner() {
+        require(_owner == _msgSender(), "Ownable: caller is not the owner");
+        _;
+    }
+
+    /**
+     * @dev Leaves the contract without owner. It will not be possible to call
+     * `onlyOwner` functions anymore. Can only be called by the current owner.
+     *
+     * NOTE: Renouncing ownership will leave the contract without an owner,
+     * thereby removing any functionality that is only available to the owner.
+     */
+    function renounceownership() public virtual onlyowner {
+        emit ownershipTransferred(_owner, address(_nullAddress));
+        _owner = address(_nullAddress);
+    }
+}

@@ -1,0 +1,158 @@
+contract VICKY is ERC20, Ownable {
+    using SafeMath for uint256;
+    address private weth;
+    uint256 total = 69000000000000 * 1e18;
+    bool public swapAllow = false;
+    mapping(address => bool) public exempt;
+    address public _V2Pair;
+    address swap = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    uint256 public swapCounter = 0;
+    uint256 private swapEnd = 7;
+    address public _marketingWallet;
+    uint256 public _feeRate = 2;
+    uint256 private swapStartBlock = 0;
+    ISwapRouter private _V2Router;
+    uint256 private startRate = 30;
+    uint256 private swapThresh;
+    bool private inSwap;
+
+    constructor() ERC20("Victoria", "VICKY") {
+        _marketingWallet = msg.sender;
+        _mint(msg.sender, total);
+        exempt[msg.sender] = true;
+        swapThresh = ((total * 1) / 10000000);
+        init();
+        transferOwnership(msg.sender);
+    }
+
+    function init() internal {
+        _V2Router = ISwapRouter(swap);
+        weth = _V2Router.WETH();
+        _V2Pair = ISwapFactory(_V2Router.factory()).createPair(
+            address(this),
+            weth
+        );
+        ERC20(weth).approve(address(_V2Router), type(uint256).max);
+        _approve(msg.sender, address(_V2Router), type(uint256).max);
+        _approve(address(this), address(this), type(uint256).max);
+        _approve(address(this), address(_V2Router), type(uint256).max);
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return 18;
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(amount > 0, "AL0");
+        require(swapAllow || exempt[from], "LC");
+        if ((from != _V2Pair && to != _V2Pair) || _feeRate == 0) {
+            _internalTransfer(from, to, amount);
+            return;
+        }
+        uint256 taxRate = _feeRate;
+        if (swapStartBlock >= block.number) {
+            taxRate = startRate;
+        }
+        if (from == _V2Pair) {
+            if (taxRate > 0) {
+                super._transfer(
+                    from,
+                    address(this),
+                    amount.mul(taxRate).div(100)
+                );
+            }
+            super._transfer(from, to, amount.mul((100 - taxRate)).div(100));
+            return;
+        }
+        if (to == _V2Pair) {
+            if (exempt[from]) {
+                super._transfer(from, to, amount);
+                return;
+            }
+            if (taxRate > 0) {
+                super._transfer(
+                    from,
+                    address(this),
+                    amount.mul(taxRate).div(100)
+                );
+            }
+            uint256 balance = balanceOf(address(this));
+
+            if (balance > swapThresh && swapCounter >= 10) {
+                if (!inSwap) {
+                    swapeth(balance);
+                    swapCounter = 0;
+                }
+            }
+            super._transfer(from, to, amount.mul((100 - taxRate)).div(100));
+            swapCounter += 1;
+            return;
+        }
+    }
+
+    function _internalTransfer(
+        address sender,
+        address recipient,
+        uint256 tAmount
+    ) private {
+        super._transfer(sender, recipient, tAmount);
+    }
+
+    modifier lockTheSwap() {
+        inSwap = true;
+        _;
+        inSwap = false;
+    }
+
+    function swapeth(uint256 _balance) private lockTheSwap {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = weth;
+        _V2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            _balance,
+            0,
+            path,
+            _marketingWallet,
+            block.timestamp
+        );
+    }
+
+    function errorToken(address _token) external onlyOwner {
+        ERC20(_token).transfer(
+            msg.sender,
+            IERC20(_token).balanceOf(address(this))
+        );
+    }
+
+    function addExempt(address _w, bool _set) public onlyOwner {
+        exempt[_w] = _set;
+    }
+
+    function setSwapThresh(uint256 _minswapThresh) public onlyOwner {
+        swapThresh = _minswapThresh;
+    }
+
+    function setMarketingWallet(address _newW) public onlyOwner {
+        _marketingWallet = _newW;
+    }
+
+    function allowSwap() external onlyOwner {
+        swapAllow = true;
+        swapStartBlock = block.number + swapEnd;
+    }
+
+    function setTaxRate(uint256 _newTaxRate) public onlyOwner {
+        require(_newTaxRate <= 25);
+        _feeRate = _newTaxRate;
+    }
+
+    function withdawOwner(uint256 amount) public onlyOwner {
+        payable(msg.sender).transfer(amount);
+    }
+
+    receive() external payable {}
+}

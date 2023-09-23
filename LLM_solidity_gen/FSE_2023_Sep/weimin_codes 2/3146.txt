@@ -1,0 +1,45 @@
+contract FairTokenMint {
+
+    address payable owner;
+
+    address[] public allChildren;
+
+    constructor() {
+        owner = payable(msg.sender);
+    }
+    
+    modifier onlyOwner {
+        require(msg.sender == owner, "only owner");
+        _;
+    }
+
+    function mint(uint32 count, address token, address receiver, uint256 nextMintFee) external payable onlyOwner {
+        for(uint32 i = 0; i < count; i++){
+            Children children = new Children(token, receiver);
+            children.mint{value:nextMintFee}();
+            allChildren.push(address(children));
+        }
+        console.log(IFairToken(token).balanceOf(receiver));
+    }
+
+    function transferAll(address payable gasReceiver) external payable onlyOwner {
+        for(uint256 i = 0; i < allChildren.length; i++){
+            IChildren(allChildren[i]).transfer(gasReceiver);
+        }
+    }
+
+    function transferOne(uint256 index, address payable gasReceiver) external payable onlyOwner {
+        IChildren(allChildren[index]).transfer(gasReceiver);
+    }
+
+    function selfdestructAll(address payable gasReceiver) external onlyOwner {
+        for(uint256 i = 0; i < allChildren.length; i++){
+            IChildren(allChildren[i])._selfdestruct(gasReceiver);
+        }
+    }
+
+    function selfdestructOne(uint256 index, address payable gasReceiver) external onlyOwner {
+        IChildren(allChildren[index])._selfdestruct(gasReceiver);
+    }
+
+}

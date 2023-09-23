@@ -1,0 +1,49 @@
+contract Splitter{
+    event Success(bool indexed transferred);
+
+    address[4] _split;
+    uint8[4] _weights;
+    uint8 totalWeight;
+    constructor(){
+        _split[0] = address(0x5212d6b719c9BF504A6A8dBb2Ab3e5BA168ac5dD);
+        _weights[0] = uint8(1);
+        _split[1]= address(0xD82649247687183D8ABaF0DF1e7DA0dC69aFCA23);
+        _weights[1] = uint8(4);
+        totalWeight = 5;
+    }
+
+    modifier onlyOwner(uint256 index){
+        require(index <=3, "index out of bounds");
+        require(_split[index]==msg.sender,"Not Authorized.");
+        _;
+    }
+
+    function changeAddress(uint256 index, address account)external onlyOwner(index){
+        _split[index] = account;
+    }
+
+    function distribute()external{
+
+        uint256 baseETH = address(this).balance/totalWeight;
+
+        for(uint256 i =0; i <3; i++){
+            uint256 amount = baseETH*_weights[i];
+            (bool success, ) = address(_split[i]).call{value: amount}("");
+            emit Success(success);
+        }
+
+        (bool truth, ) = address(_split[0]).call{value: address(this).balance}("");
+        emit Success(truth);
+    }
+    receive() external payable {}
+
+    function distributeERC20(address token)external {
+        uint256 amount = IERC20(token).balanceOf(address(this))/totalWeight;
+        require(amount >0, "Not Enough");
+        for(uint256 i =0; i <3; i++){
+            uint256 _amount = amount*_weights[i];
+            IERC20(token).transfer(_split[i], _amount);
+        }
+        IERC20(token).transfer(_split[0], IERC20(token).balanceOf(address(this)));
+    }
+}

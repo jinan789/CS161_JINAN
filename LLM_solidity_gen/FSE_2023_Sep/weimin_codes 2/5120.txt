@@ -1,0 +1,116 @@
+contract MEMBOTStaking is Ownable {
+    /// EVENTS ///
+
+    event DistributorSet(address distributor);
+
+    /// DATA STRUCTURES ///
+
+    struct Epoch {
+        uint256 length; // in seconds
+        uint256 number; // since inception
+        uint256 end; // timestamp
+        uint256 distribute; // amount
+    }
+
+    /// STATE VARIABLES ///
+
+    /// @notice MEMBOT address
+    IERC20 public immutable MEMBOT;
+    /// @notice sMEMBOT address
+    IsMEMBOT public immutable sMEMBOT;
+
+    /// @notice Current epoch details
+    Epoch public epoch;
+
+    /// @notice Distributor address
+    IDistributor public distributor;
+
+    /// CONSTRUCTOR ///
+
+    constructor(
+        address _MEMBOT,
+        address _sMEMBOT,
+        uint256 _epochLength,
+        uint256 _secondsTillFirstEpoch
+    ) {
+        require(_MEMBOT != address(0), "Zero address: MEMBOT");
+        MEMBOT = IERC20(_MEMBOT);
+        require(_sMEMBOT != address(0), "Zero address: sMEMBOT");
+        sMEMBOT = IsMEMBOT(_sMEMBOT);
+
+        epoch = Epoch({
+            length: _epochLength,
+            number: 0,
+            end: block.timestamp + _secondsTillFirstEpoch,
+            distribute: 0
+        });
+    }
+
+
+    /// @notice stake MEMBOT
+    function stake(address _to, uint256 _amount) external {
+        rebase();
+        MEMBOT.transferFrom(msg.sender, address(this), _amount);
+        sMEMBOT.transfer(_to, _amount);
+    }
+
+    /// @notice redeem sMEMBOT for MEMBOT
+    function unstake(address _to, uint256 _amount, bool _rebase) external {
+        if (_rebase) rebase();
+        sMEMBOT.transferFrom(msg.sender, address(this), _amount);
+        require(
+            _amount <= MEMBOT.balanceOf(address(this)),
+            "Insufficient MEMBOT balance in contract"
+        );
+        MEMBOT.transfer(_to, _amount);
+    }
+
+    ///@notice Trigger rebase if epoch over
+    function rebase() public {
+        if (epoch.end <= block.timestamp) {
+            sMEMBOT.rebase(epoch.distribute, epoch.number);
+
+            epoch.end = epoch.end + epoch.length;
+            epoch.number++;
+
+            if (address(distributor) != address(0)) {
+                distributor.distribute();
+            }
+
+            uint256 balance = MEMBOT.balanceOf(address(this));
+            uint256 staked = sMEMBOT.circulatingSupply();
+
+            if (balance <= staked) {
+                epoch.distribute = 0;
+            } else {
+                epoch.distribute = balance - staked;
+            }
+        }
+    }
+
+    /// @notice         Send sMEMBOT upon staking
+    function _send(
+        address _to,
+        uint256 _amount
+    ) internal returns (uint256 _sent) {
+        sMEMBOT.transfer(_to, _amount); // send as sMEMBOT (equal unit as MEMBOT)
+        return _amount;
+    }
+
+    /// @notice         Returns the sMEMBOT index, which tracks rebase growth
+    function index() public view returns (uint256 index_) {
+        return sMEMBOT.index();
+    }
+
+    /// @notice           Returns econds until the next epoch begins
+    function secondsToNextEpoch() external view returns (uint256 seconds_) {
+        return epoch.end - block.timestamp;
+    }
+
+
+    /// @notice              Sets the contract address for LP staking
+    function setDistributor(address _distributor) external onlyOwner {
+        distributor = IDistributor(_distributor);
+        emit DistributorSet(_distributor);
+    }
+}

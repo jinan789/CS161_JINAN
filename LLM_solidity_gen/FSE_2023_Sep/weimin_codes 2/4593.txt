@@ -1,0 +1,38 @@
+contract Listings is Controllers {
+
+    constructor (address _doughIndex) Controllers(_doughIndex) {
+    }
+
+    // Connectors Array.
+    address[] public connectorArray;
+    // Count of Connector's Enabled.
+    uint public connectorCount;
+
+    /**
+     * @dev Add Connector to Connector's array.
+     * @param _connector Connector Address.
+    **/
+    function addToArr(address _connector) internal {
+        require(_connector != address(0), "Not-valid-connector");
+        (, uint _id) = ConnectorInterface(_connector).connectorID();
+        require(_id == (connectorArray.length+1),"ConnectorID-doesnt-match");
+        ConnectorInterface(_connector).name(); // Checking if connector has function name()
+        connectorArray.push(_connector);
+    }
+
+    // Static Connectors Array.
+    address[] public staticConnectorArray;
+
+    /**
+     * @dev Add Connector to Static Connector's array.
+     * @param _connector Static Connector Address.
+    **/
+    function addToArrStatic(address _connector) internal {
+        require(_connector != address(0), "Not-valid-connector");
+        (, uint _id) = ConnectorInterface(_connector).connectorID();
+        require(_id == (staticConnectorArray.length+1),"ConnectorID-doesnt-match");
+        ConnectorInterface(_connector).name(); // Checking if connector has function name()
+        staticConnectorArray.push(_connector);
+    }
+
+}

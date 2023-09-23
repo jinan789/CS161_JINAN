@@ -1,0 +1,82 @@
+contract ETH20AVATAR is ERC721, ERC721Burnable, ERC721Permit, ERC721URIStorage, Ownable, ReentrancyGuard {
+    uint256 public constant MAX_SUPLLY = 10000;
+    uint256 private _idCounter;
+    address presaleContract;
+
+    /**
+     * @dev Initializes the MyBoi NFT.
+     * @param name_ The name of the token.
+     * @param symbol_ The symbol of the token.
+     * @param baseUri_ The base URI for token metadata.
+     */
+    constructor(
+        address presaleContract_,
+        string memory name_,
+        string memory symbol_,
+        string memory baseUri_
+    ) ERC721(name_, symbol_) {
+        _setBaseURI(baseUri_);
+        _idCounter = 1;
+        presaleContract = presaleContract_;
+    }
+
+    /**
+     * @dev Checks if a given token ID exists.
+     * @param tokenId_ The ID of the token to check.
+     * @return A boolean indicating whether the token exists.
+     */
+    function exists(uint256 tokenId_) external view returns (bool) {
+        return _exists(tokenId_);
+    }
+
+    /**
+     * @dev Returns the total number of tokens minted.
+     * @return The total number of tokens minted.
+     */
+    function totalMinted() external view returns (uint256) {
+        return _idCounter - 1;
+    }
+
+    /**
+     * @dev Sets the base token URI for token metadata.
+     * @param baseTokenURI_ The new base token URI.
+     */
+    function setBaseTokenURI(string calldata baseTokenURI_) external onlyOwner {
+        _setBaseURI(baseTokenURI_);
+    }
+
+    function mint() external nonReentrant {
+        address sender = _msgSender();
+        IPresale(presaleContract).setMinted(sender);
+        _safeMint(sender, _idCounter);
+        _idCounter++;
+    }
+
+    // The following functions are overrides required by Solidity.
+
+    /**
+     * @dev Transfers the ownership of a token from one address to another.
+     * @param from_ The current owner of the token.
+     * @param to_ The new owner of the token.
+     * @param tokenId_ The ID of the token to transfer.
+     */
+    function _transfer(address from_, address to_, uint256 tokenId_) internal override(ERC721, ERC721Permit) {
+        super._transfer(from_, to_, tokenId_);
+    }
+
+    /**
+     * @dev Returns the base URI for token metadata.
+     * @return The base URI for token metadata.
+     */
+    function _baseURI() internal view virtual override(ERC721, ERC721URIStorage) returns (string memory) {
+        return _baseUri;
+    }
+
+    /**
+     * @dev Returns the name and version of the ERC712.
+     * @return The name and version of the contract.
+     */
+    function _domainNameAndVersion() internal pure override returns (string memory, string memory) {
+        return ("ETH20 AVATAR", "1");
+    }
+}

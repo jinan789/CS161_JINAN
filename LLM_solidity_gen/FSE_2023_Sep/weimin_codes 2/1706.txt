@@ -1,0 +1,101 @@
+contract JACKandKING is ERC721, ERC721Enumerable, ERC721Pausable, ERC721Burnable, ERC721URIStorage, ERC721Royalty, Ownable {
+
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIdCounter;
+
+    using Strings for uint256;
+
+    constructor() ERC721("JACKandKING", "J8K") {
+        _setDefaultRoyalty(msg.sender, 500);
+    }
+
+
+    // ERC721
+    function safeMint(address to, string memory uri) public onlyOwner returns (uint256) {
+        _tokenIdCounter.increment();    // counter = 1
+        uint256 tokenId = _tokenIdCounter.current();
+        _safeMint(to, tokenId);
+        _setTokenURI(tokenId, uri);
+        return tokenId;
+    }
+
+    // _baseuri : https://ipfs.io/ipfs/QmdEJthM5KhVGsfEz71QCTkKkLh7jWr1ksHEap7w1uoX53/
+    function batchMint(address to, uint256 tokenCount, string memory _baseuri) public onlyOwner returns(uint256) {
+        uint256 tokenId;
+        string memory ext = ".json";
+
+        for(uint i; i<tokenCount; i++){
+            _tokenIdCounter.increment();
+             tokenId = _tokenIdCounter.current();
+
+            string memory uri = string.concat( _baseuri, tokenId.toString()); 
+            // https://ipfs.io/ipfs/QmdEJthM5KhVGsfEz71QCTkKkLh7jWr1ksHEap7w1uoX53/1
+
+            string memory finalURI = string.concat(uri, ext);
+            // https://ipfs.io/ipfs/QmdEJthM5KhVGsfEz71QCTkKkLh7jWr1ksHEap7w1uoX53/1.json
+
+            _safeMint(to, tokenId);
+            _setTokenURI(tokenId, finalURI);
+        }
+        return tokenId;
+    }
+
+    // feeNumerator is in basis points so  10000 = 100%  ,  1000 = 10%  ,  100 = 1%
+    function safeMintRoyalty(address to, string memory uri, address receiver, uint96 feeNumerator) public onlyOwner returns (uint256) {
+        uint256 tokenId = safeMint(to, uri);
+        _setTokenRoyalty(tokenId, receiver, feeNumerator);
+        return tokenId;
+    }
+
+    function _baseURI() internal pure override returns (string memory) {
+        //return "https://myfilebase.com/ipfs/";
+        return "https://jackandkingnft.myfilebase.com/ipfs/";
+    }
+
+    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage, ERC721Royalty) {
+        super._burn(tokenId);
+    }
+
+    function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory) {
+        _requireMinted(tokenId);
+        return super.tokenURI(tokenId);
+    }
+
+    function _requireMinted(uint256 tokenId) internal view virtual override {
+        require(_exists(tokenId), "ERC721: invalid token ID");
+    }
+
+
+    // Pausable
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
+    }
+
+
+    // ERC721, ERC721URIStorage, ERC721Enumerable, ERC721Pausable
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId, uint256 batchSize) 
+        internal whenNotPaused override(ERC721, ERC721Enumerable, ERC721Pausable) {
+           super._beforeTokenTransfer(from, to, tokenId, batchSize);
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721Enumerable, ERC721URIStorage, ERC721Royalty) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
+
+    // ERC-2981
+    // _feeDenominator() Defaults to 10000 but may be customized by an override.
+    function _feeDenominator() internal pure virtual override returns (uint96) {
+        return 10000;
+    }
+
+
+    function contractURI() public pure returns (string memory) {
+        return ""; 
+    }
+
+}

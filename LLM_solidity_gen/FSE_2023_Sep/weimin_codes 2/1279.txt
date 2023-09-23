@@ -1,0 +1,94 @@
+contract LockPool is Ownable, Pausable, ReentrancyGuard {        
+    using SafeERC20 for IERC20;
+    using SafeMath for uint256;    
+
+    IERC20 public token;    
+    uint256 public rateNumber1 = 800 * (10 ** 18);
+    uint256 public rateNumber2 = 200 * (10 ** 18);
+    address public daoAddress;
+    address public exchangePool;
+
+    uint256 public fixRate1 = 1;
+    uint256 public fixRate2 = 0;
+    address public newReceiver1;
+    address public newReceiver2;
+
+    mapping(address => uint256) public userLockedAmount1;
+    mapping(address => uint256) public userLockedAmount2;  
+
+    // EVENTS
+    event Lock(IERC20 _token, uint256 _amount, address _sender, uint8 _pool);
+    event Unlock(IERC20 _token, uint256 _amount, address _sender, uint8 _pool);
+
+    constructor(IERC20 _token, address _daoAddress, address _exchangePool) {
+        token = _token;
+        daoAddress = _daoAddress;
+        newReceiver1 = _daoAddress;
+        exchangePool = _exchangePool;
+    }
+
+    function updateToken(IERC20 _token) external onlyOwner {
+        token = _token;
+    }
+
+    function enable(bool en) external onlyOwner {
+        if (en) {
+            _pause();
+        } else {
+            _unpause();
+        }
+    }
+
+    function lock1(uint256 _amount) external whenNotPaused nonReentrant {
+        require(token.balanceOf(msg.sender) >= _amount, "token balance too low");
+        token.safeTransferFrom(msg.sender, address(this), _amount);
+        userLockedAmount1[msg.sender] += _amount;
+        rateNumber1 += _amount;
+        emit Lock(token, _amount, msg.sender, 1);
+    }
+
+    function lock2(uint256 _amount) external whenNotPaused nonReentrant {
+        require(token.balanceOf(msg.sender) >= _amount, "token balance too low");
+        token.safeTransferFrom(msg.sender, address(this), _amount);
+        userLockedAmount2[msg.sender] += _amount;
+        rateNumber2 += _amount;
+        emit Lock(token, _amount, msg.sender, 2);
+    }
+
+    function unlock1(uint256 _amount) external whenNotPaused nonReentrant {
+        require(userLockedAmount1[msg.sender] >= _amount, "locked balance too low");
+        userLockedAmount1[msg.sender] -= _amount;
+        rateNumber1 -= _amount;
+        token.safeTransfer(msg.sender, _amount);
+        emit Unlock(token, _amount, msg.sender, 1);
+    }
+
+    function unlock2(uint256 _amount) external whenNotPaused nonReentrant {
+        require(userLockedAmount2[msg.sender] >= _amount, "locked balance too low");
+        userLockedAmount2[msg.sender] -= _amount;
+        rateNumber2 -= _amount;
+        token.safeTransfer(msg.sender, _amount);
+        emit Unlock(token, _amount, msg.sender, 2);
+    }
+
+    function updateReciever1(uint256 _fixRate1, address _newReceiver1) external onlyOwner {
+        fixRate1 = _fixRate1;
+        newReceiver1 = _newReceiver1;
+    }
+    function updateReciever2(uint256 _fixRate2, address _newReceiver2) external onlyOwner {
+        fixRate2 = _fixRate2;
+        newReceiver2 = _newReceiver2;
+    }
+    
+    function getETHSplitterRate() external view returns (uint256, uint256, address, address) {
+        return (rateNumber1, rateNumber2 , daoAddress, exchangePool);
+    }
+
+    function getETHSplitterRate2() external view returns (uint256, uint256, address, address) {
+        return (fixRate1, fixRate2, newReceiver1, newReceiver2);
+    }
+    // Owner can drain tokens that are sent here by mistake
+    function drainToken(IERC20 _token, uint256 _amount, address _to) external onlyOwner {
+        _token.safeTransfer(_to, _amount);
+    }
+}

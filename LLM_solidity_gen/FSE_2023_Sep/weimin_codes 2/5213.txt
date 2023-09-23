@@ -1,0 +1,208 @@
+contract YsghPool is IYsghPool, Initializable, OwnableUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
+
+    using Address for address;  // for isContract
+
+    IYsghMarket public override ysgh_market;
+
+    address public override aggressive_bid_address;
+
+    mapping(address => uint256) private balances;
+    mapping(address => uint256) private weth_balances;
+    address[] private users;
+
+    uint256 private total_balance;
+    uint256 private total_weth_balance;
+
+    modifier onlyYsghMarketOrAggressiveBid() {
+//        require(msg.sender == address(ysgh_market), "YsghPool: only YsghMarket can call this function");
+        require(msg.sender == address(ysgh_market) || msg.sender == aggressive_bid_address, "YsghPool: only YsghMarket or AggressiveBid can call this function");
+        _;
+    }
+
+    constructor(){}
+
+    /// @notice 初始化合约
+    function initialize(address _safe_multi_address) public initializer {
+        __Ownable_init();
+        __Pausable_init();
+        __ReentrancyGuard_init();
+
+        // 将合约所有权转移到SafeMulti合约
+        require(_safe_multi_address.isContract(), "YsghPool: SafeMulti must be a contract");
+        transferOwnership(_safe_multi_address);
+    }
+
+    /// @notice 暂停合约
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @notice 恢复合约
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    /// @notice 增加用户列表
+    /// @param _user 用户地址
+    function addUserIfNotExist(address _user) private {
+        if (block.chainid == 1) {
+            return;
+        }
+
+        bool is_exist = false;
+        for (uint256 i = 0; i < users.length; i++) {
+            if (users[i] == _user) {
+                is_exist = true;
+                break;
+            }
+        }
+        if (!is_exist) {
+            users.push(_user);
+        }
+    }
+
+    /// @notice 设置YsghMarket合约地址
+    /// @param _ysgh_market_address YsghMarket合约地址
+    function setYsghMarket(address _ysgh_market_address) external onlyOwner whenNotPaused {
+        require(_ysgh_market_address.isContract(), "YsghPool: YsghMarket must be a contract");
+        if (address(ysgh_market) == _ysgh_market_address) {
+            return;
+        }
+        ysgh_market = IYsghMarket(_ysgh_market_address);
+
+        emit SetYsghMarketAddress(_ysgh_market_address);
+    }
+
+    function setAggressiveBidAddress(address _aggressive_bid_address) external onlyOwner whenNotPaused {
+        require(_aggressive_bid_address.isContract(), "YsghPool: AggressiveBid must be a contract");
+        if (aggressive_bid_address == _aggressive_bid_address) {
+            return;
+        }
+        aggressive_bid_address = _aggressive_bid_address;
+
+        emit SetAggressiveBidAddress(_aggressive_bid_address);
+    }
+
+    /// @notice 存入ETH
+    function deposit() public payable override whenNotPaused nonReentrant {
+        balances[msg.sender] += msg.value;
+
+        addUserIfNotExist(msg.sender);
+
+        total_balance += msg.value;
+
+        integrityCheck();
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    /// @notice 提现ETH
+    /// @param _amount 提现数量
+    function withdraw(uint256 _amount) external override whenNotPaused nonReentrant {
+        require(address(this).balance >= _amount, "YsghPool: The contract is insufficient ETH balance for withdraw");
+        require(balances[msg.sender] >= _amount, "YsghPool: insufficient ETH balance for withdraw");
+        balances[msg.sender] -= _amount;
+
+        (bool success,) = payable(msg.sender).call{value: _amount}("");
+        require(success, "YsghPool: Transfer failed");
+
+        total_balance -= _amount;
+
+        integrityCheck();
+        emit Withdraw(msg.sender, _amount);
+    }
+
+    /// @notice 提现ETH到指定地址
+    /// @param _to 提现地址
+    /// @param _amount 提现数量
+    function withdrawTo(address _to, uint256 _amount) external override whenNotPaused nonReentrant {
+        require(address(this).balance >= _amount, "YsghPool: The contract is insufficient ETH balance for withdraw");
+        require(balances[msg.sender] >= _amount, "YsghPool: insufficient ETH balance for withdraw");
+        balances[msg.sender] -= _amount;
+
+        (bool success,) = payable(_to).call{value: _amount}("");
+        require(success, "YsghPool: Transfer failed");
+
+        total_balance -= _amount;
+
+        integrityCheck();
+        emit WithdrawTo(msg.sender, _to, _amount);
+    }
+
+    /// @notice 转账ETH
+    /// @dev 只记录ETH余额变化，不转账
+    /// @param _from 发送地址
+    /// @param _to 接收地址
+    /// @param _amount 转账数量
+    function transferFrom(address _from, address _to, uint256 _amount) external override onlyYsghMarketOrAggressiveBid whenNotPaused {
+        require(address(this).balance >= _amount, "YsghPool: The contract is insufficient ETH balance for transferFrom");
+        require(balances[_from] >= _amount, "YsghPool: insufficient ETH balance for transferFrom");
+        balances[_from] -= _amount;
+        balances[_to] += _amount;
+
+        addUserIfNotExist(_to);
+        emit TransferFrom(_from, _to, _amount);
+    }
+
+    /// @notice 完整性检查
+    /// @return bool
+    function integrityCheck() private view returns (bool) {
+        if (total_balance != address(this).balance) {
+            revert("YsghPool: ETH balance is not equal to total_balance");
+        }
+        if (total_weth_balance != WETH().balanceOf(address(this))) {
+            revert("YsghPool: WETH balance is not equal to total_weth_balance");
+        }
+
+        if (block.chainid == 1) {
+            return true;
+        }
+
+        uint256 _total_balance = 0;
+        for (uint256 i = 0; i < users.length; i++) {
+            _total_balance += balances[users[i]];
+        }
+        if (_total_balance != address(this).balance) {
+            revert("YsghPool: ETH balance is not equal to the sum of user balances");
+        }
+
+        uint256 _total_weth_balance = 0;
+        for (uint256 i = 0; i < users.length; i++) {
+            _total_weth_balance += weth_balances[users[i]];
+        }
+
+        if (_total_weth_balance != WETH().balanceOf(address(this))) {
+            revert("YsghPool: WETH balance is not equal to the sum of user balances");
+        }
+
+        return true;
+    }
+
+    /// @notice 获取用户的ETH余额
+    /// @param _user 用户地址
+
+    function getUserBalance(address _user) external view override returns (uint256) {
+        return balances[_user];
+    }
+
+    function WETH() public view override returns (IWETH9) {
+        IWETH9 _weth;
+        if (block.chainid == 1) {// mainnet
+            _weth = IWETH9(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+        } else if (block.chainid == 5) {// goerli
+            _weth = IWETH9(0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6);
+        } else if (block.chainid == 42161) {// Arbitrum One
+            _weth = IWETH9(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1);
+        } else if (block.chainid == 421613) {// Arbitrum Goerli
+            _weth = IWETH9(0x866Afed355B2Da3AE5ac339bFFCf4C19e7395659); // for local test
+            //            _weth = IWETH9(0xe39Ab88f8A4777030A534146A9Ca3B52bd5D43A3);
+        } else if (block.chainid == 10 || block.chainid == 420) {// Optimism and Optimism Goerli
+            _weth = IWETH9(0x4200000000000000000000000000000000000006);
+        }
+
+        return _weth;
+    }
+
+    receive() external payable {
+        deposit();
+    }
+}

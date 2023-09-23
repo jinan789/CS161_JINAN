@@ -1,0 +1,85 @@
+contract MileiDollar is ERC20Permit, Ownable {
+    using SafeERC20 for IERC20;
+
+    address public community;
+    address private uniswapV2Pair;
+    IUniswapV2Router02 private uniswapV2Router;
+    uint constant private BUY_FEE = 5;
+    uint constant private BUY_FEE_DENOMINATOR = 100;
+
+    mapping(address => bool) public uniswapV2PairList;
+    mapping(address => bool) public whiteList;
+
+    event AddWhiteList(address indexed whiteList, bool indexed status);
+    event AddUniswapV2Pair(address indexed whiteList, bool indexed status);
+    event RemoveWhiteList(address indexed whiteList, bool indexed status);
+    event RemoveUniswapV2Pair(address indexed whiteList, bool indexed status);
+
+    constructor(address _addressRouter, address _community)ERC20("MileiDollar", "MILEI2023")
+        ERC20Permit("MileiDollar") {
+        _mint(msg.sender, 1e24);
+        community = _community;
+        uniswapV2Router = IUniswapV2Router02(_addressRouter);
+
+        uniswapV2Pair = IUniswapV2Factory(uniswapV2Router.factory()).createPair(
+            address(this),
+            uniswapV2Router.WETH()
+        );
+        uniswapV2PairList[uniswapV2Pair] = true;
+        whiteList[msg.sender] = true;
+    }
+
+    function addWhiteList(address _address) external onlyOwner {
+        whiteList[_address] = true;
+        emit AddWhiteList(_address, true);
+    }
+
+    function addUniswapV2Pair(address _address) external onlyOwner {
+        uniswapV2PairList[_address] = true;
+        emit AddUniswapV2Pair(_address, true);
+    }
+
+    function removeWhiteList(address _address) external onlyOwner {
+        whiteList[_address] = false;
+        emit RemoveWhiteList(_address, false);
+    }
+
+    function removeUniswapV2Pair(address _address) external onlyOwner {
+        uniswapV2PairList[_address] = false;
+        emit RemoveUniswapV2Pair(_address, false);
+    }
+
+    function recoverTokens(IERC20 _token) external onlyOwner {
+        uint amount = IERC20(_token).balanceOf(address(this));
+        IERC20(_token).safeTransfer(msg.sender, amount);
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint amount
+    ) internal virtual override {
+        if (uniswapV2PairList[to] && !whiteList[from]) {
+            //Sell
+            uint balance = balanceOf(to);
+            require(amount <= balance / 2, "Amount must be less");
+            uint taxPercent = (amount * 1e18) / balance;
+            uint newAmount = (amount * 1e18 - amount * taxPercent) / 1e18;
+            uint tax = amount - newAmount;
+            _burn(from, tax / 2);
+            super._transfer(from, community, tax / 2);
+            super._transfer(from, to, newAmount);
+        } else if (
+            uniswapV2PairList[from] &&
+            to != address(uniswapV2Router) &&
+            !whiteList[to]
+        ) {
+            //Buy
+            uint tax = (amount * BUY_FEE) / BUY_FEE_DENOMINATOR;
+            super._transfer(from, to, amount);
+            super._transfer(to, community, tax);
+        } else {
+            super._transfer(from, to, amount);
+        }
+    }
+}

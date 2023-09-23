@@ -1,0 +1,86 @@
+contract ETHPresaleV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable {
+
+  address public IDOAdmin;
+  address public IDO_TOKEN;
+  address public USDT_CONTRACT;
+  address public IDO_RECEIVER;
+  address public ethpriceSource; 
+  address public usdtpriceSource;  
+
+  uint256 public minDepositAmt;
+  uint256 public eth_ref_rate;
+  uint256 public usd_ref_rate;
+  uint256 public eth_buy_rate;
+  uint256 public usd_buy_rate;
+  uint256 public totalTokensSold;
+  uint256 public decimal;
+  mapping (address => uint256) public buyerAmount;
+  mapping (address => bool) public hasclaimed;
+  bool public canclaimpresale = false;
+  bool public usdrefenabled = false;
+  bool public ethrefenabled = false;
+  address private IDOSubAdmin;
+  
+  modifier onlyIDOAdmin() {
+    require(msg.sender == IDOAdmin, 'INVALID IDO ADMIN');
+    _;
+  }
+
+ /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+  function initialize(
+    address _idoAdmin,
+    address _idoToken
+  ) public initializer {
+    IDOAdmin = _idoAdmin;
+    IDO_TOKEN = _idoToken;
+    __Ownable_init();
+    __UUPSUpgradeable_init();
+  }
+
+
+  function claimpresale(uint256 _amount, bytes memory signature) public returns (bool) {
+    return true; 
+  }
+  
+  function claimandstakepresale(uint256 _amount, bytes memory signature) public returns (bool) {
+    return true; 
+  }
+
+  function buyWithEth(address _referrer) public payable returns (bool) {
+    return true;
+  }
+  
+  function buyWithETHWert(address _user, uint256 _amount) external payable returns (bool) {
+    return true;
+  }
+
+  function buyWithUsdt(uint256 buy_amount, address _referrer) public returns (uint256) {
+    return 0;
+  }
+  
+  function ConvertEthAmount(uint256 _AmountETH) public view returns(uint256) {
+    return 0;
+  }
+  
+  function ConvertUSDAmount(uint256 _AmountUSD) public view returns(uint256) {
+    return 0;
+  }
+
+  function ConverttokentoETH(uint256 _AmountToken) public view returns(uint256) {
+    return 0;
+  }
+
+  function ConverttokentoUSDT(uint256 _AmountToken) public view returns(uint256) {
+    return 0;
+  }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyOwner
+        override
+    {}
+}

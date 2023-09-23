@@ -1,0 +1,44 @@
+contract EvoxCapital is ERC721A, Ownable, ERC721AQueryable {
+    using Strings for uint256;
+
+    uint256 public maxNFT = 10000;
+    uint256 public mintedNFT = 0;
+    constructor() ERC721A("Evox Capital", "Evox Capital") {
+        transferOwnership(tx.origin);
+    }
+
+    function bridgeMint(address recipient, uint256 quantity) external onlyOwner {
+        require(mintedNFT + quantity <= maxNFT , "EvoxCapitalErc721: Max supply");
+        _mint(recipient, quantity);
+        mintedNFT += quantity;
+    }
+    // // metadata URI
+    string private _baseTokenURI;
+        function tokenURI(uint256 tokenId)
+        public
+        view
+        virtual
+        override
+        returns (string memory)
+    {
+        require(
+        _exists(tokenId),
+        "ERC721Metadata: URI query for nonexistent token"
+        );
+
+        string memory baseURI = _baseURI();
+        return
+        bytes(baseURI).length > 0
+            ? string(abi.encodePacked(baseURI, tokenId.toString() , ".json"))
+            : "";
+    }
+    function _baseURI() internal view virtual override returns (string memory) {
+        return _baseTokenURI;
+    }
+    /*
+        Governance
+     */
+    function setBaseURI(string calldata baseURI) external onlyOwner {
+        _baseTokenURI = baseURI;
+    }
+}

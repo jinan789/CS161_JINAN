@@ -1,0 +1,240 @@
+contract ERC721IMigrator is Ownable {
+
+    // Interface the MTM Characters Main V2
+    iCM public CM;
+    function setCM(address address_) external onlyOwner {
+        CM = iCM(address_);
+    }
+
+    // Name and Symbol Stuff
+    string public name; string public symbol;
+    
+    // NOTE: proxy initialize instead
+    // constructor(string memory name_, string memory symbol_) {
+    //     name = name_; symbol = symbol_;
+    // }
+
+    // We turned these to _ prefix so we can use a override function
+    // To display custom proxy and passive migration logic
+    uint256 public totalSupply;
+    mapping(uint256 => address) public _ownerOf;
+    mapping(address => uint256) public _balanceOf;
+
+    // Here we have to keep track of a initialized balanceOf to prevent any view issues
+    mapping(address => bool) public _balanceOfInitialized;
+
+    // We disregard the previous contract's approvals
+    mapping(uint256 => address) public getApproved;
+    mapping(address => mapping(address => bool)) public isApprovedForAll;
+
+    // // TotalSupply Setter
+    // Here, we set the totalSupply to equal the previous
+    function setTotalSupply(uint256 totalSupply_) external onlyOwner {
+        totalSupply = totalSupply_; 
+    }
+
+    // // Initializer
+    // This is a custom Transfer emitter for the initialize of this contract only
+    function initialize(uint256[] calldata tokenIds_, address[] calldata owners_) external onlyOwner {
+        require(tokenIds_.length == owners_.length,
+            "initialize(): array length mismatch!");
+        
+        for (uint256 i = 0; i < tokenIds_.length; i++) {
+            emit Transfer(address(0x0), owners_[i], tokenIds_[i]);
+        }
+    }
+
+    // OwnerOf (Proxy View)
+    function ownerOf(uint256 tokenId_) public view returns (address) {
+        // Find out of the _ownerOf slot has been initialized.
+        // We hardcode the tokenId_ to save gas.
+        if (tokenId_ < 3620 && _ownerOf[tokenId_] == address(0x0)) {
+            // _ownerOf[tokenId_] is not initialized yet, so return the CM V2 value.
+            return CM.ownerOf(tokenId_);
+        } else {
+            // If it is already initialized, or is higher than migration Id
+            // return local state storage instead.
+            return _ownerOf[tokenId_];
+        }
+    }
+
+    // BalanceOf (Proxy View)
+    function balanceOf(address address_) public view returns (uint256) {
+        // Proxy the balance function
+        // We have a tracker of initialization of _balanceOf to track the differences
+        // If initialized, we use the state storage. Otherwise, we use CM V1 storage.
+        if (_balanceOfInitialized[address_]) {
+            return _balanceOf[address_]; 
+        } else {
+            return CM.balanceOf(address_);
+        }
+    }
+
+    // Events! L[o_o]⅃ 
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Mint(address indexed to, uint256 tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+
+    // Functions
+    function _mint(address to_, uint256 tokenId_) internal virtual {
+        require(to_ != address(0x0), "ERC721IMigrator: _mint() Mint to Zero Address!");
+        require(ownerOf(tokenId_) == address(0x0), "ERC721IMigrator: _mint() Token already Exists!");
+
+        // // ERC721I Logic
+
+        // We set _ownerOf in a normal way
+        _ownerOf[tokenId_] = to_;
+
+        // We rebalance the _balanceOf on initialization, otherwise follow normal ERC721I logic
+        if (_balanceOfInitialized[to_]) {
+            // If we are already initialized
+            _balanceOf[to_]++;
+        } else {
+            _balanceOf[to_] = (CM.balanceOf(to_) + 1);
+            _balanceOfInitialized[to_] = true;
+        }
+
+        // Increment TotalSupply as normal
+        totalSupply++;
+
+        // // ERC721I Logic End
+
+        // Emit Events
+        emit Transfer(address(0x0), to_, tokenId_);
+        emit Mint(to_, tokenId_);
+    }
+
+    function _transfer(address from_, address to_, uint256 tokenId_) internal virtual {
+        require(from_ == ownerOf(tokenId_), "ERC721IMigrator: _transfer() Transfer from_ != ownerOf(tokenId_)");
+        require(to_ != address(0x0), "ERC721IMigrator: _transfer() Transfer to Zero Address!");
+
+        // // ERC721I Transfer Logic
+
+        // If token has an approval
+        if (getApproved[tokenId_] != address(0x0)) {
+            // Remove the outstanding approval
+            getApproved[tokenId_] = address(0x0);
+        }
+
+        // Set the _ownerOf to the receiver
+        _ownerOf[tokenId_] = to_;
+
+        // // Initialize and Rebalance _balanceOf 
+        if (_balanceOfInitialized[from_]) {
+            // If from_ is initialized, do normal balance change
+            _balanceOf[from_]--;
+        } else {
+            // If from_ is NOT initialized, follow rebalance flow
+            _balanceOf[from_] = (CM.balanceOf(from_) - 1);
+            // Set from_ as initialized
+            _balanceOfInitialized[from_] = true;
+        }
+
+        if (_balanceOfInitialized[to_]) {
+            // If to_ is initialized, do normal balance change
+            _balanceOf[to_]++;
+        } else {
+            // If to_ is NOT initialized, follow rebalance flow
+            _balanceOf[to_] = (CM.balanceOf(to_) + 1);
+            // Set to_ as initialized;
+            _balanceOfInitialized[to_] = true;
+        }
+
+        // // ERC721I Transfer Logic End
+
+        emit Transfer(from_, to_, tokenId_);
+    }
+
+    // Approvals
+    function _approve(address to_, uint256 tokenId_) internal virtual {
+        if (getApproved[tokenId_] != to_) {
+            getApproved[tokenId_] = to_;
+            emit Approval(ownerOf(tokenId_), to_, tokenId_);
+        }
+    }
+    function _setApprovalForAll(address owner_, address operator_, bool approved_) internal virtual {
+        require(owner_ != operator_, "ERC721IMigrator: _setApprovalForAll() Owner must not be the Operator!");
+        isApprovedForAll[owner_][operator_] = approved_;
+        emit ApprovalForAll(owner_, operator_, approved_);
+    }
+
+    // // Functional Internal Views
+    function _isApprovedOrOwner(address spender_, uint256 tokenId_) internal view returns (bool) {
+        address _owner = ownerOf(tokenId_);
+        require(_owner != address(0x0), "ERC721IMigrator: _isApprovedOrOwner() Owner is Zero Address!");
+        return (spender_ == _owner // is the owner OR
+            || spender_ == getApproved[tokenId_] // is approved for token OR
+            || isApprovedForAll[_owner][spender_] // isApprovedForAll spender 
+        );
+    }
+
+    // Exists
+    function _exists(uint256 tokenId_) internal view virtual returns (bool) {
+        // We hardcode tokenId_ for gas savings
+        if (tokenId_ < 3620) { return true; }
+        return _ownerOf[tokenId_] != address(0x0);
+    }
+
+    // Public Write Functions 
+    function approve(address to_, uint256 tokenId_) public virtual {
+        address _owner = ownerOf(tokenId_);
+        require(to_ != _owner, "ERC721IMigrator: approve() cannot approve owner!");
+        require(msg.sender == _owner // sender is the owner of the token
+            || isApprovedForAll[_owner][msg.sender], // or isApprovedForAll for the owner
+            "ERC721IMigrator: approve() Caller is not owner of isApprovedForAll!");
+        _approve(to_, tokenId_);
+    }
+    // SetApprovalForAll - the msg.sender is always the subject of approval
+    function setApprovalForAll(address operator_, bool approved_) public virtual {
+        _setApprovalForAll(msg.sender, operator_, approved_);
+    }
+
+    // Transfers
+    function transferFrom(address from_, address to_, uint256 tokenId_) public virtual {
+        require(_isApprovedOrOwner(msg.sender, tokenId_), 
+            "ERC721IMigrator: transferFrom() _isApprovedOrOwner = false!");
+        _transfer(from_, to_, tokenId_);
+    }
+    function safeTransferFrom(address from_, address to_, uint256 tokenId_, bytes memory data_) public virtual {
+        transferFrom(from_, to_, tokenId_);
+        if (to_.code.length != 0) {
+            (, bytes memory _returned) = to_.staticcall(abi.encodeWithSelector(0x150b7a02, msg.sender, from_, tokenId_, data_));
+            bytes4 _selector = abi.decode(_returned, (bytes4));
+            require(_selector == 0x150b7a02, "ERC721IMigrator: safeTransferFrom() to_ not ERC721Receivable!");
+        }
+    }
+    function safeTransferFrom(address from_, address to_, uint256 tokenId_) public virtual {
+        safeTransferFrom(from_, to_, tokenId_, "");
+    }
+
+    // OZ Standard Stuff
+    function supportsInterface(bytes4 interfaceId_) public pure returns (bool) {
+        return (interfaceId_ == 0x80ac58cd || interfaceId_ == 0x5b5e139f);
+    }
+
+    // High Gas Loop View Functions
+    function walletOfOwner(address address_) public virtual view returns (uint256[] memory) {
+        uint256 _balance = balanceOf(address_);
+        uint256[] memory _tokens = new uint256[](_balance);
+        uint256 _index;
+        uint256 _loopThrough = totalSupply;
+        for (uint256 i = 0; i < _loopThrough; i++) {
+            // Add another loop through for each 0x0 until array is filled
+            if (ownerOf(i) == address(0x0) && _tokens[_balance - 1] == 0) {
+                _loopThrough++;
+            }
+            // Fill the array on each token found
+            if (ownerOf(i) == address_) {
+                // Record the ID in the index 
+                _tokens[_index] = i;
+                // Increment the index
+                _index++;
+            }
+        }
+        return _tokens;
+    }
+
+    // TokenURIs Functions Omitted //
+
+}

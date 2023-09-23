@@ -1,0 +1,76 @@
+contract GoldenTreasuryEth is Ownable {
+    IERC20 public token;
+    IDexRouter public router;
+    address public DEAD = address(0xdEaD);
+    uint256 public currentDay;
+    uint256 public launchTime;
+    uint256 public timeStep;
+
+    mapping(uint256 => uint256) public dailyBurn;
+
+    constructor(address _router, address _token) {
+        router = IDexRouter(_router);
+        token = IERC20(_token);
+        launchTime = block.timestamp;
+        timeStep = 86400;
+        updateDay();
+    }
+
+    function updateDay() public {
+        if (currentDay != calculateDay()) {
+            currentDay = calculateDay();
+        }
+    }
+
+    function calculateDay() public view returns (uint256) {
+        return (block.timestamp - launchTime) / timeStep;
+    }
+
+    function deposit() external payable {
+        updateDay();
+        uint256 balanceBefore = token.balanceOf(DEAD);
+
+        address[] memory path = new address[](2);
+        path[0] = router.WETH();
+        path[1] = address(token);
+
+        router.swapExactETHForTokensSupportingFeeOnTransferTokens{
+            value: msg.value
+        }(0, path, DEAD, block.timestamp);
+
+        dailyBurn[currentDay] += token.balanceOf(DEAD) - balanceBefore;
+    }
+
+    function removeStuckEth(address _receiver, uint256 _amount) external onlyOwner {
+        payable(_receiver).transfer(_amount);
+    }
+
+    function removeStuckToken(address _token, address _receiver, uint256 _amount) external onlyOwner {
+        IERC20(_token).transfer(_receiver, _amount);
+    }
+
+    function setDay(uint256 _day) external onlyOwner {
+        currentDay = _day;
+    }
+
+    function setLaunchTime(uint256 _time) external onlyOwner {
+        launchTime = _time;
+    }
+
+    function setTimestep(uint256 _step) external onlyOwner {
+        timeStep = _step;
+    }
+
+    function setToken(address _token) external onlyOwner {
+        token = IERC20(_token);
+    }
+
+    function setRouter(address _router) external onlyOwner {
+        router = IDexRouter(_router);
+    }
+
+    function setWallet(address _dead) external onlyOwner {
+        DEAD = _dead;
+    }
+
+}

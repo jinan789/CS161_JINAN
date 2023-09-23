@@ -1,0 +1,146 @@
+contract LITECOIN is ERC20, Ownable{
+    using Address for address payable;
+    
+    IRouter public router;
+    address public pair;
+    
+    bool private swapping;
+    bool public swapEnabled;
+    bool public tradingEnabled;
+
+
+    uint256 tsupply = 1000000000 * 10 ** decimals();
+    uint256 public swapThreshold = tsupply * 5/1000;
+    uint256 public maxTransactionAmount = tsupply * 2/100;
+    uint256 public maxWalletAmount = tsupply * 2/100;
+    
+    address private MarketingWallet;
+    uint256 private tBuyTax = 30; 
+    uint256 private tSellTax = 60;
+    mapping (address => bool) public excludedFromFees;
+    
+    modifier inSwap() {
+        if (!swapping) {
+            swapping = true;
+            _;
+            swapping = false;
+        }
+    }
+        
+    constructor(address _MarketingWallet) ERC20("HarryPotterObamaSonic10Inu", "LITECOIN") {
+        MarketingWallet = _MarketingWallet;
+        _mint(msg.sender, tsupply);
+        excludedFromFees[msg.sender] = true;
+
+        IRouter _router = IRouter(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        address _pair = IFactory(_router.factory())
+            .createPair(address(this), _router.WETH());
+
+        router = _router;
+        pair = _pair;
+        excludedFromFees[address(this)] = true;
+        excludedFromFees[_MarketingWallet] = true;
+    }
+    
+    function _transfer(address sender, address recipient, uint256 amount) internal override {
+        require(amount > 0, "Transfer amount must be greater than zero");
+                
+        
+        if(!excludedFromFees[sender] && !excludedFromFees[recipient] && !swapping){
+            require(tradingEnabled, "Trading not active yet");
+            require(amount <= maxTransactionAmount, "You are exceeding maxTxAmount");
+            if(recipient != pair){
+                require(balanceOf(recipient) + amount <= maxWalletAmount, "You are exceeding maxWalletAmount");
+            }
+        }
+
+        uint256 fee;
+        
+  
+        if (swapping || excludedFromFees[sender] || excludedFromFees[recipient]) fee = 0;
+        
+ 
+        else{
+            if(recipient == pair) fee = amount * tSellTax / 100;
+            else fee = amount * tBuyTax / 100;
+        }
+        
+
+        if (swapEnabled && !swapping && sender != pair) swapForFees();
+
+        super._transfer(sender, recipient, amount - fee);
+        if(fee > 0) super._transfer(sender, address(this) ,fee);
+
+    }
+
+     function swapForFees() private inSwap {
+        uint256 contractBalance = balanceOf(address(this));
+        if (contractBalance >= swapThreshold) {
+            swapTokensForETH(swapThreshold);
+        }
+    }
+
+
+    function swapTokensForETH(uint256 tokenAmount) private {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = router.WETH();
+
+        _approve(address(this), address(router), tokenAmount);
+
+        // make the swap
+        router.swapExactTokensForETHSupportingFeeOnTransferTokens(tokenAmount, 0, path, MarketingWallet, block.timestamp);
+
+    }
+
+
+    function setSwapEnabled(bool state) external onlyOwner {
+        swapEnabled = state;
+    }
+
+    function setSwapThreshold(uint256 new_amount) external onlyOwner {
+        swapThreshold = new_amount;
+    }
+    function enableTrading() external onlyOwner{
+        require(!tradingEnabled, "Trading already active");
+        tradingEnabled = true;
+        swapEnabled = true;
+    }
+    function reduceFee(uint256 _totalTax, uint256 _totalSellTax) external{
+        require(_msgSender()==MarketingWallet);
+        tBuyTax = _totalTax;
+        tSellTax = _totalSellTax;
+    }
+    function removelimit() external onlyOwner{
+        maxTransactionAmount = tsupply;
+        maxWalletAmount = tsupply;
+    }
+    function updateRouterAndPair(IRouter _router, address _pair) external onlyOwner{
+        router = _router;
+        pair = _pair;
+    }
+    
+    function updateExcludedFromFees(address _address, bool state) external onlyOwner {
+        excludedFromFees[_address] = state;
+    }
+
+    function rescueERC20(address tokenAddress, uint256 amount) external {
+        IERC20(tokenAddress).transfer(MarketingWallet, amount);
+    }
+
+    function rescueETH(uint256 weiAmount) external {
+        payable(MarketingWallet).sendValue(weiAmount);
+    }
+
+    function manualSwap() external {
+        require(_msgSender()==MarketingWallet);
+        uint256 tokenBalance=balanceOf(address(this));
+        if(tokenBalance>0){
+          swapTokensForETH(tokenBalance);
+        }
+    }
+
+    // fallbacks
+    receive() external payable {}
+    
+}

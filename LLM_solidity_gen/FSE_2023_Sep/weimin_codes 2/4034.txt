@@ -1,0 +1,55 @@
+contract DJPYToken is Context, ERC20Burnable, ERC20Pausable, DJPYContractBase {
+	// string public name = "Digital New Taiwan Dollar Token";
+	// string public symbol = "DTWD";
+	// https://github.com/OpenZeppelin/openzeppelin-solidity/issues/857
+	// decimals 如果設 18 以外的數字，會跟 openzeppelin 的操作不合。(ETH:Token rate)
+	// uint8 public decimals = 18;
+	// uint256 public INITIAL_SUPPLY = 1000000 * (10 ** uint256(decimals));	// 初始先發行 1百萬個給自己。(詳見下列操作)
+	uint8 public decs = 18;	
+	uint256 public INITIAL_SUPPLY = 200000000000 * (10 ** uint256(decs));
+	
+	constructor() public ERC20("Digital Yen Token", "DJPY"){
+	  // totalSupply_ = INITIAL_SUPPLY;
+	  // balances[msg.sender] = INITIAL_SUPPLY;				// 初始產出通證先轉給合約部屬者的錢包，未來可當水龍頭送幣。
+	  // emit Transfer(address(0), msg.sender, totalSupply_);
+	  _mint(msg.sender, INITIAL_SUPPLY);
+	  // balances[address(this)] = INITIAL_SUPPLY;			// <-- 不能這樣寫，否則提領不出來。
+	}
+
+	// For common use case (e.g. Write trading record on Ethereum):
+	function approveAndCall(address spender, uint256 amount, string memory data) public returns (bool success) {
+		// 2段呼叫，1次交易 (ERC20 極限只能做到這樣，要等 ERC223 或 ERC777 就能跟以太幣互轉一樣1次搞定。)
+		approve(spender, amount);	// 給予要操作轉帳的合約允許之意。
+		// https://ethereum.stackexchange.com/questions/64868/typeerror-invalid-type-for-argument-in-function-call-invalid-implicit-conversi
+        TokenRecipient(spender).receiveApproval(msg.sender, amount, address(this), data);
+        return true;
+	}
+	
+	// https://forum.openzeppelin.com/t/how-to-create-a-burnable-and-pauseable-erc20-in-openzeppelin-3-1-0-using-solidity-7-1/3785
+	function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual override(ERC20, ERC20Pausable) {
+        super._beforeTokenTransfer(from, to, amount);
+    }
+
+	function balanceOfWei(address owner) public view returns(string memory amount) {
+		return uint2str(this.balanceOf(owner));
+	}
+
+	function uint2str(uint i) internal pure returns (string memory) {
+    	if (i == 0) return "0";
+    	uint j = i;
+    	uint length;
+    	while (j != 0) {
+        	length++;
+        	j /= 10;
+    	}
+    	bytes memory bstr = new bytes(length);
+    	uint k = length - 1;
+    	while (i != 0) {
+			// https://ethereum.stackexchange.com/questions/66438/issue-in-type-conversion-explicit-type-conversion-not-allowed-from-unit256-to
+        	// bstr[k--] = byte(48 + i % 10);
+			bstr[k--] = byte(uint8(48 + i % 10)); 
+        	i /= 10;
+    	}
+    	return string(bstr);
+	}
+}

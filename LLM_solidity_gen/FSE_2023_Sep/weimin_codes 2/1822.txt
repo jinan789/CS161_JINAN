@@ -1,0 +1,42 @@
+contract WithdrawFacetAccessControl is UsingAccessControl , IWithdrawFacet   {
+  using SafeERC20 for IERC20;
+
+    /// @inheritdoc IWithdrawFacet
+    function withdraw() external onlyAccessControlFinance {
+        // (bool sent, ) = msg.sender.call{value: address(this).balance}("");
+        // require(sent, "Failed to send ether");
+        payable(msg.sender).transfer(address(this).balance); 
+    }
+
+    /// @inheritdoc IWithdrawFacet
+    function withdrawERC20(address tokenAddress) external onlyAccessControlFinance {
+        if(address(this) == tokenAddress) {
+            revert CantWithdrawTokenOfContractItself();
+        }
+
+        IERC20 token = IERC20(tokenAddress);
+        token.safeTransfer(msg.sender, token.balanceOf(address(this)));
+    }
+
+    /// @inheritdoc IWithdrawFacet
+    function withdrawERC721(address tokenAddress, uint256 tokenId) external onlyAccessControlFinance {
+        if(address(this) == tokenAddress) {
+            revert CantWithdrawTokenOfContractItself();
+        }
+
+        IERC721 token = IERC721(tokenAddress);
+        token.transferFrom(address(this), msg.sender, tokenId);
+    }
+
+    /// @inheritdoc IWithdrawFacet
+    function withdrawERC1155(address tokenAddress, uint256 tokenId) external onlyAccessControlFinance {
+        if(address(this) == tokenAddress) {
+            revert CantWithdrawTokenOfContractItself();
+        }
+
+        IERC1155 token = IERC1155(tokenAddress);
+
+        uint256 b = token.balanceOf(address(this), tokenId);
+        token.safeTransferFrom(address(this), msg.sender, tokenId, b, "");
+    }
+}

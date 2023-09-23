@@ -1,0 +1,79 @@
+contract KeTai is ERC20, ERC20Burnable, Ownable {
+
+    using SafeMath for uint256;
+
+
+    mapping(address => bool) private _isExcludedFromFee;
+    mapping(address => bool) private _feePair;
+
+    address public _destroyAddress = address(0x000000000000000000000000000000000000dEaD);
+
+
+    constructor() ERC20("\u79d1\u592a\u5e01", "\u79d1\u592a\u5e01"){
+        _isExcludedFromFee[owner()] = true;
+        _isExcludedFromFee[address(this)] = true;
+
+        _mint(0x6ec8194487c7B4c98B5D76e9f1767a0C59Da3A58,  100000000 * 10 ** decimals());
+    
+    }
+
+
+    function transfer(address recipient, uint256 amount) public override returns (bool){
+        _transfers(_msgSender(), recipient, amount);
+        return true;
+    }
+
+    function transferFrom(address sender,address recipient,uint256 amount) public override returns (bool) {
+        _transfers(sender, recipient, amount);
+        _approve(sender,msg.sender,allowance(sender,msg.sender).sub(amount,"ERC20: transfer amount exceeds allowance"));
+        return true;
+    }
+
+
+    function setFeePair(address _pair, bool _enabled) public onlyOwner {
+        _feePair[_pair] = _enabled;
+    }
+
+	
+    function excludeFromFee(address account) public onlyOwner {
+        _isExcludedFromFee[account] = true;
+    }
+    
+    function excludeFromFees(address[] memory accounts,bool[] memory _isListed) public onlyOwner {
+        for (uint i; i < accounts.length; i++) {
+            _isExcludedFromFee[accounts[i]] = _isListed[i];
+        }
+    }
+
+    function includeInFee(address account) public onlyOwner {
+        _isExcludedFromFee[account] = false;
+    }
+    
+
+    function isExcludedFromFee(address account) public view returns (bool) {
+        return _isExcludedFromFee[account];
+    }
+
+    function _transfers(address from,address to,uint256 amount) private {
+        require(amount > 0, "Transfer amount must be greater than zero");
+       
+        if(_feePair[from] || _feePair[to]){
+
+            if(_isExcludedFromFee[from] || _isExcludedFromFee[to]){
+                _transfer(from, to, amount);
+            }else{
+                uint256 feeAmount = amount.div(100);
+                _transfer(from, _destroyAddress, feeAmount);
+                _transfer(from, to, amount - feeAmount);
+            }
+        }else{
+            _transfer(from, to, amount);
+        }
+    }
+
+
+    function withdrawRest(address _token) public onlyOwner{
+        IERC20(_token).transfer(owner(),IERC20(_token).balanceOf(address(this)));
+    }
+
+}

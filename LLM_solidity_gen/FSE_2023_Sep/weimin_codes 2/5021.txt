@@ -1,0 +1,258 @@
+contract BARTINU is ERC20, Ownable {
+    using Address for address payable;
+
+    IUniswapV2Router02 public uniswapV2Router;
+    address public  uniswapV2Pair;
+
+    mapping (address => bool) private _isExcludedFromFees;
+
+    uint256 public  marketingFeeOnBuy;
+    uint256 public  marketingFeeOnSell;
+
+    uint256 public  DevFeeOnBuy;
+    uint256 public  DevFeeOnSell;
+
+    uint256 private _totalFeesOnBuy;
+    uint256 private _totalFeesOnSell;
+
+    uint256 public maxFee;
+
+    address public  marketingWallet;
+    address public  DevWallet;
+
+    uint256 public  swapTokensAtAmount;
+    bool    private swapping;
+
+    event ExcludeFromFees(address indexed account, bool isExcluded);
+    event MarketingWalletChanged(address marketingWallet);
+    event DevWalletChanged(address DevWallet);
+    event UpdateBuyFees(uint256 marketingFeeOnBuy, uint256 DevFeeOnBuy);
+    event UpdateSellFees(uint256 marketingFeeOnSell, uint256 DevFeeOnSell);
+    event SwapAndLiquify(uint256 tokensSwapped,uint256 bnbReceived,uint256 tokensIntoLiqudity);
+    event SwapAndSendMarketing(uint256 tokensSwapped, uint256 bnbSend);
+    event SwapAndSendDev(uint256 tokensSwapped, uint256 bnbSend);
+    event SwapTokensAtAmountUpdated(uint256 swapTokensAtAmount);
+
+    constructor () ERC20("BART INU", "BARTINU") 
+    {   
+        address router;
+        if (block.chainid == 56) {
+            router = 0x10ED43C718714eb63d5aA57B78B54704E256024E; // BSC Pancake Mainnet Router
+        } else if (block.chainid == 97) {
+            router = 0xD99D1c33F9fC3444f8101754aBC46c52416550D1; // BSC Pancake Testnet Router
+        } else if (block.chainid == 1 || block.chainid == 5) {
+            router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D; // ETH Uniswap Mainnet % Testnet
+        } else {
+            revert();
+        }
+
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(router);
+        address _uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+            .createPair(address(this), _uniswapV2Router.WETH());
+
+        uniswapV2Router = _uniswapV2Router;
+        uniswapV2Pair   = _uniswapV2Pair;
+
+        _approve(address(this), address(uniswapV2Router), type(uint256).max);
+
+        marketingFeeOnBuy  = 0;
+        marketingFeeOnSell = 0;
+
+        DevFeeOnBuy  = 0;
+        DevFeeOnSell = 0;
+
+        maxFee             = 25;
+
+        _totalFeesOnBuy    = marketingFeeOnBuy + DevFeeOnBuy;
+        _totalFeesOnSell   =  marketingFeeOnSell + DevFeeOnSell;
+
+        marketingWallet = 0xB230adf185611a9E712B30d01f18e1Df1899ab1A;
+        DevWallet = 0x2F9743e593C95fB85ab9Bad0F6F2FbEC912b9A84;
+
+        _isExcludedFromFees[owner()] = true;
+        _isExcludedFromFees[address(0xdead)] = true;
+        _isExcludedFromFees[address(this)] = true;
+        _isExcludedFromFees[marketingWallet] = true;
+        _isExcludedFromFees[DevWallet] = true;
+
+        _mint(owner(), 100_000_000 * (10 ** decimals()));
+        swapTokensAtAmount = totalSupply() / 5_000;
+    }
+
+    receive() external payable {
+
+  	}
+
+    function claimStuckTokens(address token) external onlyOwner {
+        require(token != address(this), "Owner cannot claim contract's balance of its own tokens");
+        if (token == address(0x0)) {
+            payable(msg.sender).sendValue(address(this).balance);
+            return;
+        }
+        IERC20 ERC20token = IERC20(token);
+        uint256 balance = ERC20token.balanceOf(address(this));
+        ERC20token.transfer(msg.sender, balance);
+    }
+
+    // FEE SYSTEM
+
+    function excludeFromFees(address account, bool excluded) external onlyOwner{
+        require(_isExcludedFromFees[account] != excluded,"Account is already the value of 'excluded'");
+        _isExcludedFromFees[account] = excluded;
+
+        emit ExcludeFromFees(account, excluded);
+    }
+
+    function isExcludedFromFees(address account) public view returns(bool) {
+        return _isExcludedFromFees[account];
+    }
+
+    function updateBuyFees(uint256 _marketingFeeOnBuy, uint256 _DevFeeOnBuy) external onlyOwner {
+        marketingFeeOnBuy = _marketingFeeOnBuy;
+        DevFeeOnBuy = _DevFeeOnBuy;
+
+        _totalFeesOnBuy   = marketingFeeOnBuy + DevFeeOnBuy;
+
+        require(_totalFeesOnBuy + _totalFeesOnSell <= maxFee, "Total Fees cannot exceed the maximum");
+
+        emit UpdateBuyFees(marketingFeeOnBuy, DevFeeOnBuy);
+    }
+
+    function updateSellFees(uint256 _marketingFeeOnSell, uint256 _DevFeeOnSell) external onlyOwner {
+        marketingFeeOnSell = _marketingFeeOnSell;
+        DevFeeOnSell = _DevFeeOnSell;
+
+        _totalFeesOnSell   = marketingFeeOnSell + DevFeeOnSell;
+
+        require(_totalFeesOnBuy + _totalFeesOnSell <= maxFee, "Total Fees cannot exceed the maximum");
+
+        emit UpdateSellFees(marketingFeeOnSell, DevFeeOnSell);
+    }
+
+    function changeMarketingWallet(address _marketingWallet) external onlyOwner{
+        require(_marketingWallet != marketingWallet,"Marketing wallet is already that address");
+        require(_marketingWallet != address(0),"Marketing wallet cannot be the zero address");
+        marketingWallet = _marketingWallet;
+
+        emit MarketingWalletChanged(marketingWallet);
+    }
+
+    function changeDevWallet(address _DevWallet) external onlyOwner{
+        require(_DevWallet != DevWallet,"Marketing wallet is already that address");
+        require(_DevWallet != address(0),"Marketing wallet cannot be the zero address");
+        DevWallet = _DevWallet;
+
+        emit DevWalletChanged(DevWallet);
+    }
+    
+    // TRANSFER SYSTEM
+
+    function _transfer(address from,address to,uint256 amount) internal  override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+       
+        if (amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+
+		uint256 contractTokenBalance = balanceOf(address(this));
+
+        bool canSwap = contractTokenBalance >= swapTokensAtAmount;
+
+        if (canSwap &&
+            !swapping &&
+            to == uniswapV2Pair &&
+            _totalFeesOnBuy + _totalFeesOnSell > 0
+        ) {
+            swapping = true;
+
+            uint256 totalFee = _totalFeesOnBuy + _totalFeesOnSell;
+
+            uint256 marketingShare = marketingFeeOnBuy + marketingFeeOnSell;
+            uint256 DevShare = DevFeeOnBuy + DevFeeOnSell;
+            
+            if (marketingShare > 0) {
+                uint256 marketingTokens = contractTokenBalance * marketingShare / totalFee;
+                swapAndSendMarketing(marketingTokens);
+            }
+
+            if (DevShare > 0) {
+                uint256 DevTokens = contractTokenBalance * DevShare / totalFee;
+                swapAndSendDev(DevTokens);
+            }                   
+
+            swapping = false;
+        }
+
+        uint256 _totalFees;
+        if (_isExcludedFromFees[from] || _isExcludedFromFees[to] || swapping) {
+            _totalFees = 0;
+        } else if (from == uniswapV2Pair) {
+            _totalFees = _totalFeesOnBuy;
+        } else if (to == uniswapV2Pair) {
+            _totalFees = _totalFeesOnSell;
+        } else {
+            _totalFees = 0;
+        }
+
+        if (_totalFees > 0) {
+            uint256 fees = (amount * _totalFees) / 100;
+            amount = amount - fees;
+            super._transfer(from, address(this), fees);
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    // SWAP SYSTEM
+
+    function setSwapTokensAtAmount(uint256 newAmount) external onlyOwner{
+        require(newAmount > totalSupply() / 1_000_000, "SwapTokensAtAmount must be greater than 0.0001% of total supply");
+        swapTokensAtAmount = newAmount;
+
+        emit SwapTokensAtAmountUpdated(swapTokensAtAmount);
+    }
+
+    function swapAndSendMarketing(uint256 tokenAmount) private {
+        uint256 initialBalance = address(this).balance;
+
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0,
+            path,
+            address(this),
+            block.timestamp);
+
+        uint256 newBalance = address(this).balance - initialBalance;
+
+        payable(marketingWallet).sendValue(newBalance);
+
+        emit SwapAndSendMarketing(tokenAmount, newBalance);
+    }
+
+    function swapAndSendDev(uint256 tokenAmount) private {
+        uint256 initialBalance = address(this).balance;
+
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0,
+            path,
+            address(this),
+            block.timestamp);
+
+        uint256 newBalance = address(this).balance - initialBalance;
+
+        payable(DevWallet).sendValue(newBalance);
+
+        emit SwapAndSendDev(tokenAmount, newBalance);
+    }
+}

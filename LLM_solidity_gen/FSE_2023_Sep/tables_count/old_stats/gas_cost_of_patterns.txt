@@ -1,0 +1,137 @@
+Du, Do, Ru, Ro, 
+
+GAS: , , , ,
+STEP: , , , ,
+
+notes:
+1. we could bold the diff numbers that are positive
+2. If needed, change contract implementations to different versions
+3. Point out the trade-off contracts. (i.e. trade deployment cost for running cost, or vice versa.)
+
+4. WE SHOULD make sure the updated pattern names are reflected everywhere else.
+
+1. Repeated computation of the same expression 
+GAS: 372, 360, 6845, 1686,
+STEP: 16, 16, 686, 508,
+
+2. Extractable code chunks
+GAS: 130672, 130610, 7934, 7996,
+STEP: 120, 71, 701, 722,
+
+
+3. State Variable Refactoring
+GAS: 74152, 25013, 4609, 3633,
+STEP: 354, 457, 117, 223,
+
+4. Conditionally execute unnecessarily universal operations (Redundant operations with same effects)
+GAS: 251, 251, 1847, 1831,
+STEP: 16, 16, 559, 553,
+
+
+5. Pre-computable operations on constants
+GAS: 275, 263, 2028, 1732,
+STEP: 16, 16, 596, 514,
+
+
+6. Deterministic conditional checks
+GAS: 220, 330, 2487, 2447,
+STEP: 16, 16, 761, 749,
+
+
+7. Conditional statements with simpler equivalents{Nguyen2022gassaver} <>
+GAS: 22347, 22347, 2789, 2741,
+STEP: 37, 37, 208, 193,
+
+
+8. DELETED (Refactorable function){} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+9. Replacing item-by-item iterated arrays by a map{Lodovica2020design, sorbo2022profiling} <>
+GAS: , , , ,
+STEP: , , , ,
+
+
+10. UMBRELLA TERM UNDER 4{} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+
+
+Du, Do, Ru, Ro, 
+
+
+
+11. Repeated security checks across function calls{} <zhao2023gassaver>
+GAS: 386, 343, 4384, ,
+STEP: 16, 16, 563, ,
+
+12. Unnecessarily introducing variables{} <>
+
+13. UMBRELLA TERM UNDER 1{} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+14. DELETED (Excessive usage of try-catches){} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+15. Unnecessary overflow/underflow validation since Solidity 0.8.0{} <>
+GAS: , , , ,
+STEP: , , , ,
+
+16. UMBRELLA TERM UNDER 11{} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+17. Redundant memory array initialization{} <>
+GAS: , , , ,
+STEP: , , , ,
+
+18. Placement of require statements{} <>
+
+19. Avoid no-op writes to state variables{} <Lodovica2020design>
+
+20. Reordering conditional checks for short-circuiting{Lodovica2020design} <Kong2022characterizing, zhao2023gassaver>
+
+21. Combinable events{} <>
+
+22. UMBRELLA TERM UNDER 15{} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+23. add constant modifier for non-changing variables{park2017saving, Nguyen2022gassaver} <>
+
+24. UMBRELLA TERM UNDER 32{} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+25. Function visibility{Lodovica2020design, Kong2022characterizing, Nguyen2022gassaver} <park2017saving, sorbo2022profiling>
+
+26. Dead codes{Chen2017underoptimized, zhao2023gassaver} <>
+
+27. UMBRELLA TERM UNDER 28{} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+28. Using revert instead of require for error handling{} <>
+
+29. Minimization of event message string{} <>
+
+30. Replacing MUL/DIV of powers of 2 by SHL/SHR{} <>
+
+31. Struct variable reordering{Nguyen2022gassaver} <Lodovica2020design, Kong2022characterizing, park2017saving>
+
+32. Loop invariant codes{Keerthi2021smart, Chen2017underoptimized, Nguyen2022gassaver, zhao2023gassaver} <>
+
+33. Avoid expensive operations inside loops{Chen2017underoptimized} <Keerthi2021smart, sorbo2022profiling, zhao2023gassaver>
+
+34. Struct refactoring by usage frequency{chen2022synthesispowered} <>
+

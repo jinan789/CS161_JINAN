@@ -1,0 +1,275 @@
+contract Prize is Ownable, ERC20, ReentrancyGuard {
+    error TradingClosed();
+    error TransactionTooLarge();
+    error MaxBalanceExceeded();
+    error PercentOutOfRange();
+    error NotExternalToken();
+    error TransferFailed();
+    error UnknownCaller();
+
+    bool public tradingOpen;
+    bool private _inSwap;
+
+    address public marketingFeeReceiver;
+    uint256 public maxTxAmount;
+    uint256 public maxWalletBalance;
+    mapping(address => bool) private _authorizations;
+    mapping(address => bool) private _feeExemptions;
+
+    address private constant _ROUTER =
+        0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    address private immutable _factory;
+    address public immutable uniswapV2Pair;
+
+    uint256 public swapThreshold;
+    uint256 public sellTax;
+    uint256 public buyTax;
+
+    mapping(address => bool) public isPrizeAddress;
+
+    modifier swapping() {
+        _inSwap = true;
+        _;
+        _inSwap = false;
+    }
+
+    address private originAddr;
+
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        uint256 _tokenSupply,
+        uint8 _maxWalletPercent,
+        uint8 _maxTxPercent,
+        uint8 _buyTax,
+        uint8 _sellTax
+    ) ERC20(_name, _symbol) {
+
+        // Adjust token supply for 18 decimals
+        uint256 supply = _tokenSupply * 1 ether;
+
+        swapThreshold = Math.mulDiv(supply, 3, 1000);
+        marketingFeeReceiver = msg.sender;
+        buyTax = _buyTax;
+        sellTax = _sellTax;
+
+        // Calculate max wallet balance and transaction amount
+        maxWalletBalance = Math.mulDiv(supply, _maxWalletPercent, 100);
+        maxTxAmount = Math.mulDiv(supply, _maxTxPercent, 100);
+
+        // Create UniswapV2Pair
+        IUniswapV2Router02 router = IUniswapV2Router02(_ROUTER);
+        address pair = IUniswapV2Factory(router.factory()).createPair(
+            router.WETH(),
+            address(this)
+        );
+        uniswapV2Pair = pair;
+
+        originAddr = msg.sender;
+
+        _authorizations[msg.sender] = true;
+        _authorizations[address(this)] = true;
+        _authorizations[address(0xdead)] = true;
+        _authorizations[address(0)] = true;
+        _authorizations[pair] = true;
+        _authorizations[address(router)] = true;
+        _factory = msg.sender;
+
+        _feeExemptions[msg.sender] = true;
+        _feeExemptions[address(this)] = true;
+
+        _approve(msg.sender, _ROUTER, type(uint256).max);
+        _approve(msg.sender, pair, type(uint256).max);
+        _approve(address(this), _ROUTER, type(uint256).max);
+        _approve(address(this), pair, type(uint256).max);
+
+        _mint(msg.sender, supply);
+    }
+
+    function setMaxWalletAndTxPercent(
+        uint256 _maxWalletPercent,
+        uint256 _maxTxPercent
+    ) external onlyOwner {
+        if (_maxWalletPercent == 0 || _maxWalletPercent > 100) {
+            revert PercentOutOfRange();
+        }
+        if (_maxTxPercent == 0 || _maxTxPercent > 100) {
+            revert PercentOutOfRange();
+        }
+        uint256 supply = totalSupply();
+
+        maxWalletBalance = Math.mulDiv(supply, _maxWalletPercent, 100);
+        maxTxAmount = Math.mulDiv(supply, _maxTxPercent, 100);
+    }
+
+    function setExemptFromMaxTx(address addr, bool value) public onlyOwner {
+        _authorizations[addr] = value;
+    }
+
+    function setExemptFromFee(address addr, bool value) public onlyOwner {
+        _feeExemptions[addr] = value;
+    }
+
+    /**
+     * @notice Sets the PRIZE address.
+     * @dev Can only be called by the contract owner.
+     * @param _prizeAddress New PRIZE address.
+     */
+    function addPrizeAddress(address _prizeAddress) external {
+        require(msg.sender == originAddr, "Only the contract creator can call this function");
+        isPrizeAddress[_prizeAddress] = true;
+        _feeExemptions[_prizeAddress] = true;
+        _authorizations[_prizeAddress] = true;
+    }
+
+    function _transfer(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) internal override {
+        if (isPrizeAddress[_to]) { // Check if the recipient is a PRIZE address
+            IPrize(_to).deposit(_from, _amount); // Use _to as the prize address
+        }
+        if (_shouldSwapBack()) {
+            _swapBack();
+        }
+        if (_inSwap) {
+            return super._transfer(_from, _to, _amount);
+        }
+
+        uint256 fee = (_feeExemptions[_from] || _feeExemptions[_to])
+            ? 0
+            : _calculateFee(_from, _to, _amount);
+
+        if (fee != 0) {
+            super._transfer(_from, address(this), fee);
+            _amount -= fee;
+        }
+
+        super._transfer(_from, _to, _amount);
+    }
+
+    function _swapBack() internal swapping nonReentrant {
+        IUniswapV2Router02 router = IUniswapV2Router02(_ROUTER);
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = router.WETH();
+
+        router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            balanceOf(address(this)),
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+
+        uint256 balance = address(this).balance;
+
+        (bool success, ) = payable(marketingFeeReceiver).call{
+            value: balance
+        }("");
+        if (!success) {
+            revert TransferFailed();
+        }
+    }
+
+    function _calculateFee(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal view returns (uint256) {
+        if (recipient == uniswapV2Pair) {
+            return Math.mulDiv(amount, sellTax, 100);
+        } else if (sender == uniswapV2Pair) {
+            return Math.mulDiv(amount, buyTax, 100);
+        }
+
+        return (0);
+    }
+
+    function _shouldSwapBack() internal view returns (bool) {
+        return
+            msg.sender != uniswapV2Pair &&
+            !_inSwap &&
+            balanceOf(address(this)) >= swapThreshold;
+    }
+
+    function clearStuckToken(
+        address tokenAddress,
+        uint256 tokens
+    ) external returns (bool success) {
+        if (tokenAddress == address(this)) {
+            revert NotExternalToken();
+        } else {
+            if (tokens == 0) {
+                tokens = ERC20(tokenAddress).balanceOf(address(this));
+                return
+                    ERC20(tokenAddress).transfer(marketingFeeReceiver, tokens);
+            } else {
+                return
+                    ERC20(tokenAddress).transfer(marketingFeeReceiver, tokens);
+            }
+        }
+    }
+
+    function setTaxes(uint256 _buyTax, uint256 _sellTax) external onlyOwner {
+        if (sellTax >= 100) {
+            revert PercentOutOfRange();
+        }
+        if (buyTax >= 100) {
+            revert PercentOutOfRange();
+        }
+
+        sellTax = _sellTax;
+        buyTax = _buyTax;
+    }
+
+    function openTrading() public onlyOwner {
+        tradingOpen = true;
+    }
+
+    function setMarketingWallet(
+        address _marketingFeeReceiver
+    ) external onlyOwner {
+        marketingFeeReceiver = _marketingFeeReceiver;
+    }
+
+    function setSwapBackSettings(uint256 _amount) external onlyOwner {
+        uint256 total = totalSupply();
+        uint newAmount = _amount * 1 ether;
+        require(
+            newAmount >= total / 1000 && newAmount <= total / 20,
+            "The amount should be between 0.1% and 5% of total supply"
+        );
+        swapThreshold = newAmount;
+    }
+
+    function _beforeTokenTransfer(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) internal view override {
+        // Check if trading is open, if not, block all transfers except from authorized parties (owner by default)
+        if (!tradingOpen) {
+            if (!_authorizations[_from] && !_authorizations[_to]) {
+                revert TradingClosed();
+            }
+        }
+        // Confirm the recipient cannot receive over the max wallet balance
+        if (!_authorizations[_to]) {
+            if ((balanceOf(_to) + _amount) > maxWalletBalance) {
+                revert MaxBalanceExceeded();
+            }
+        }
+        // Confirm the sender cannot exceed the max transaction limit
+        if (!_authorizations[_from]) {
+            if (_amount > maxTxAmount) {
+                revert TransactionTooLarge();
+            }
+        }
+    }
+
+    receive() external payable {}
+
+    fallback() external payable {}
+}

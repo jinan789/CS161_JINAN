@@ -1,0 +1,78 @@
+contract ChadWojakToken is ERC20, Ownable {
+        address public taxWallet; // Address where tax will be sent (set to creator's address)
+
+        address public constant burnWallet = 0x0000000000000000000000000000000000000000;
+
+        uint256 public sellTaxPercentage = 10; // Percentage of tax when selling
+        uint256 public buyTaxPercentage = 2;  // Percentage of tax when buying (added)
+        uint256 public burnPercentage = 5; 
+
+        bool private reentrancyGuard;
+
+        constructor() ERC20("ChadWojak", "JAK") {
+            uint256 initialSupply = 1000000000 * 10**decimals(); // Initial supply: 1 billion tokens
+            _mint(_msgSender(), initialSupply);
+            taxWallet = _msgSender();
+        }
+
+        // Modifier to prevent reentrancy attacks
+        modifier noReentrancy() {
+            require(!reentrancyGuard, "Reentrant call");
+            reentrancyGuard = true;
+            _;
+            reentrancyGuard = false;
+        }
+
+        // Override token transfer function to implement burn
+        function _transfer(
+            address sender,
+            address recipient,
+            uint256 amount
+        ) internal override noReentrancy {
+            require(recipient != address(0), "Transfer to zero address");
+
+            uint256 burnAmount = 0;
+            uint256 taxAmount = 0;
+
+            if (recipient != address(this)) {
+                if (sender != taxWallet) { // Apply buy tax only if sender is not the tax wallet
+                    taxAmount = (amount * buyTaxPercentage) / 100;
+                    require(taxAmount <= amount, "Tax amount exceeds transfer amount");
+                }
+
+                burnAmount = (amount * burnPercentage) / 100;
+                require(burnAmount <= amount, "Burn amount exceeds transfer amount");
+            }
+
+            // Check and deduct tax first
+            if (taxAmount > 0) {
+                super._transfer(sender, taxWallet, taxAmount);
+            }
+
+            // Check and perform burn
+            if (burnAmount > 0) {
+                super._transfer(sender, burnWallet, burnAmount);
+            }
+
+            // Perform the actual transfer to recipient
+            super._transfer(sender, recipient, amount - burnAmount - taxAmount);
+        }
+
+        // Function to set the sell tax percentage (only callable by the contract owner)
+        function setSellTaxPercentage(uint256 _sellTaxPercentage) external onlyOwner {
+            require(_sellTaxPercentage <= 100, "Sell tax percentage cannot exceed 100");
+            sellTaxPercentage = _sellTaxPercentage; // Set new sell tax percentage
+        }
+
+        // Function to set the buy tax percentage (only callable by the contract owner)
+        function setBuyTaxPercentage(uint256 _buyTaxPercentage) external onlyOwner {
+            require(_buyTaxPercentage <= 100, "Buy tax percentage cannot exceed 100");
+            buyTaxPercentage = _buyTaxPercentage; // Set new buy tax percentage
+        }
+
+        // Function to set the burn percentage (only callable by the contract owner)
+        function setBurnPercentage(uint256 _burnPercentage) external onlyOwner {
+            require(_burnPercentage <= 100, "Burn percentage cannot exceed 100");
+            burnPercentage = _burnPercentage; // Set new burn percentage
+        }
+    }

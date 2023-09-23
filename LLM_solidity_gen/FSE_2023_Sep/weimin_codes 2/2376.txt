@@ -1,0 +1,416 @@
+contract abc is ERC20, Ownable {
+
+    using SafeMath for uint256;
+    uint8 private _decimals = 18; 
+
+
+    IUniswapV2Router02 public immutable uniswapV2Router;
+    address public immutable uniswapV2Pair;
+    bool private inExecute;
+
+    address public marketingAddress;
+
+    bool public tradingAllowed = false;
+    bool public swapActived = false;
+
+    // Anti-bot and anti-whale mappings and variables
+    mapping(address => bool) blacklisted;
+
+    taxFeeOnBuy public _buyFee;
+    taxFeeOnSell public _sellFee;
+    tokenForFee public _tokenForFee;
+    TxAmt public _txAmt;
+
+    uint256 public constant Fee_Ratio = 1000;
+
+
+    struct taxFeeOnBuy {
+        uint256  buyTotalFees;
+        uint256  buyMarketingFee;
+        uint256  buyLiquidityFee;
+    }
+
+    struct taxFeeOnSell {
+        uint256  sellTotalFees;
+        uint256  sellMarketingFee;
+        uint256  sellLiquidityFee;
+    }
+
+    struct tokenForFee {
+        uint256  tokensForMarketing;
+        uint256  tokensForLiquidity;
+    }
+
+    struct TxAmt {
+        uint256  maxTxAmount;
+        uint256  swapAtAmount;
+        uint256  maxWalletAmount;
+    }
+
+    // Exclude from fees and max transaction amount
+    mapping(address => bool) private _isExcludedFromFees;
+    mapping(address => bool) public _isExcludedMaxTransactionAmount;
+
+    // Store addresses that a automatic market maker pairs. Any transfer *to* these addresses
+    // could be subject to a maximum transfer amount
+    mapping(address => bool) public automatedMarketMakerPairs;
+
+    event UpdateUniswapV2Router(
+        address indexed newAddress,
+        address indexed oldAddress
+    );
+
+    event ExcludeFromFees(address indexed account, bool isExcluded);
+
+    event isAMMPair(address indexed pair, bool indexed value);
+
+    event ChangedBuyFee(uint256 newFee);
+
+    event ChangedSellFee(uint256 newFee);
+
+    event ChangedLimits(uint256 newTx, uint256 newSize);
+
+    event MarketingAddressChanged(address MKTAddr);
+
+    event SwapAndLiquify(
+        uint256 tokensSwapped,
+        uint256 ethReceived,
+        uint256 tokensIntoLiquidity
+    );
+
+    constructor() ERC20("abc", "abc") {
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
+            0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+        );
+
+        _excludeFromMaxLimit(address(_uniswapV2Router), true);
+        uniswapV2Router = _uniswapV2Router;
+
+        // Creates the Uniswap Pair
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+            .createPair(address(this), _uniswapV2Router.WETH());
+        _excludeFromMaxLimit(address(uniswapV2Pair), true);
+        _setAMMPair(address(uniswapV2Pair), true);
+
+        uint256 _buyMarketingFee = 130; 
+        uint256 _buyLiquidityFee = 20; 
+
+        uint256 _sellMarketingFee = 250; 
+        uint256 _sellLiquidityFee = 50;
+
+        uint256 _startSupply = 100_000_000_000 * 10**_decimals;
+
+        _txAmt.maxTxAmount = _startSupply.mul(2).div(100); // 2% tx
+        _txAmt.maxWalletAmount = _startSupply.mul(2).div(100); // 2% size
+        _txAmt.swapAtAmount = _startSupply.mul(10).div(10000); // 0.1%
+
+        _buyFee.buyMarketingFee = _buyMarketingFee;
+        _buyFee.buyLiquidityFee = _buyLiquidityFee;
+        _buyFee.buyTotalFees = _buyFee.buyMarketingFee + _buyFee.buyLiquidityFee;
+
+        _sellFee.sellMarketingFee = _sellMarketingFee;
+        _sellFee.sellLiquidityFee = _sellLiquidityFee;
+        _sellFee.sellTotalFees = _sellFee.sellMarketingFee + _sellFee.sellLiquidityFee;
+
+        marketingAddress = address(0xaf0cC4481f9fD97f04FFd83a56Aa9f41154dAD49); // Set as revShare wallet - Helper Contract
+
+        // Exclude from paying fees or having max transaction amount if; is owner, is deployer, is dead address. 
+        _excludeFromFees(owner(), true);
+        _excludeFromFees(address(this), true);
+        _excludeFromFees(address(0xdead), true);
+
+        _excludeFromMaxLimit(owner(), true);
+        _excludeFromMaxLimit(address(this), true);
+        _excludeFromMaxLimit(address(0xdead), true);
+
+        /*
+            _createInitialSupply is an internal function in ERC20.sol that is only called here,
+            and CANNOT be called ever again
+        */
+        _createInitialSupply(msg.sender, _startSupply);
+    }
+
+    receive() external payable {}
+
+    function startTrading() external onlyOwner {
+        tradingAllowed = true;
+        swapActived = true;
+    }
+
+    function setLimits(uint256 new_Tx, uint256 new_Size) external onlyOwner {
+        require(new_Tx >= (totalSupply() * 5 / 1000)/ 1e18, "Cannot set maxTxAmount lower than 0.5%");
+        require(new_Size >= (totalSupply() * 5 / 1000)/ 1e18, "Cannot set maxWalletAmount lower than 0.5%");
+        _txAmt.maxTxAmount = new_Tx * 10**_decimals; // 1%
+        _txAmt.maxWalletAmount = new_Size * 10**_decimals; // 2.5%
+        emit ChangedLimits(_txAmt.maxTxAmount, _txAmt.maxWalletAmount);
+    }
+
+    function setBuyFees(uint256 mktFee, uint256 liqFee) external onlyOwner {
+        _buyFee.buyMarketingFee = mktFee;
+        _buyFee.buyLiquidityFee = liqFee;
+        _buyFee.buyTotalFees = _buyFee.buyMarketingFee + _buyFee.buyLiquidityFee;
+        require(_buyFee.buyTotalFees <= 10);
+        emit ChangedBuyFee(_buyFee.buyTotalFees);
+    }
+    function setSellFees(uint256 mktFee, uint256 liqFee) external onlyOwner {
+        _sellFee.sellMarketingFee = mktFee;
+        _sellFee.sellLiquidityFee = liqFee;
+        _sellFee.sellTotalFees = _sellFee.sellMarketingFee + _sellFee.sellLiquidityFee;
+        require(_sellFee.sellTotalFees <= 20);
+        emit ChangedSellFee(_sellFee.sellTotalFees);
+    }
+
+    function setSwapActived(bool actived_) external onlyOwner(){
+        swapActived = actived_;
+    }
+
+    function setMarketingAddress(address new_mkt) external onlyOwner {
+        require(new_mkt != marketingAddress, "MTE wallet is already that address");
+        require(new_mkt != address(0),"MTE wallet cannot be the zero address");
+        emit MarketingAddressChanged(new_mkt);
+        marketingAddress = new_mkt;
+    }
+
+    function _excludeFromMaxLimit(address updAds, bool isEx)
+        public
+        onlyOwner
+    {
+        _isExcludedMaxTransactionAmount[updAds] = isEx;
+    }
+
+    function _excludeFromFees(address account, bool excluded) public onlyOwner {
+        _isExcludedFromFees[account] = excluded;
+        emit ExcludeFromFees(account, excluded);
+    }
+
+    function setAutomatedMarketMakerPair(address pair, bool value)
+        public
+        onlyOwner
+    {
+        require(
+            pair != uniswapV2Pair,
+            "The pair cannot be removed from automatedMarketMakerPairs"
+        );
+
+        _setAMMPair(pair, value);
+    }
+
+    function _setAMMPair(address pair, bool value) private {
+        automatedMarketMakerPairs[pair] = value;
+
+        emit isAMMPair(pair, value);
+    }
+
+    function isExcludedFromFees(address account) public view returns (bool) {
+        return _isExcludedFromFees[account];
+    }
+
+    function isBlacklisted(address account) public view returns (bool) {
+        return blacklisted[account];
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+        require(!blacklisted[from],"Sender blacklisted");
+        require(!blacklisted[to],"Receiver blacklisted");
+
+        if (amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+
+        if (
+                from != owner() &&
+                to != owner() &&
+                to != address(0) &&
+                to != address(0xdead) &&
+                !inExecute
+            ) {
+                if (!tradingAllowed) {
+                    require(
+                        _isExcludedFromFees[from] || _isExcludedFromFees[to],
+                        "Trading is not active."
+                    );
+                }
+
+                // Buying
+                if (
+                    automatedMarketMakerPairs[from] &&
+                    !_isExcludedMaxTransactionAmount[to]
+                ) {
+                    require(
+                        amount <= _txAmt.maxTxAmount,
+                        "Buy transfer amount exceeds the maxTxAmount."
+                    );
+                    require(
+                        amount + balanceOf(to) <= _txAmt.maxWalletAmount,
+                        "Max wallet exceeded"
+                    );
+                }
+                // Selling
+                else if (
+                    automatedMarketMakerPairs[to] &&
+                    !_isExcludedMaxTransactionAmount[from]
+                ) {
+                    require(
+                        amount <= _txAmt.maxTxAmount,
+                        "Sell transfer amount exceeds the maxTxAmount."
+                    );
+                } else if (!_isExcludedMaxTransactionAmount[to]) {
+                    require(
+                        amount + balanceOf(to) <= _txAmt.maxWalletAmount,
+                        "Max wallet exceeded"
+                    );
+                }
+        }
+
+        uint256 contractTokenBalance = balanceOf(address(this));
+
+        bool canSwap = contractTokenBalance >= _txAmt.swapAtAmount;
+
+        if (
+            canSwap &&
+            swapActived &&
+            !inExecute &&
+            !automatedMarketMakerPairs[from] &&
+            !_isExcludedFromFees[from] &&
+            !_isExcludedFromFees[to]
+        ) {
+            inExecute = true;
+
+            swapBack();
+
+            inExecute = false;
+        }
+
+        bool takeFee = !inExecute;
+
+        // If any account belongs to _isExcludedFromFee account then remove the fee
+        if (_isExcludedFromFees[from] || _isExcludedFromFees[to]) {
+            takeFee = false;
+        }
+
+        uint256 fees = 0;
+        // Only take fees on buys/sells, do not take on wallet transfers
+        if (takeFee) {
+            // Sell
+            if (automatedMarketMakerPairs[to] && _sellFee.sellTotalFees > 0) {
+                fees = (amount * _sellFee.sellTotalFees) / Fee_Ratio;
+                _tokenForFee.tokensForLiquidity += (fees * _sellFee.sellLiquidityFee) / _sellFee.sellTotalFees;
+                _tokenForFee.tokensForMarketing += (fees * _sellFee.sellMarketingFee) / _sellFee.sellTotalFees;
+            }
+            // Buy
+            else if (automatedMarketMakerPairs[from] && _buyFee.buyTotalFees > 0) {
+                fees = (amount * _buyFee.buyTotalFees) / Fee_Ratio;
+                _tokenForFee.tokensForLiquidity += (fees * _buyFee.buyLiquidityFee) / _buyFee.buyTotalFees;
+                _tokenForFee.tokensForMarketing += (fees * _buyFee.buyMarketingFee) / _buyFee.buyTotalFees;
+            }
+
+            if (fees > 0) {
+                super._transfer(from, address(this), fees);
+            }
+
+            amount -= fees;
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    function swapTokensForEth(uint256 tokenAmount) private {
+        // Generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        // Make the swap
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // Accept any amount of ETH; ignore slippage
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
+    function addLiquidity(uint256 tokenAmount, uint256 ethAmount) private {
+        // approve token transfer to cover all possible scenarios
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        // add the liquidity
+        uniswapV2Router.addLiquidityETH{value: ethAmount}(
+            address(this),
+            tokenAmount,
+            0, // Slippage is unavoidable
+            0, // Slippage is unavoidable
+            owner(),
+            block.timestamp
+        );
+    }
+
+    function swapBack() private {
+        uint256 contractBalance = balanceOf(address(this));
+        uint256 totalTokensToSwap = _tokenForFee.tokensForLiquidity +
+            _tokenForFee.tokensForMarketing;
+        bool success;
+
+        if (contractBalance == 0 || totalTokensToSwap == 0) {
+            return;
+        }
+
+        if (contractBalance > _txAmt.swapAtAmount * 20) {
+            contractBalance = _txAmt.swapAtAmount * 20;
+        }
+
+        // Halve the amount of liquidity tokens
+        uint256 liquidityTokens = (contractBalance * _tokenForFee.tokensForLiquidity) /
+            totalTokensToSwap /
+            2;
+        uint256 amountToSwapForETH = contractBalance - liquidityTokens;
+
+        uint256 initialETHBalance = address(this).balance;
+
+        swapTokensForEth(amountToSwapForETH);
+
+        uint256 ethBalance = address(this).balance - initialETHBalance;
+
+        uint256 ethForRevShare = (ethBalance * _tokenForFee.tokensForMarketing) / (totalTokensToSwap - (_tokenForFee.tokensForLiquidity / 2));
+        
+        uint256 ethForLiquidity = ethBalance - ethForRevShare;
+
+        if (liquidityTokens > 0 && ethForLiquidity > 0) {
+            addLiquidity(liquidityTokens, ethForLiquidity);
+            emit SwapAndLiquify(
+                amountToSwapForETH,
+                ethForLiquidity,
+                _tokenForFee.tokensForLiquidity
+            );
+        }
+
+        _tokenForFee.tokensForLiquidity = 0;
+        _tokenForFee.tokensForMarketing = 0;
+
+        (success, ) = address(marketingAddress).call{value: address(this).balance}("");
+    }
+
+    function withdrawStuckToken(address _token, address _to) external onlyOwner {
+        require(_token != address(0), "_token address cannot be 0");
+        uint256 _contractBalance = IERC20(_token).balanceOf(address(this));
+        IERC20(_token).transfer(_to, _contractBalance);
+    }
+
+    function withdrawStuckEth(address toAddr) external onlyOwner {
+        (bool success, ) = toAddr.call{
+            value: address(this).balance
+        } ("");
+        require(success);
+    }
+
+
+}

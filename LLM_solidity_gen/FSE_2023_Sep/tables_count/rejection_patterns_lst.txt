@@ -1,0 +1,55 @@
+NOTES:
+1. A2 needs some adjustment (relabeling or refactoring the A4).
+2. Make sure to provide an exemplary explanation for each of the A categories.
+3. Negligence does not seem to be a good word, need to modify it.
+4. For A14, some of the [I-1] cases are categorized into A4.
+5. Following from the above, we need to overhaul each of the A4, based on their appearance.
+
+A1. Utilizing language features that do not belong to Solidity (e.g. mixing with other programming languages
+
+
+A2. Misinterpretation of expensive storage operations with flawed logic
+
+
+A3. The reported pattern is conditioned on some not-so-likely assumptions (e.g. asking to move requires to be validated offchain) 
+
+
+A4. Based on non-existent or incorrect code information that does not make sense (e.g. mistakenly think that the appearance of one line of function call is duplicated) (e.g. claimed twice existance could not be found) (another possible reason is due to experiment design, since we did not give everything to it. ) (e.g. the input contracts has truncated some functions)
+
+A5. Misinterpretation of the order of code execution (e.g. not all defined function codes are to be executed sequentially at once, not all branches of the if-else statements are to be executed). e.g. quite a few repetitions are reported based on these assumptions.
+
+
+A6. Unrelated to gas optimization
+
+
+A7. UMBRELLA TERM UNDER A4
+
+
+A8. A suggestion that does not reduce gas consumption once implemented, but still keeps the same code logic and functionality (no harm but no help) (e.g. a refactorization of functions that does not change anything) (Or even increase gas cost) (e.g. not mentioning that storage operation costs more)
+
+
+A9. Negligence of the transient nature of function or function argument variables, which changes across different calls and should not be cached.
+
+
+A10. Misunderstanding of the gas mechanism or Solidity language-related features (e.g. where local variables are located by default)
+
+
+A11. UMBRELLA TERM UNDER A4
+
+A12. UMBRELLA TERM UNDER A9
+
+
+A13. Not considering the effect of other code lines within the same function (e.g. repeated operations of reading the balance occurs with a modification to balance in between, and this does not constitute a repeated operation)
+
+
+A14. Negligence of the changing nature of indexing variables across for-loop iterations
+
+
+A15. Reasonable pattern that is unfortunately not likely to be fixable (e.g. looping over array is slow, but what can we do?) (e.g. requires major overhaul on the entire design system for a trivial issue that saves little gas)
+
+
+A16. Unrelated to the provided codes
+
+
+A17. Too superficial or common-sense to be a valid or interesting gas-wasting pattern (e.g. "Accessing local variables is cheaper than accessing state variables. By reducing the number of accesses to global variables, we can decrease the gas cost.")
+

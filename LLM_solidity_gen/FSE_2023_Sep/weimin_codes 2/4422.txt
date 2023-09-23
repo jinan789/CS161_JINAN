@@ -1,0 +1,191 @@
+contract FeeRecipientCommission is ReentrancyGuard {
+    address adminAddress;
+    address mainAddress;
+    address commissionAddress;
+
+    address proposedNewAdminAddress;
+    address proposedNewMainAddress;
+    address proposedNewCommissionAddress;
+
+    uint256 commissionPercent;
+    uint256 constant one_hundred = 100;
+
+    event NewAdminAddressProposed(address _address);
+    event NewMainAddressProposed(address _address);
+    event NewCommissionAddressProposed(address _address);
+
+    event NewAdminAddressConfirmed(address _old, address _new);
+    event NewMainAddressConfirmed(address _old, address _new);
+    event NewCommissionAddressConfirmed(address _old, address _new);
+
+    event Distribute(address mainAddress, address commissionAddress, uint256 _mainAmount, uint256 _commissionAmount, uint256 commissionPercent);
+    event ETHReceived(address _from, uint256 _amount);
+    event ETHRecovered(address _to, uint256 _amount);
+    event ERC20Recovered(address _to, address _tokenAddress, uint256 _amount);
+    event CommissionPercentageUpdated(uint256 _old, uint256 _new);
+    
+    constructor(address _admin, address _main, address _commission, uint256 _percent) {
+        adminAddress = _admin;
+        mainAddress = _main;
+        commissionAddress = _commission;
+        commissionPercent = _percent;
+    }
+
+    receive() external payable {
+        emit ETHReceived(msg.sender, msg.value);
+    }
+
+    modifier isValidAddress(address _address) {
+        require(_address != address(0), "Invalid address.");
+        _;
+    }
+
+    modifier isAdmin(address _address) {
+        require(adminAddress == _address, "Is not admin.");
+        _;
+    }
+
+    modifier isAdminOrMainAddress(address _address) {
+        require(mainAddress == _address || adminAddress == _address, "Is not admin or main address.");
+        _;
+    }
+
+    modifier isAdminOrCommissionAddress(address _address) {
+        require(commissionAddress == _address || adminAddress == _address, "Is not admin or commission address.");
+        _;
+    }
+
+    modifier isProposedNewAdminAddress(address _address) {
+        require(proposedNewAdminAddress == _address, "Is not the proposed new admin address.");
+        _;
+    }
+
+    modifier isProposedNewMainAddress(address _address) {
+        require(proposedNewMainAddress == _address, "Is not the proposed new main address.");
+        _;
+    }
+
+    modifier isProposedNewCommissionAddress(address _address) {
+        require(proposedNewCommissionAddress == _address, "Is not the proposed new commission address.");
+        _;
+    }
+
+    modifier isAdminMainOrCommissionAddress(address _address) {
+        require(adminAddress == _address || mainAddress == _address || commissionAddress == _address, "Is not a user of this contract.");
+        _;
+    }
+
+    function updateAdminAddress(address _address) isAdmin(msg.sender) isValidAddress(_address) public {
+        proposedNewAdminAddress = _address;
+
+        emit NewAdminAddressProposed(_address);
+    }
+
+    function updateMainAddress(address _address) isAdminOrMainAddress(msg.sender) isValidAddress(_address) public {
+        proposedNewMainAddress = _address;
+
+        emit NewMainAddressProposed(_address);
+    }
+
+    function updateCommissionAddress(address _address) isAdminOrCommissionAddress(msg.sender) isValidAddress(_address) public {
+        proposedNewCommissionAddress = _address;
+
+        emit NewCommissionAddressProposed(_address);
+    }
+
+    function updateCommissionPercentage(uint256 _newCommissionPercentage) isAdmin(msg.sender) public {
+        uint256 oldCommissionPercentage = commissionPercent;
+        commissionPercent = _newCommissionPercentage;
+
+        emit CommissionPercentageUpdated(oldCommissionPercentage, commissionPercent);
+    }
+
+    function confirmAdminAddress() isProposedNewAdminAddress(msg.sender) public {
+        address oldAdminAddress = adminAddress;
+        adminAddress = proposedNewAdminAddress;
+        proposedNewAdminAddress = address(0);
+
+        emit NewAdminAddressConfirmed(oldAdminAddress, adminAddress);
+    }
+
+    function confirmMainAddress() isProposedNewMainAddress(msg.sender) public {
+        address oldMainAddress = mainAddress;
+        mainAddress = proposedNewMainAddress;
+        proposedNewMainAddress = address(0);
+
+        emit NewMainAddressConfirmed(oldMainAddress, mainAddress);
+    }
+
+    function confirmCommissionAddress() isProposedNewCommissionAddress(msg.sender) public {
+        address oldCommissionAddress = commissionAddress;
+        commissionAddress = proposedNewCommissionAddress;
+        proposedNewCommissionAddress = address(0);
+
+        emit NewCommissionAddressConfirmed(oldCommissionAddress, commissionAddress);
+    }
+
+    function getAdminAddress() public view returns (address)  {
+        return adminAddress;
+    }
+
+    function getCommissionAddress() public view returns (address)  {
+        return commissionAddress;
+    }
+
+    function getMainAddress() public view returns (address)  {
+        return mainAddress;
+    }
+
+    function getCommissionPercentage() public view returns (uint256) {
+        return commissionPercent;
+    }
+
+    function getProposedNewAdminAddress() public view returns (address)  {
+        return proposedNewAdminAddress;
+    }
+
+    function getProposedNewCommissionAddress() public view returns (address)  {
+        return proposedNewCommissionAddress;
+    }
+
+    function getProposedNewMainAddress() public view returns (address)  {
+        return proposedNewMainAddress;
+    }
+
+    function distribute() nonReentrant public {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No ETH to transfer.");
+
+        uint256 commissionAmount = balance * commissionPercent / one_hundred;
+        (bool commissionSuccess, ) = commissionAddress.call{value: commissionAmount}("");
+        require(commissionSuccess, "Failed to transfer commission.");
+
+        uint256 mainAmount = balance - commissionAmount;
+        (bool mainSuccess, ) = mainAddress.call{value: mainAmount}("");
+        require(mainSuccess, "Failed to transfer main balance.");
+
+        emit Distribute(mainAddress, commissionAddress, mainAmount, commissionAmount, commissionPercent);
+    }
+
+    function recoverERC20(address _tokenAddress) isAdmin(msg.sender) public {
+        IERC20 token = IERC20(_tokenAddress);
+
+        uint256 balance = token.balanceOf(address(this));
+        require(balance > 0, "This token has no balance.");
+
+        bool success = token.transfer(adminAddress, balance);
+        require(success, "Token transfer failed.");
+
+        emit ERC20Recovered(adminAddress, _tokenAddress, balance);
+    }
+
+    function recoverETH() isAdmin(msg.sender) public {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No ETH to transfer.");
+
+        (bool success,) = adminAddress.call{value: balance}("");
+        require(success, "ETH transfer failed.");
+
+        emit ETHRecovered(adminAddress, balance);
+    }
+}

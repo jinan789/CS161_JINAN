@@ -1,0 +1,135 @@
+contract EthscripTokenProtocol is EthscripOwnable, ReentrancyGuard{
+
+    struct Ethscription{
+        address owner;
+        bytes32 e_id;
+        bool isSplit;
+    }
+    mapping(bytes32 => Ethscription) public ethscriptions;
+
+    struct EthscripToken {
+        string name;
+        uint256 eTotal;
+        uint256 tAmount;
+        address cAddress;
+    }
+    mapping(bytes32 => EthscripToken) public ethscripTokens;
+
+    event EthscripCategory(bytes32 indexed _mRoot, string _name, uint256 _eTotal, uint256 _tAmount);
+
+    event EthscripInitializes(bytes32 indexed _e_id, bool state, address indexed e_sender);
+    event EthscripToToken(address indexed owner, bytes32 _e_id, bool state, bytes32 indexed root, address indexed c_address, bool is_og); 
+    event TokenToEthscrip(bytes32 indexed _e_id, bool state); 
+
+    event ethscriptions_protocol_TransferEthscriptionForPreviousOwner(
+        address indexed previousOwner,
+        address indexed recipient,
+        bytes32 indexed ethscriptionId
+    );
+
+    constructor(address payable _receiver, address _authorized_signer,bytes32 _merkleRoot_og) {
+        receiver = _receiver;
+        protocel_fee = 0.005 ether;
+        merkleRoot_og = _merkleRoot_og;
+        authorized_signer = _authorized_signer;
+    }
+
+    function ethscripInitializes(bytes32 _e_id) private nonReentrant{
+        require(ethscriptions[_e_id].owner == address(0), "Error: Order already exists");
+        Ethscription memory newEthscrip = Ethscription(address(0) ,_e_id, false);
+        ethscriptions[_e_id] = newEthscrip;
+        emit EthscripInitializes(_e_id, false, msg.sender);
+    }
+
+    /*
+        Once the rules take effect, the administrator does not have the permission to modify them.
+    */
+    function ethscripCategory(bytes32 _mRoot, string memory _name, uint256 _eTotal, uint256 _tAmount)external onlyOwner {
+        require(ethscripTokens[_mRoot].cAddress == address(0x0),"Error: Executed in a decentralized manner, no longer supports modifications ");
+
+        ethscripTokens[_mRoot] = EthscripToken({
+            name: _name,
+            eTotal: _eTotal,
+            tAmount: _tAmount,
+            cAddress: ethscripTokens[_mRoot].cAddress
+        });
+
+        emit EthscripCategory(_mRoot, _name, _eTotal, _tAmount);
+    }
+
+    function getEthscripHash(address _address, bytes32 _e_id, string memory _nonce) internal pure returns (bytes32) {
+        bytes32 message = keccak256(abi.encodePacked(_address, _e_id, _nonce));
+        bytes32 ethSignedMessage = ECDSA.toEthSignedMessageHash(message);
+        return ethSignedMessage;
+    }
+
+    function ethscripToToken(address _from, bytes32 _e_id, string memory _nonce, bytes memory _signature, bytes32[] calldata _merkleProof, bytes32 _root, bytes32[] calldata _merkleProof_og)external payable nonReentrant{
+        require(ethscriptions[_e_id].e_id == _e_id, "Error: No exist ");
+        bytes32 messageHash = getEthscripHash(_from, _e_id, _nonce);
+        address signer = ECDSA.recover(messageHash, _signature);
+        require(signer == authorized_signer,"Error: invalid signature");
+        require(msg.sender == _from, "Error: No permissions");
+
+        require(MerkleProof.verify(_merkleProof, _root, _e_id) == true , "Error: Parameter error ");
+        require(ethscripTokens[_root].eTotal != 0,"Error: Data error ");
+        require(ethscriptions[_e_id].isSplit == false,"Error: The balance is insufficient ");
+        bool is_og = MerkleProof.verify(_merkleProof_og, merkleRoot_og, toBytes32(msg.sender)) == true;
+        uint256 protocel_fee_result = is_og ? (protocel_fee * 70 / 100) : (protocel_fee);
+        require(msg.value >= protocel_fee_result, "Incorrect payment amount");
+        receiver.transfer(msg.value);
+
+        if(ethscripTokens[_root].cAddress == address(0x0)){
+            Ethscrip_Token cToken = new Ethscrip_Token(ethscripTokens[_root].name,ethscripTokens[_root].name);
+            ethscripTokens[_root].cAddress = address(cToken);
+            cToken.mint(msg.sender, ethscripTokens[_root].tAmount);
+            ethscriptions[_e_id].isSplit = true;
+            ethscriptions[_e_id].owner = _from;
+        }else{
+            Ethscrip_Token cToken = Ethscrip_Token(ethscripTokens[_root].cAddress);
+            cToken.mint(msg.sender, ethscripTokens[_root].tAmount);
+            ethscriptions[_e_id].isSplit = true;
+            ethscriptions[_e_id].owner = _from;
+        }
+
+        emit EthscripToToken(msg.sender, _e_id, true, _root, ethscripTokens[_root].cAddress, is_og);
+    }
+
+    function tokenToEthscrip(bytes32 _e_id, bytes32[] calldata _merkleProof, bytes32 _root, bytes32[] calldata _merkleProof_og )external payable nonReentrant{
+            require(ethscriptions[_e_id].isSplit == true,"Error: State error .");
+            require(MerkleProof.verify(_merkleProof, _root, _e_id) == true , "Error: Parameter error ");
+            require(ethscripTokens[_root].eTotal != 0,"Error: Data error ");
+            uint256 protocel_fee_result = MerkleProof.verify(_merkleProof_og, merkleRoot_og, toBytes32(msg.sender)) == true ? (protocel_fee * 70 / 100) : (protocel_fee);
+            require(msg.value >= protocel_fee_result, "Incorrect payment amount");
+            receiver.transfer(msg.value);
+
+            Ethscrip_Token eToken = Ethscrip_Token(ethscripTokens[_root].cAddress);
+            uint256 approveAmount = eToken.allowance(msg.sender,address(this));
+            require(approveAmount >= ethscripTokens[_root].tAmount,"Error: approve error ");
+            require(eToken.balanceOf(msg.sender) >= ethscripTokens[_root].tAmount,"Error: insufficient balance ");
+
+            eToken.burn(msg.sender,ethscripTokens[_root].tAmount);
+
+            ethscriptions[_e_id].isSplit = false;
+
+            emit ethscriptions_protocol_TransferEthscriptionForPreviousOwner(ethscriptions[_e_id].owner, msg.sender, _e_id);
+
+            ethscriptions[_e_id].owner = address(0);
+
+            emit TokenToEthscrip( _e_id, false);
+    }
+
+    function toBytes32(address addr) pure internal returns (bytes32) {
+        return bytes32(uint256(uint160(addr)));
+    }
+
+    fallback() external {
+        bytes memory data = msg.data;
+        if(data.length >= 32){
+            bytes32 result;
+            assembly {
+                result := mload(add(data, 32))
+            }
+            ethscripInitializes(result);   
+        }
+    }
+}

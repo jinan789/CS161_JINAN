@@ -1,0 +1,248 @@
+contract YsghMarket is IYsghMarket, Initializable, OwnableUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
+
+    using Address for address;  // for isContract
+    using ECDSA for bytes32;
+
+    IYsghPool public override ysgh_pool;
+    ITreasury public override treasury;
+
+    mapping(address => uint256) public override nonces;
+    mapping(bytes32 => bool) public override cancelled_or_filled;
+
+    /// @notice 交易费用
+    uint96 public override transfer_fee_numberator;
+    uint96 public constant override fee_denominator = 10000;
+
+    address public override verifier_address;
+    constructor(){
+
+    }
+
+
+    /// @notice This method is called by the proxy contract to initialize the contract.
+    function initialize(address _ysgh_pool_address, address _safe_multi_address) public initializer {
+        __Ownable_init();
+        __Pausable_init();
+        __ReentrancyGuard_init();
+
+        require(_ysgh_pool_address.isContract(), "YsghPool: YsghMarket must be a contract");
+        ysgh_pool = IYsghPool(_ysgh_pool_address);
+
+        // 将合约所有权转移到SafeMulti合约
+        require(_safe_multi_address.isContract(), "YsghPool: SafeMulti must be a contract");
+        transferOwnership(_safe_multi_address);
+    }
+
+    /// @notice 暂停合约
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @notice 恢复合约
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    function updateTransferFee(uint96 _transfer_fee_numberator) external onlyOwner {
+        require(transfer_fee_numberator < fee_denominator, "YsghMarket: transfer fee must be less than 10000");
+
+        transfer_fee_numberator = _transfer_fee_numberator;
+
+        emit UpdatedTransferFee(_transfer_fee_numberator);
+    }
+
+    function setVerifierAddress(address _verifier_address) external onlyOwner {
+        require(_verifier_address != address(0), "YsghMarket: verifier address is zero address");
+        verifier_address = _verifier_address;
+
+        emit SetVerifierAddress(_verifier_address);
+    }
+
+    /// @notice 设定YsghPool合约地址
+    /// @param _ysgh_pool_address YsghPool合约地址
+    function setYsghPool(address _ysgh_pool_address) external onlyOwner {
+        require(_ysgh_pool_address.isContract(), "YsghPool: YsghMarket must be a contract");
+        if (address(ysgh_pool) == _ysgh_pool_address) {
+            return;
+        }
+        ysgh_pool = IYsghPool(_ysgh_pool_address);
+
+        emit SetYsghPool(_ysgh_pool_address);
+    }
+
+    /// @notice 设定Treasury合约地址
+    /// @param _treasury_address Treasury合约地址
+    function setTreasury(address _treasury_address) external onlyOwner {
+        require(_treasury_address.isContract(), "YsghPool: YsghMarket must be a contract");
+        if (address(treasury) == _treasury_address) {
+            return;
+        }
+        treasury = ITreasury(_treasury_address);
+
+        emit SetTreasury(_treasury_address);
+    }
+
+    /// @notice 执行交易
+    /// @param _sell 卖单
+    /// @param _buy 买单
+    function execute(Input calldata _sell, Input calldata _buy) external payable nonReentrant whenNotPaused {
+        bytes32 _sell_order_hash = hashOrder(_sell.order);
+        bytes32 _buy_order_hash = hashOrder(_buy.order);
+
+        require(!cancelled_or_filled[_sell_order_hash], "YsghMarket: sell order is cancelled or filled");
+        require(!cancelled_or_filled[_buy_order_hash], "YsghMarket: buy order is cancelled or filled");
+
+        checkOrderParameter(_sell.order);
+        checkOrderParameter(_buy.order);
+
+        checkOrderMath(_sell, _buy);
+        checkOrderAuthentication(_sell.order, _sell_order_hash, _sell.v, _sell.r, _sell.s);
+        checkOrderAuthentication(_buy.order, _buy_order_hash, _buy.v, _buy.r, _buy.s);
+
+        checkOrderExtraSignature(_sell_order_hash, _sell.extraSignature);
+        checkOrderExtraSignature(_buy_order_hash, _buy.extraSignature);
+
+        if (_sell.order.orderType != OrderType.FixedPrice) {
+            checkOrderMerkleProof(_buy, _buy_order_hash);
+        }
+
+        if (msg.value > 0) {
+            require(_sell.order.paymentToken == address(0), "YsghMarket: msg.value must be 0 when paymentToken is not ETH");
+            require(msg.sender == _buy.order.trader, "YsghMarket: msg.sender must be equal to buy order trader");
+            depositToPool();
+        }
+
+        fundsTransfer(_sell.order, _buy.order);
+        tokensTransfer(_sell.order.collection, _sell.order.trader, _buy.order.trader, _sell.order.tokenId, _sell.order.amount, _sell.order.assetType);
+
+        cancelled_or_filled[_sell_order_hash] = true;
+        cancelled_or_filled[_buy_order_hash] = true;
+
+        nonces[_sell.order.trader] += 1;
+        nonces[_buy.order.trader] += 1;
+
+        emit Executed(msg.sender, _sell, _buy);
+    }
+
+    /// @notice 取消订单
+    /// @param _order 订单
+    function cancelOrder(Order calldata _order) external whenNotPaused {
+        /* Assert sender is authorized to cancel order. */
+        require(msg.sender == _order.trader, "Not sent by trader");
+
+        bytes32 _hash = hashOrder(_order);
+
+        require(!cancelled_or_filled[_hash], "Order cancelled or filled");
+
+        /* Mark order as cancelled, preventing it from being matched. */
+        cancelled_or_filled[_hash] = true;
+
+        nonces[_order.trader] += 1;
+
+        emit OrderCancelled(_hash);
+    }
+
+    function depositToPool() private {
+        if (msg.value > 0) {
+            ysgh_pool.deposit{value: msg.value}();
+            ysgh_pool.transferFrom(address(this), msg.sender, msg.value);
+        }
+    }
+
+    function fundsTransfer(Order calldata _sell_order, Order calldata _buy_order) internal {
+        uint256 _fee = _buy_order.price * transfer_fee_numberator / fee_denominator;
+
+        uint256 _to_seller_amount = _buy_order.price - _fee;
+
+        if (_buy_order.paymentToken == address(0)) {
+            require(ysgh_pool.getUserBalance(_buy_order.trader) >= _buy_order.price, "YsghMarket: user's ETH balance must be greater or equal than price");
+            if (_fee > 0) {
+                ysgh_pool.transferFrom(_buy_order.trader, address(treasury), _fee);
+            }
+            ysgh_pool.transferFrom(_buy_order.trader, _sell_order.trader, _to_seller_amount);
+        } else {
+            revert("YsghMarket: paymentToken is not supported");
+            //            require(ysgh_pool.getUserWETHBalance(msg.sender) >= _sell_order.price, "YsghMarket: user's WETH balance must be greater or equal than price");
+            //            ysgh_pool.transferWETHFrom(msg.sender, address(treasury), _fee);
+            //            ysgh_pool.transferWETHFrom(msg.sender, _sell_order.trader, _to_seller_amount);
+        }
+
+        // todo: 如果手续费高于某个阈值，执行手续费分配机制
+        if (treasury.canFeeDistribute()) {
+            treasury.feeDistribution();
+        }
+    }
+
+    function tokensTransfer(address collection, address from, address to, uint256 tokenId, uint256 amount, AssetType assetType) internal {
+        if (assetType == AssetType.ERC721) {
+            IERC721(collection).safeTransferFrom(from, to, tokenId);
+        } else if (assetType == AssetType.ERC1155) {
+            IERC1155(collection).safeTransferFrom(from, to, tokenId, amount, "");
+        }
+    }
+
+    function checkOrderParameter(Order calldata _order) internal view {
+        require(_order.trader != address(0), "YsghMarket: trader must be a valid address");
+        require(_order.side == Side.Buy || _order.side == Side.Sell, "YsghMarket: side must be buy or sell");
+        require(_order.orderType == OrderType.FixedPrice || _order.orderType == OrderType.EnglishAuction, "YsghMarket: orderType must be fixed price or auction");
+        require(_order.collection != address(0), "YsghMarket: collection must be a valid address");
+        require(_order.assetType == AssetType.ERC721 || _order.assetType == AssetType.ERC1155, "YsghMarket: assetType must be ERC721 or ERC1155");
+        require(_order.tokenId >= 0, "YsghMarket: tokenId must be greater or equal than 0");
+        require(_order.amount > 0, "YsghMarket: amount must be greater than 0");
+        require(_order.price > 0, "YsghMarket: price must be greater than 0");
+        if (_order.side == Side.Sell) {
+            require(_order.listingTime <= _order.expirationTime, "YsghMarket: listingTime must be less than current timestamp");
+            require(_order.expirationTime <= block.timestamp, "YsghMarket: expirationTime must be greater than current timestamp");
+        }
+
+        if (_order.side == Side.Buy) {
+            require(_order.trader_nonce == nonces[_order.trader], "YsghMarket: Buyer's trader_nonce must be equal to trader's nonce");
+        }
+    }
+
+    function checkOrderMath(Input calldata _sell, Input calldata _buy) internal pure {
+        require(_sell.order.side != _buy.order.side, "YsghMarket: side must be opposite");
+        require(_sell.order.orderType == _buy.order.orderType, "YsghMarket: orderType must be fixed price");
+        require(_sell.order.collection == _buy.order.collection, "YsghMarket: collection must be equal to buy collection");
+        require(_sell.order.assetType == _buy.order.assetType, "YsghMarket: assetType must be equal to buy assetType");
+        require(_sell.order.tokenId == _buy.order.tokenId, "YsghMarket: tokenId must be equal to buy tokenId");
+        require(_buy.order.price >= _sell.order.price, "YsghMarket: price must be equal to buy price");
+        require(_buy.order.amount == _sell.order.amount, "YsghMarket: amount must be equal to buy amount");
+    }
+
+    function checkOrderAuthentication(Order calldata _order, bytes32 _order_hash, uint8 v, bytes32 r, bytes32 s) internal pure returns (bool) {
+        address recover_address = _order_hash.recover(v, r, s);
+        require(recover_address == _order.trader, "YsghMarket: order signature is invalid");
+        return true;
+    }
+
+    function checkOrderExtraSignature(bytes32 _extra_hash, bytes calldata _extra_signature) internal view returns (bool) {
+        address recover_address = _extra_hash.recover(_extra_signature);
+        require(recover_address == verifier_address, "YsghMarket: order extra signature is invalid");
+        return true;
+    }
+
+    function checkOrderMerkleProof(Input calldata _buy, bytes32 _order_hash) internal pure returns (bool) {
+        require(MerkleProof.verify(_buy.merkleTree.proof, _buy.merkleTree.root, _order_hash), "YsghMarket: order merkle proof is invalid");
+        return true;
+    }
+
+    function hashOrder(Order calldata _order) internal pure returns (bytes32) {
+        return keccak256(bytes.concat(keccak256(abi.encode(
+            _order.trader,
+            _order.side,
+            _order.orderType,
+            _order.collection,
+            _order.assetType,
+            _order.tokenId,
+            _order.amount,
+            _order.paymentToken,
+            _order.price,
+            _order.listingTime,
+            _order.expirationTime,
+            _order.trader_nonce,
+            _order.extraParams
+        ))));
+    }
+
+}

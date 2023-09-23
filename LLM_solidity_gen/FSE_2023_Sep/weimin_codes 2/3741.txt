@@ -1,0 +1,82 @@
+contract Tulkun is ERC721A, Whitelist {
+
+    using Strings for uint256;
+
+    uint256 public constant MAX_SUPPLY = 400;
+    //
+    string private _tokenBaseURI;
+
+    uint256 public price = 0.5 ether;
+    uint256 public count;
+    uint256 public startTime;
+    uint256 public endTime;
+    uint256 public saleTime = 24 hours;
+    uint256 public perCount = 4;
+    //
+    uint256 public tokenId;
+    mapping (address=>uint) public userInfo;
+
+    constructor() ERC721A("Tulkun", "Tulkun")   {}
+
+    function launch() public onlyOwner(){
+        require(startTime == 0, "already started!");
+        startTime = block.timestamp;
+        endTime = startTime + saleTime;
+    }
+
+    // 
+    function mint(uint256 _amount)
+        public
+        payable
+        callerIsUser
+    {
+        require(block.timestamp>=startTime && block.timestamp<=endTime , "not sale time!");
+        require(_amount > 0 && userInfo[msg.sender] + _amount  <= perCount,"Exceed sales max limit!");
+        require(_amount+count <= MAX_SUPPLY,"Maximum count exceeded!");
+        require(isInWhitelist(msg.sender),"Not in whitelist yet!");
+        uint256 cost = price * _amount;
+        require(cost == msg.value,"invalid value!");
+        safeTransfer(owner(),msg.value);
+        count = count + _amount;
+        userInfo[msg.sender] = userInfo[msg.sender] + _amount;
+        // safe mint for every NFT
+        _mint(msg.sender, _amount);
+    }
+
+    function burn(uint256 _tokenId) public {
+        _burn(_tokenId);
+    }
+
+    function safeTransfer(address to, uint value) internal {
+        (bool success,) = to.call{value:value}(new bytes(0));
+        require(success, 'Transfer: ETH_TRANSFER_FAILED');
+    }
+
+    function setPrice(uint256 _price) public onlyOwner{
+        require(price > 0,"Invalid price!");
+        price = _price;
+    }
+
+    function setBaseURI(string calldata URI) external onlyOwner {
+        _tokenBaseURI = URI;
+    }
+
+    function _baseURI()
+        internal
+        view
+        override(ERC721A)
+        returns (string memory)
+    {
+        return _tokenBaseURI;
+    }
+
+    function _startTokenId() internal view virtual override returns (uint256) {
+        return 1;
+    }
+
+    // 
+    modifier callerIsUser() {
+        require(tx.origin == msg.sender, "not user!");
+        _;
+    }
+}

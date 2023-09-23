@@ -1,0 +1,40 @@
+contract KoyeExchange {
+    
+    address public miniKoye = 0x8F5Be6eE538c8E4B2BCfbF51D824Cb9d294D1567;
+    address public dead = 0x000000000000000000000000000000000000dEaD;
+    event Destory(address from, uint256 tokenId);
+
+    function destroy(uint256 tokenId) public {
+        IERC721(miniKoye).safeTransferFrom(msg.sender, dead, tokenId);
+        emit Destory(msg.sender, tokenId);
+    }
+
+    function batchDestroy(uint256[] memory tokenIds) public {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            IERC721(miniKoye).safeTransferFrom(msg.sender, dead, tokenIds[i]);
+            emit Destory(msg.sender, tokenIds[i]);
+        }
+    }
+
+    function getUserTokenIds(address nft_, address user)
+        public
+        view
+        returns (uint256[] memory)
+    {
+        uint256 amount = IERC721(nft_).balanceOf(user);
+        uint256[] memory tokenIds = new uint256[](amount);
+        if (amount >= 0) {
+            for (uint256 i; i < amount; ) {
+                tokenIds[i] = IERC721Enumerable(nft_).tokenOfOwnerByIndex(
+                    user,
+                    i
+                );
+                unchecked {
+                    ++i;
+                }
+            }
+        }
+
+        return tokenIds;
+    }
+}

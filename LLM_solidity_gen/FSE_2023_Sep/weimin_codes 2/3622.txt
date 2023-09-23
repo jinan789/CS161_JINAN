@@ -1,0 +1,281 @@
+contract BTMStaking is ReentrancyGuard,Ownable {
+    using SafeMath for uint256;
+	using SafeERC20 for IERC20;
+
+	IERC20 public _BTM = IERC20(0x6CD583c99632a1BB761d9BBD8682C6A5ad327087);
+	
+    struct Stake {
+        uint256 amount;
+        uint256 totalExcluded;
+        uint256 totalRealised;
+    }
+
+    struct AllInfo {
+        uint256 totalStakes;
+        uint256 totalDistributed;
+        uint256 totalRewards;
+        uint256 stakingStart;
+        uint256 stakingEnd;
+
+        uint256 userStaked;
+        uint256 pendingRewards;
+        uint256 totalClaimed;
+        uint256 stakeTime;
+        uint256 lastClaim;
+        bool earlyWithdraw;
+    }
+    
+	struct BalanceTransaction {
+        uint256 balanceBeforeSend;
+        uint256 balanceAfterSend;
+    }
+	
+    address[] stakeholders;
+    mapping (address => uint256) stakeholderIndexes;
+    mapping (address => uint256) stakeholderClaims;
+    mapping (address => uint256) stakeholderStaking;
+
+    mapping (address => Stake) public stakes;
+
+    uint256 public totalStakes;
+    uint256 public totalDistributed;
+    uint256 public totalRewards;
+    uint256 public totalDays = 180 days; // 6 month
+    uint256 public totalDuration = 86400; // 1 day
+    uint256 public dividendsPerStake;
+    uint256 public dividendsPerStakeAccuracyFactor = 10 ** 36;
+	
+	uint256 public stakingStart = 0;
+	uint256 public stakingEnd = 0;
+    uint256 public dividendsCheckPoint;
+	
+    uint256 public earlyWithdrawPenalty = 10; // 10%
+	bool public activePenalty = true;
+	
+	uint256 private _weiDecimal = 18;
+
+    constructor (
+		uint256 _totalRewards
+		, uint256 _stakingStart
+	) payable {
+		totalRewards = _totalRewards;
+		stakingStart = _stakingStart;
+		dividendsCheckPoint = stakingStart;
+		stakingEnd = stakingStart + totalDays;
+	}
+
+    function deposit(uint256 amount) payable external nonReentrant {
+        require(amount > 0, "No deposit amount");
+        // require(msg.value == amount, "Amount not match");
+        require(block.timestamp < stakingEnd, "Staking Ended");
+        require(block.timestamp >= stakingStart, "Staking Not Started");
+		
+		uint256 _amount;
+		
+		BalanceTransaction memory balanceTransaction;
+		balanceTransaction.balanceBeforeSend = _BTM.balanceOf(address(this));
+		_BTM.safeTransferFrom(msg.sender, address(this), _getTokenAmount(address(_BTM),amount));
+		balanceTransaction.balanceAfterSend = _BTM.balanceOf(address(this));
+		_amount = balanceTransaction.balanceAfterSend - balanceTransaction.balanceBeforeSend;
+		_amount = _getReverseTokenAmount(address(_BTM),_amount);
+		
+		if(stakes[msg.sender].amount > 0){
+            distributeReward(msg.sender);
+        }
+
+        if(stakes[msg.sender].amount == 0){
+            addStakeholder(msg.sender);
+        }
+		
+        totalStakes = totalStakes.add(_amount);
+        stakes[msg.sender].amount += _amount;
+        stakes[msg.sender].totalExcluded = getCumulativeDividends(stakes[msg.sender].amount);
+		stakeholderStaking[msg.sender] = block.timestamp;
+		updateCumulativeDividends();
+    }
+
+    function withdraw(uint256 amount) external nonReentrant {
+		address stakeholder = msg.sender;
+		
+		require(amount > 0, "No withdraw amount");
+        require(stakes[stakeholder].amount >= amount, "insufficient balance");
+		
+		distributeReward(stakeholder);
+		
+		totalStakes = totalStakes.sub(amount);
+		stakes[stakeholder].amount -= amount;
+		stakes[stakeholder].totalExcluded = getCumulativeDividends(stakes[stakeholder].amount);
+		
+		if(stakes[stakeholder].amount == 0){
+            removeStakeholder(stakeholder);
+        }
+		
+		updateCumulativeDividends();
+		
+		uint256 withdrawAmount = amount;
+		uint256 penaltyFee = 0;
+		
+		if(block.timestamp < (stakingStart + totalDays) && activePenalty){
+			penaltyFee = (amount * earlyWithdrawPenalty) / 100;
+			withdrawAmount -= penaltyFee;
+			_BTM.safeTransfer(address(0xdead), _getTokenAmount(address(_BTM),penaltyFee));
+		}
+		
+		_BTM.safeTransfer(msg.sender, _getTokenAmount(address(_BTM),withdrawAmount));
+    }
+    
+    function distributeReward(address stakeholder) internal {
+        if(stakes[stakeholder].amount == 0){ return; }
+
+        uint256 amount = getUnpaidEarnings(stakeholder);
+        if(amount > 0){
+            totalDistributed = totalDistributed.add(amount);
+            stakeholderClaims[stakeholder] = block.timestamp;
+            stakes[stakeholder].totalRealised = stakes[stakeholder].totalRealised.add(amount);
+            stakes[stakeholder].totalExcluded = getCumulativeDividends(stakes[stakeholder].amount);
+			_BTM.safeTransfer(stakeholder, _getTokenAmount(address(_BTM),amount));
+        }
+    }
+
+    function claimReward() external nonReentrant{
+        distributeReward(msg.sender);
+    }
+	
+	function updateCumulativeDividends() internal {
+        uint256 timestamp = block.timestamp;
+		
+		if(timestamp > stakingEnd){
+			timestamp = stakingEnd;
+		}
+		
+		uint256 pendingDividendsShare = (timestamp - dividendsCheckPoint) / totalDuration;
+        uint256 rewardPerDay = totalRewards / (totalDays / totalDuration);
+        uint256 valueShare = pendingDividendsShare * rewardPerDay;
+		
+		dividendsPerStake = dividendsPerStake.add(dividendsPerStakeAccuracyFactor.mul(valueShare).div(totalStakes));
+		if (pendingDividendsShare > 0) {
+            dividendsCheckPoint += timestamp - dividendsCheckPoint;
+        }
+    }
+	
+	function getCumulativeDividends(uint256 stake) internal view returns (uint256) {
+        uint256 timestamp = block.timestamp;
+		
+		if(timestamp > stakingEnd){
+			timestamp = stakingEnd;
+		}
+		
+		uint256 pendingDividendsShare = (timestamp - dividendsCheckPoint) / totalDuration;
+        uint256 rewardPerDay = (totalRewards / (totalDays / totalDuration));
+        uint256 valueShare = pendingDividendsShare * rewardPerDay;
+		
+
+        // timestamp - dividendsCheckPoint = time passed since last update / 
+		uint256 _dividendsPerStake = dividendsPerStake.add(dividendsPerStakeAccuracyFactor.mul(valueShare).div(totalStakes));
+		return stake.mul(_dividendsPerStake).div(dividendsPerStakeAccuracyFactor);
+    }
+	
+    function getUnpaidEarnings(address stakeholder) public view returns (uint256) {
+        if(stakes[stakeholder].amount == 0){ return 0; }
+
+        uint256 stakeholderTotalDividends = getCumulativeDividends(stakes[stakeholder].amount);
+        uint256 stakeholderTotalExcluded = stakes[stakeholder].totalExcluded;
+
+        if(stakeholderTotalDividends <= stakeholderTotalExcluded){ return 0; }
+
+        return stakeholderTotalDividends.sub(stakeholderTotalExcluded);
+    }
+
+    function addStakeholder(address stakeholder) internal {
+        stakeholderIndexes[stakeholder] = stakeholders.length;
+        stakeholders.push(stakeholder);
+    }
+
+    function removeStakeholder(address stakeholder) internal {
+        stakeholders[stakeholderIndexes[stakeholder]] = stakeholders[stakeholders.length-1];
+        stakeholderIndexes[stakeholders[stakeholders.length-1]] = stakeholderIndexes[stakeholder];
+        stakeholders.pop();
+    }
+	
+	function setActivePenalty(bool _activePenalty) external onlyOwner{
+        activePenalty = _activePenalty;
+    }
+	
+    function getAllInfo(address user) public view returns (AllInfo memory) {
+        return AllInfo(
+            totalStakes,
+            totalDistributed,
+            totalRewards,
+            stakingStart,
+            stakingEnd,
+
+            stakes[user].amount,
+            getUnpaidEarnings(user),
+            stakes[user].totalRealised,
+            stakeholderStaking[user],
+            stakeholderClaims[user],
+            block.timestamp < (stakingStart + totalDays * totalDuration)
+        );
+    }
+	
+	function clearStuckBalance() external onlyOwner {
+        uint256 amount = address(this).balance;
+        payable(msg.sender).transfer(amount);
+    }
+	
+	function clearStuckToken(address TokenAddress, uint256 amount) external onlyOwner {
+        IERC20(TokenAddress).safeTransfer(msg.sender, _getTokenAmount(TokenAddress, amount));
+    }
+	
+	function _getTokenAmount(address _tokenAddress, uint256 _amount) internal view returns (uint256 quotient) {
+		IERC20 tokenAddress = IERC20(_tokenAddress);
+		uint256 tokenDecimal = tokenAddress.decimals();
+		uint256 decimalDiff = 0;
+		uint256 decimalDiffConverter = 0;
+		uint256 amount = 0;
+			
+		if(_weiDecimal != tokenDecimal){
+			if(_weiDecimal > tokenDecimal){
+				decimalDiff = _weiDecimal - tokenDecimal;
+				decimalDiffConverter = 10**decimalDiff;
+				amount = _amount.div(decimalDiffConverter);
+			} else {
+				decimalDiff = tokenDecimal - _weiDecimal;
+				decimalDiffConverter = 10**decimalDiff;
+				amount = _amount.mul(decimalDiffConverter);
+			}		
+		} else {
+			amount = _amount;
+		}
+		
+		uint256 _quotient = amount;
+		
+		return (_quotient);
+    }
+	
+	function _getReverseTokenAmount(address _tokenAddress, uint256 _amount) internal view returns (uint256 quotient) {
+		IERC20 tokenAddress = IERC20(_tokenAddress);
+		uint256 tokenDecimal = tokenAddress.decimals();
+		uint256 decimalDiff = 0;
+		uint256 decimalDiffConverter = 0;
+		uint256 amount = 0;
+			
+		if(_weiDecimal != tokenDecimal){
+			if(_weiDecimal > tokenDecimal){
+				decimalDiff = _weiDecimal - tokenDecimal;
+				decimalDiffConverter = 10**decimalDiff;
+				amount = _amount.mul(decimalDiffConverter);
+			} else {
+				decimalDiff = tokenDecimal - _weiDecimal;
+				decimalDiffConverter = 10**decimalDiff;
+				amount = _amount.div(decimalDiffConverter);
+			}		
+		} else {
+			amount = _amount;
+		}
+		
+		uint256 _quotient = amount;
+		
+		return (_quotient);
+    }
+}

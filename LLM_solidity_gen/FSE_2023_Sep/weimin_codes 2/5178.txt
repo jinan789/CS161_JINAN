@@ -1,0 +1,54 @@
+contract Sale1Presale is OwnableUpgradeable, ReentrancyGuardUpgradeable {
+    address payable public foundation;
+    uint256 public totalToSale;
+    uint256 public saled;
+    uint256 public startTime;
+
+    event Buy(address indexed _user, uint256 _amount, uint256 _baseTokenAmount, address _baseToken);
+
+    function initialize(
+        address _foundation,
+        uint256 _totalToSale,
+        uint256 _startTime
+    ) external initializer {
+        OwnableUpgradeable.__Ownable_init();
+        ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
+
+        foundation = payable(_foundation);
+        totalToSale = _totalToSale;
+        startTime = _startTime;
+    }
+
+    function setStartTime(uint256 _startTime) external onlyOwner {
+        startTime = _startTime;
+    }
+
+    function setTotalToSale(uint256 _totalToSale) external onlyOwner {
+        totalToSale = _totalToSale;
+    }
+
+    function buy(
+        uint256 _amount,
+        uint256 _baseTokenAmount,
+        address _baseToken
+    ) external payable nonReentrant {
+        require(
+            startTime != 0 && startTime <= block.timestamp,
+            "Presale::buy: not start"
+        );
+        // saled += _amount;
+        // require(saled <= totalToSale, "Presale::buy: presale end");
+        if (_baseToken == address(0)) {
+            foundation.transfer(_baseTokenAmount);
+            payable(msg.sender).transfer(msg.value - _baseTokenAmount);
+        } else {
+            SafeERC20Upgradeable.safeTransferFrom(
+                IERC20MetadataUpgradeable(_baseToken),
+                msg.sender,
+                foundation,
+                _baseTokenAmount
+            );
+        }
+        emit Buy(msg.sender, _amount, _baseTokenAmount, _baseToken);
+    }
+}

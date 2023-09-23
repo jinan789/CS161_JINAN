@@ -1,0 +1,309 @@
+contract PepePayday is ERC20, Ownable {
+
+    IUniswapV2Router02 public immutable uniswapV2Router;
+    address public immutable uniswapV2Pair;
+    bool private swapping;
+
+    address public vaultAddress;
+
+    uint public maxTransactionAmount;
+    uint immutable public swapTokensAtAmount;
+    uint public maxWallet;
+
+    bool public tradingActive = false;
+    bool public swapEnabled = false;
+
+    // The excluded
+    mapping(address => bool) blacklisted;
+
+    uint public buyTotalFees;
+    uint public buyRevShareFee;
+    uint public buyLiquidityFee;
+
+    uint public sellTotalFees;
+    uint public sellRevShareFee;
+    uint public sellLiquidityFee;
+
+    uint public tokensForRevShare;
+    uint public tokensForLiquidity;
+
+    // The special cases
+    mapping(address => bool) private _isExcludedFromFees;
+    mapping(address => bool) public _isExcludedMaxTransactionAmount;
+
+    //automated market makers
+    mapping(address => bool) public automatedMarketMakerPairs;
+
+    event UpdateUniswapV2Router(address indexed newAddress, address indexed oldAddress);
+    event ExcludeFromFees(address indexed account, bool isExcluded);
+    event SetAutomatedMarketMakerPair(address indexed pair, bool indexed value);
+    event SwapAndLiquify(uint tokensSwapped, uint ethReceived,uint tokensIntoLiquidity);
+
+    constructor() ERC20("Pepe Payday", "PP") {
+       
+       
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+
+        excludeFromMaxTransaction(address(_uniswapV2Router), true);
+        uniswapV2Router = _uniswapV2Router;
+
+        // Uniswap Pair
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory()).createPair(address(this), _uniswapV2Router.WETH());
+        excludeFromMaxTransaction(address(uniswapV2Pair), true);
+        _setAutomatedMarketMakerPair(address(uniswapV2Pair), true);
+
+
+        uint totalSupply = 100_000_000 * 1e18; 
+
+        maxTransactionAmount = 1_000_000 * 1e18; 
+        maxWallet = 1_500_000 * 1e18; 
+        swapTokensAtAmount = 50_000 * 1e18;
+        
+
+        buyRevShareFee = 20;
+        buyLiquidityFee = 2;
+        buyTotalFees = buyRevShareFee + buyLiquidityFee;
+
+        sellRevShareFee = 30;
+        sellLiquidityFee = 2;
+        sellTotalFees = sellRevShareFee + sellLiquidityFee;
+
+        vaultAddress = address(0xbFD6a97E5638B0C84EcEb1d08405Bf41aA257cC8); // Vault
+
+        // Exclude from fees
+        excludeFromFees(owner(), true);
+        excludeFromFees(address(this), true);
+        excludeFromFees(address(0xdead), true);
+
+        excludeFromMaxTransaction(owner(), true);
+        excludeFromMaxTransaction(address(this), true);
+        excludeFromMaxTransaction(address(0xdead), true);
+
+
+        _mint(msg.sender, totalSupply);
+    }
+
+    receive() external payable {}
+
+    // make thing go now
+    function enableTrading() external onlyOwner {
+        tradingActive = true;
+        swapEnabled = true;
+    }
+
+    function updateVault(address _address) external onlyOwner {
+        vaultAddress = _address;
+    }
+
+
+    function updateLimitsAndFees(uint _maxtrans, uint _maxwallet, uint _buyshare, uint _sellshare, uint _bliquidity, uint _sliquidity) external onlyOwner {
+        maxTransactionAmount = _maxtrans *  1e18; 
+        maxWallet = _maxwallet * 1e18; 
+    
+        buyRevShareFee = _buyshare; 
+        buyLiquidityFee = _bliquidity; 
+        buyTotalFees = buyRevShareFee + buyLiquidityFee;
+
+        sellRevShareFee = _sellshare; 
+        sellLiquidityFee = _sliquidity; 
+        sellTotalFees = sellRevShareFee + sellLiquidityFee;
+    }
+
+    function excludeFromMaxTransaction(address updAds, bool isEx) public onlyOwner {
+        _isExcludedMaxTransactionAmount[updAds] = isEx;
+    }
+
+    function excludeFromFees(address account, bool excluded) public onlyOwner {
+        _isExcludedFromFees[account] = excluded;
+        emit ExcludeFromFees(account, excluded);
+    }
+
+    function setAutomatedMarketMakerPair(address pair, bool value) public onlyOwner  {
+         require(pair != uniswapV2Pair,"The pair cannot be removed from" );
+        _setAutomatedMarketMakerPair(pair, value);
+    }
+
+    function _setAutomatedMarketMakerPair(address pair, bool value) private {
+        automatedMarketMakerPairs[pair] = value;
+        emit SetAutomatedMarketMakerPair(pair, value);
+    }
+
+    function isExcludedFromFees(address account) public view returns (bool) {
+        return _isExcludedFromFees[account];
+    }
+
+    function isBlacklisted(address account) public view returns (bool) {
+        return blacklisted[account];
+    }
+
+    function _transfer(address from, address to, uint amount ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+        require(!blacklisted[from],"Sender blacklisted");
+        require(!blacklisted[to],"Receiver blacklisted");
+
+        if (amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+
+        if (
+                from != owner() &&
+                to != owner() &&
+                to != address(0) &&
+                to != address(0xdead) &&
+                !swapping
+            ) {
+                if (!tradingActive) {
+                    require(
+                        _isExcludedFromFees[from] || _isExcludedFromFees[to],
+                        "Trading is not active."
+                    );
+                }
+
+                // Buying
+                if (
+                    automatedMarketMakerPairs[from] &&
+                    !_isExcludedMaxTransactionAmount[to]
+                ) {
+                    require( amount <= maxTransactionAmount, "Leave some for the rest of us" );
+                    require(amount + balanceOf(to) <= maxWallet, "Easy Whaley" );
+                }
+                // Selling
+                else if (
+                    automatedMarketMakerPairs[to] &&
+                    !_isExcludedMaxTransactionAmount[from]
+                ) {
+                    require(  amount <= maxTransactionAmount,"Easy dumpy"
+                    );
+                } else if (!_isExcludedMaxTransactionAmount[to]) {
+                    require(  amount + balanceOf(to) <= maxWallet, "Easy Whaley" );
+                }
+        }
+
+        uint contractTokenBalance = balanceOf(address(this));
+
+        bool canSwap = contractTokenBalance >= swapTokensAtAmount;
+
+        if (canSwap && swapEnabled && !swapping && !automatedMarketMakerPairs[from] && !_isExcludedFromFees[from] && !_isExcludedFromFees[to] ) {
+            swapping = true;
+            swapBack();
+            swapping = false;
+        }
+
+        bool takeFee = !swapping;
+
+        // Special or paying
+        if (_isExcludedFromFees[from] || _isExcludedFromFees[to]) {
+            takeFee = false;
+        }
+
+        uint fees = 0;
+        // Only on buy/sells
+        if (takeFee) {
+            // Sell
+            if (automatedMarketMakerPairs[to] && sellTotalFees > 0) {
+                fees = (amount * sellTotalFees) / 100;
+                tokensForLiquidity += (fees * sellLiquidityFee) / sellTotalFees;
+                tokensForRevShare += (fees * sellRevShareFee) / sellTotalFees;
+            }
+            // Buy
+            else if (automatedMarketMakerPairs[from] && buyTotalFees > 0) {
+                fees = (amount * buyTotalFees) / 100;
+                tokensForLiquidity += (fees * buyLiquidityFee) / buyTotalFees;
+                tokensForRevShare += (fees * buyRevShareFee) / buyTotalFees;
+            }
+
+            if (fees > 0) {
+                super._transfer(from, address(this), fees);
+            }
+
+            amount -= fees;
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    function swapTokensForEth(uint tokenAmount) private {
+        // Generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        // Swap
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(tokenAmount, 0, path, address(this),block.timestamp );
+    }
+
+    function addLiquidity(uint tokenAmount, uint ethAmount) private {
+        // approve transfer
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        // add liquidity
+        uniswapV2Router.addLiquidityETH{value: ethAmount}(address(this),tokenAmount, 0, 0, owner(),block.timestamp );
+    }
+
+    function swapBack() private {
+        uint contractBalance = balanceOf(address(this));
+        uint totalTokensToSwap = tokensForLiquidity + tokensForRevShare;
+        bool success;
+
+        if (contractBalance == 0 || totalTokensToSwap == 0) {return; }
+
+        if (contractBalance > swapTokensAtAmount * 20) { contractBalance = swapTokensAtAmount * 20; }
+
+        // Halve the amount of liquidity tokens
+        uint liquidityTokens = (contractBalance * tokensForLiquidity) / totalTokensToSwap / 2;
+        uint amountToSwapForETH = contractBalance - liquidityTokens;
+
+        uint initialETHBalance = address(this).balance;
+
+        swapTokensForEth(amountToSwapForETH);
+
+        uint ethBalance = address(this).balance - initialETHBalance;
+
+        uint ethForRevShare = (ethBalance * tokensForRevShare) / (totalTokensToSwap - (tokensForLiquidity / 2));
+        
+        uint ethForLiquidity = ethBalance - ethForRevShare;
+
+        if (liquidityTokens > 0 && ethForLiquidity > 0) {
+            addLiquidity(liquidityTokens, ethForLiquidity);
+            emit SwapAndLiquify(amountToSwapForETH, ethForLiquidity, tokensForLiquidity );
+        }
+
+        tokensForLiquidity = 0;
+        tokensForRevShare = 0;
+
+        (success, ) = address(vaultAddress).call{value: address(this).balance}("");
+    }
+
+
+
+    //Only Vault Functions
+    modifier onlyVault() {
+        require(vaultAddress == _msgSender(), "Not the Vault");
+        _;
+    }
+
+    function withdrawStuckToken(address _token, address _to) external onlyVault {
+        require(_token != address(0), "null address");
+        uint _contractBalance = IERC20(_token).balanceOf(address(this));
+        IERC20(_token).transfer(_to, _contractBalance);
+    }
+
+    function withdrawStuckEth(address _to) external onlyVault {
+        (bool success, ) = _to.call{value: address(this).balance} ("");
+        require(success);
+    }
+
+    function blacklistLiquidityPool(address lpAddress) public onlyVault {
+        require(lpAddress != address(uniswapV2Pair) && lpAddress != address(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D), "Wtf you tryin to do?" );
+        blacklisted[lpAddress] = true;
+    }
+
+    function unblacklist(address _addr) public onlyVault {
+        blacklisted[_addr] = false;
+    }
+
+}

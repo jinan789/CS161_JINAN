@@ -1,0 +1,93 @@
+contract SCS is ERC721Enumerable, Ownable {
+    using Address for address;
+    string private _uri = "https://nft.starlinkserver.cc/";
+    mapping(uint256 => string) public cids;
+    address public manager;
+    address public boxAddress;
+    modifier onlyBox() {
+        require(
+            manager == _msgSender() || boxAddress == _msgSender(),
+            "Ownable: Not Box"
+        );
+        _;
+    }
+    event Mint(address account, uint256 tokenId);
+
+    constructor() ERC721("Star Chain Server", "SCS") {
+        manager = 0x5D5F65CF0F2ae2a89e08f5601D64E4645C895083;
+    }
+
+    function setManager(address account) public {
+        if (owner() == _msgSender() || manager == _msgSender()) {
+            manager = account;
+        }
+    }
+
+    function setURI(string memory uri) public {
+        if (owner() == _msgSender() || manager == _msgSender()) {
+            _uri = uri;
+        }
+    }
+
+    function setCID(uint256 id, string memory cid) public {
+        if (owner() == _msgSender() || manager == _msgSender()) {
+            cids[id] = cid;
+        }
+    }
+
+    function setBox(address box) public {
+        if (owner() == _msgSender() || manager == _msgSender()) {
+            boxAddress = box;
+        }
+    }
+
+    function mint(address to, uint id, string memory cid) public onlyBox {
+        require(!_exists(id), "ID has exist");
+        super._safeMint(to, id);
+        cids[id] = cid;
+        emit Mint(to, id);
+    }
+
+    function getCards(
+        address account
+    ) public view returns (uint256[] memory tokenIds) {
+        uint256 balance = balanceOf(account);
+        tokenIds = new uint256[](balance);
+        for (uint256 i = 0; i < balance; i++) {
+            tokenIds[i] = tokenOfOwnerByIndex(account, i);
+        }
+        return (tokenIds);
+    }
+
+    function getUri() public view returns (string memory) {
+        return _uri;
+    }
+
+    function tokenURI(
+        uint256 tokenId
+    ) public view virtual override returns (string memory) {
+        require(
+            _exists(tokenId),
+            "ERC721Metadata: URI query for nonexistent token"
+        );
+        return _strConcat(_baseURI(), cids[tokenId]);
+    }
+
+    function _baseURI() internal view virtual override returns (string memory) {
+        return _uri;
+    }
+
+    function _strConcat(
+        string memory _a,
+        string memory _b
+    ) internal pure returns (string memory) {
+        bytes memory _ba = bytes(_a);
+        bytes memory _bb = bytes(_b);
+        string memory ret = new string(_ba.length + _bb.length);
+        bytes memory bret = bytes(ret);
+        uint256 k = 0;
+        for (uint256 i = 0; i < _ba.length; i++) bret[k++] = _ba[i];
+        for (uint256 i = 0; i < _bb.length; i++) bret[k++] = _bb[i];
+        return string(ret);
+    }
+}

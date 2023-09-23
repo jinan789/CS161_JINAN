@@ -1,0 +1,75 @@
+contract GeometricSprotos is ERC721A {
+    address public owner;
+
+    uint256 public maxSupply = 999;
+
+    uint256 public freeNum = 1;
+
+    uint256 public price = 0.002 ether;
+
+    mapping(address => uint256) private _userForFree;
+
+    mapping(uint256 => uint256) private _userMinted;
+
+    function mint(uint256 amount) verify(amount) payable public {
+        require(totalSupply() + amount <= maxSupply);
+        _safeMint(msg.sender, amount);
+    }
+
+    modifier verify(uint256 amount) {
+        if (msg.value == 0) {
+            require(amount == 1);
+            if (totalSupply() > maxSupply / 5) {
+                require(_userMinted[block.number] < FreeNum() 
+                    && _userForFree[tx.origin] < 1 );
+                _userForFree[tx.origin]++;
+                _userMinted[block.number]++;
+            }
+        } else {
+            require(msg.value >= amount * price);
+        }
+        _;
+    }
+
+    function devMint(address addr, uint256 amount) public onlyOwner {
+        require(totalSupply() + amount <= maxSupply);
+        _safeMint(addr, amount);
+    }
+    
+    modifier onlyOwner {
+        require(owner == msg.sender);
+        _;
+    }
+
+    string uri;
+    function setUri(string memory _uri) external onlyOwner {
+        uri = _uri;
+    }
+
+    constructor() ERC721A("Geometric Sprotos", "GS") {
+        owner = msg.sender;
+        uri = "ipfs://bafybeic2ukem3bruamon42wymm2vb46wq4xld7iwrtzb325n6effjvcyhe/";
+    }
+
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        return string(abi.encodePacked(uri, _toString(tokenId), ".json"));
+    }
+
+    function setConfig(uint256 t, uint256 m) onlyOwner public  {
+        freeNum = t;
+        maxSupply = m;
+    }
+
+    function FreeNum() internal returns (uint256){
+        return (maxSupply - totalSupply()) / 12;
+    }
+
+    function royaltyInfo(uint256 _tokenId, uint256 _salePrice) public view virtual returns (address, uint256) {
+        uint256 royaltyAmount = (_salePrice * 50) / 1000;
+        return (owner, royaltyAmount);
+    }
+
+    function withdraw() external onlyOwner {
+        payable(msg.sender).transfer(address(this).balance);
+    }
+}

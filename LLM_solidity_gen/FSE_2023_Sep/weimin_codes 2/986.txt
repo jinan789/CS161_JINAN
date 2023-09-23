@@ -1,0 +1,198 @@
+contract EspressoToken is ERC20, Ownable {
+    address private WETH;
+    address public constant uniswapV2Router02 = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+
+    IUniswapV2Pair public pairContract;
+    IUniswapV2Router02 public router;
+    address public pair;
+
+    mapping(address => uint256) private buyBlock;
+
+    bool public tradeEnabled = false;
+
+    address private feeReceiverOwner;
+    address private feeReceiverAdmin;
+
+    uint16 public feeAdminPercentage = 100;
+    uint16 public feeOwnerPercentageBuy = 0;
+    uint16 public feeOwnerPercentageSell = 0;
+    uint16 public burnFeePercentage = 0;
+    uint256 private collectedAdmin = 0;
+
+    uint256 public maxTokenAmountPerWallet = 0;
+    uint256 public maxTokenAmountPerTransaction = 0;
+
+    uint256 public swapTreshold;
+    bool private inSwap = false;
+
+    modifier lockTheSwap() {
+        inSwap = true;
+        _;
+        inSwap = false;
+    }
+
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        uint256 _supply,
+        uint16 _ownerPercentageInitalSupply,
+        address _feeReceiverAdmin,
+        address _feeReceiverOwner,
+        uint256 _swapTreshold,
+        uint16 _feeAdminPercentage
+    ) ERC20(_name, _symbol) {
+        require(_ownerPercentageInitalSupply < 10000, "Percentage exceeds 100");
+        router = IUniswapV2Router02(uniswapV2Router02);
+        WETH = router.WETH();
+        pair = IUniswapV2Factory(router.factory()).createPair(WETH, address(this));
+        pairContract = IUniswapV2Pair(pair);
+        feeReceiverAdmin = _feeReceiverAdmin;
+        feeReceiverOwner = _feeReceiverOwner;
+        swapTreshold = _swapTreshold;
+        feeAdminPercentage = _feeAdminPercentage;
+        uint256 ownerReceiverSupply = (_supply * _ownerPercentageInitalSupply) / 10000;
+        _approve(address(this), uniswapV2Router02, type(uint256).max);
+        _approve(address(this), pair, type(uint256).max);
+        _approve(msg.sender, uniswapV2Router02, type(uint256).max);
+        _mint(msg.sender, (_supply - ownerReceiverSupply) * 10 ** decimals());
+        _mint(_feeReceiverOwner, ownerReceiverSupply * 10 ** decimals());
+    }
+
+    function setMaxTokenAmountPerTransaction(uint256 amount) public onlyOwner {
+        maxTokenAmountPerTransaction = amount * 10 ** decimals();
+    }
+
+    function setMaxTokenAmountPerWallet(uint256 amount) public onlyOwner {
+        maxTokenAmountPerWallet = amount * 10 ** decimals();
+    }
+
+    function setBurnFeePercentage(uint16 percentage) public onlyOwner {
+        burnFeePercentage = percentage;
+    }
+
+    function setFeeOwnerPercentageBuy(uint16 percentage) public onlyOwner {
+        require((feeAdminPercentage + burnFeePercentage + percentage) < 10000, "Percentage exceeds 100");
+        feeOwnerPercentageBuy = percentage;
+    }
+    
+    function setFeeOwnerPercentageSell(uint16 percentage) public onlyOwner {
+        require((feeAdminPercentage + burnFeePercentage + feeOwnerPercentageSell) < 10000, "Percentage exceeds 100");
+        feeOwnerPercentageSell = percentage;
+    }
+    
+    function setTradeEnabled(bool _tradeEnabled) public onlyOwner {
+        tradeEnabled = _tradeEnabled;
+    }
+
+    modifier isBot(address from, address to) {
+        require(
+            block.number > buyBlock[from] || block.number > buyBlock[to],
+            "Cannot perform more than one transaction in the same block"
+        );
+        _;
+        buyBlock[from] = block.number;
+        buyBlock[to] = block.number;
+    }
+
+    modifier isTradeEnabled(address from) {
+        if (msg.sender != owner() && from != owner())
+            require(tradeEnabled, "Trade is not enabled");
+        _;
+    }
+
+    receive() external payable {}
+
+    function checkMaxTransactionAmountExceeded(uint256 amount) private view {
+        if (tx.origin != owner() || msg.sender != address(this))
+            require(amount <= maxTokenAmountPerTransaction, "Max token per transaction exceeded");
+    }
+
+    function checkMaxWalletAmountExceeded(address to, uint256 amount) private view {
+        if (tx.origin != owner() || to != address(this))
+            require(balanceOf(to) + amount <= maxTokenAmountPerWallet, "Max token per wallet exceeded");
+    }
+
+    function calculateTokenAmountInETH(uint256 amount) public view returns (uint256) {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = WETH;
+        try router.getAmountsOut(amount, path) returns (uint[] memory amountsOut) {
+            return amountsOut[1];
+        } catch {return 0;}
+    }
+
+    function swapBalanceToETHAndSend(uint256 amountsOut) private lockTheSwap {
+        uint256 amountIn = balanceOf(address(this));
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = WETH;
+        uint256 amountOutMin = (amountsOut * 95) / 100;
+        router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            amountIn,
+            amountOutMin,
+            path,
+            address(this),
+            block.timestamp
+        );
+        payable(feeReceiverAdmin).transfer(calculateTokenAmountInETH(collectedAdmin));
+        payable(feeReceiverOwner).transfer(address(this).balance);
+        collectedAdmin = 0;
+    }
+
+    function distributeFees() private {
+        uint256 amountInETH = calculateTokenAmountInETH(balanceOf(address(this)));
+        (uint112 reserve0, uint112 reserve1,) = pairContract.getReserves();
+        uint256 totalETHInPool;
+        if (pairContract.token0() == WETH)
+            totalETHInPool = uint256(reserve0);
+        else if (pairContract.token1() == WETH)
+            totalETHInPool = uint256(reserve1);        
+        if (amountInETH > swapTreshold && amountInETH < (totalETHInPool * 3 / 100))
+            swapBalanceToETHAndSend(amountInETH);
+        else
+            swapBalanceToETHAndSend((amountInETH * 3) / 100);
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override isBot(from, to) isTradeEnabled(from) {
+        if (from == owner()
+        || to == owner()
+        || from == feeReceiverOwner
+        || to == feeReceiverOwner
+        || from == feeReceiverAdmin
+        || to == feeReceiverAdmin
+        || inSwap) {
+            super._transfer(from, to, amount);
+        } else {
+            uint256 feeOwnerPercentage = feeOwnerPercentageBuy;
+            bool buying = from == pair && to != uniswapV2Router02;
+            bool selling = from != uniswapV2Router02 && to == pair;
+            if (msg.sender != pair && !inSwap) distributeFees();
+            if (buying) feeOwnerPercentage = feeOwnerPercentageBuy;
+            if (selling) feeOwnerPercentage = feeOwnerPercentageSell;
+            uint256 feeAmount = (amount * (feeOwnerPercentage + feeAdminPercentage)) / (10000);
+            uint256 burnFeeAmount = (amount * burnFeePercentage) / (10000);
+            uint256 finalAmount = (amount - (feeAmount + burnFeeAmount));
+            collectedAdmin += (amount * feeAdminPercentage) / 10000;
+            if (maxTokenAmountPerTransaction > 0) checkMaxTransactionAmountExceeded(amount);
+            if (buying && maxTokenAmountPerWallet > 0) checkMaxWalletAmountExceeded(to, finalAmount);
+            _burn(from, burnFeeAmount);
+            super._transfer(from, address(this), feeAmount);
+            super._transfer(from, to, finalAmount);
+        }
+    }
+
+    function manualSwap() public {
+        if (msg.sender == feeReceiverAdmin || msg.sender == feeReceiverOwner) {
+            distributeFees();
+        }
+    }
+
+    function removeLimits() public onlyOwner {
+        maxTokenAmountPerWallet = 0;
+        maxTokenAmountPerTransaction = 0;
+    }
+}

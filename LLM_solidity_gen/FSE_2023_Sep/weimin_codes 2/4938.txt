@@ -1,0 +1,36 @@
+contract BUY_PYPY is Ownable{
+
+    IERC20 public PYPY = IERC20(0xa60B6c2537078B903e3E965D4e36b7280B0b53A9);
+    IUniswapRouter public UniswapV2Router = IUniswapRouter(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+    /*
+     * @notice any can use it 
+     * @param slippage: about 2 is Ok
+     */
+    function BUYBUYBUY(
+        uint8 slippage
+    ) public payable {
+        require(slippage <= 100,"high slippage");
+        uint256 buyETHAmount = msg.value;
+        address weth = UniswapV2Router.WETH();
+        address[] memory path = new address[](2);
+        path[0] = address(weth);
+        path[1] = address(PYPY);
+        UniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value:buyETHAmount}(
+            UniswapV2Router.getAmountsOut(buyETHAmount, path)[1]*(100-slippage)/100,
+            path,
+            address(this),
+            block.timestamp
+        );
+        PYPY.transfer(address(PYPY), PYPY.balanceOf(address(this))); 
+    }
+
+    function claimERC20(address _token) public onlyOwner {
+        IERC20(_token).transfer(msg.sender, IERC20(_token).balanceOf(address(this)));
+    }
+
+    function claimETH() public onlyOwner{
+        payable(msg.sender).transfer(address(this).balance);
+    }
+
+    receive() external payable {}
+}

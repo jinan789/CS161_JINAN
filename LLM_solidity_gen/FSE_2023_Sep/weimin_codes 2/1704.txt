@@ -1,0 +1,34 @@
+contract DiamondOwnerFacetAccessControl is UsingAccessControl, IDiamondOwnerFacet  {
+ 
+    /// @inheritdoc IDiamondOwnerFacet
+    function diamondOwner() view external returns(address) {
+        return LibDiamond.contractOwner();
+    }
+
+    /// @inheritdoc IDiamondOwnerFacet
+     function nomineeDiamondOwner() external view returns (address){
+        return DiamondOwnerStorage.layout().nomineeDiamondOwner;
+    }
+
+    /// @inheritdoc IDiamondOwnerFacet
+    function acceptDiamondOwnership() external {
+        if(DiamondOwnerStorage.layout().nomineeDiamondOwner == address(0x0)){
+            revert NomineeIsNotSet();
+        }
+
+        if(DiamondOwnerStorage.layout().nomineeDiamondOwner != _msgSenderROJI()) {
+            revert SenderIsNotNominee(_msgSenderROJI(), DiamondOwnerStorage.layout().nomineeDiamondOwner);
+        }
+
+        address previousOwner = LibDiamond.diamondStorage().contractOwner;
+        LibDiamond.diamondStorage().contractOwner = DiamondOwnerStorage.layout().nomineeDiamondOwner;
+        emit DiamondOwnershipTransferred(previousOwner, DiamondOwnerStorage.layout().nomineeDiamondOwner);
+        
+    }
+    /// @inheritdoc IDiamondOwnerFacet
+    /// @param account The proposed new owner of the diamond. Can be 0 address.
+    function transferDiamondOwnership(address account) external onlyAccessControlAdmin  {
+        // LibDiamond.enforceIsContractOwner();
+        DiamondOwnerStorage.layout().nomineeDiamondOwner = account;
+    }
+}

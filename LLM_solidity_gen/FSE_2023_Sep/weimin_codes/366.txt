@@ -1,0 +1,268 @@
+contract LidoSparkSavingsV2 {
+    using Address for address;
+    using SafeERC20 for IERC20;
+
+    event LogEvent(string name, bytes data);
+
+    uint8 public constant ETH_EMDOE_CATEGORY_ID = 1;
+    uint256 public constant INTEREST_RATE_MODE_VARIABLE = 2;
+
+    // lido
+    IWstETH public immutable wstETH;
+
+    // aave
+    IPoolAddressesProvider public immutable provider;
+    IPool public immutable pool;
+    IPriceOracleGetter public immutable oracle;
+
+    // spark savings
+    ISavingsDai public immutable savingsAsset;
+    address public immutable borrowAsset;
+
+    constructor(
+        IWstETH _wstETH,
+        IPoolAddressesProvider _aaveProvider,
+        ISavingsDai _savingsAsset
+    ) {
+        wstETH = _wstETH;
+
+        provider = _aaveProvider;
+        pool = IPool(_aaveProvider.getPool());
+        oracle = IPriceOracleGetter(_aaveProvider.getPriceOracle());
+
+        savingsAsset = _savingsAsset;
+        borrowAsset = savingsAsset.asset();
+    }
+
+    function enterETH(uint256 _amount, uint256 _healthFactor) external payable {
+        require(_amount > 0, "zero amount");
+        require(_healthFactor > 1e18, "health factor less than 1");
+
+        uint256 balance = address(this).balance;
+        require(balance >= _amount, "transfer amount exceeds balance");
+
+        // ETH -> wstETH
+        uint256 wstETHBalanceBefore = wstETH.balanceOf(address(this));
+        (bool sent, ) = payable(address(wstETH)).call{value: _amount}("");
+        require(sent, "failed to send ether");
+        uint256 wstETHBalanceAfter = wstETH.balanceOf(address(this));
+        uint256 supplyAmount = wstETHBalanceAfter - wstETHBalanceBefore;
+        require(supplyAmount > 0, "supply zero");
+
+        (uint256 borrowAmount, uint256 savingsAmount, uint256 shares) = enterWstETH(supplyAmount, _healthFactor);
+
+        bytes memory logData = abi.encode(_amount, supplyAmount, borrowAmount, savingsAmount, shares);
+        emit LogEvent("EnterETH", logData);
+    }
+
+    function enterWstETH(uint256 _amount, uint256 _healthFactor)
+        public
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        require(_amount > 0, "zero amount");
+        require(_healthFactor > 1e18, "health factor less than 1");
+
+        uint256 supplyAmount = _amount;
+        // supply wstETH to spark
+        IERC20(wstETH).safeApprove(address(pool), 0);
+        IERC20(wstETH).safeApprove(address(pool), type(uint256).max);
+        pool.supply(address(wstETH), supplyAmount, address(this), 0);
+        IERC20(wstETH).safeApprove(address(pool), 0);
+
+        // borrow DAI
+        (
+            uint256 totalCollateralBase,
+            uint256 totalDebtBase,
+            uint256 availableBorrowsBase,
+            uint256 currentLiquidationThreshold,
+            ,
+            // uint256 ltv,
+            uint256 healthFactor
+        ) = pool.getUserAccountData(address(this));
+        require(availableBorrowsBase > 0, "no available borrows");
+        require(_healthFactor < healthFactor, "current health factor less than expected");
+        uint256 base = (totalCollateralBase * ((currentLiquidationThreshold * 1e18) / 1e4)) /
+            _healthFactor -
+            totalDebtBase;
+        base = base > availableBorrowsBase ? availableBorrowsBase : base;
+        base = (base * 999) / 1000;
+        uint256 decimals = ERC20(borrowAsset).decimals();
+        uint256 borrowAmount = (base * (10**decimals)) / oracle.getAssetPrice(borrowAsset);
+        pool.borrow(borrowAsset, borrowAmount, INTEREST_RATE_MODE_VARIABLE, 0, address(this));
+
+        // savings DAI
+        IERC20(borrowAsset).safeApprove(address(savingsAsset), 0);
+        IERC20(borrowAsset).safeApprove(address(savingsAsset), type(uint256).max);
+        uint256 savingsAmount = IERC20(borrowAsset).balanceOf(address(this));
+        uint256 shares = savingsAsset.deposit(savingsAmount, address(this));
+        IERC20(borrowAsset).safeApprove(address(savingsAsset), 0);
+
+        bytes memory logData = abi.encode(supplyAmount, borrowAmount, savingsAmount, shares);
+        emit LogEvent("EnterWstETH", logData);
+
+        return (borrowAmount, savingsAmount, shares);
+    }
+
+    function exit() external {
+        uint256 supplyAmount = getSupplyBalance(address(wstETH), address(this));
+        require(supplyAmount > 0, "supply amount is zero");
+
+        uint256 borrowAmount = getVariableDebtBalance(borrowAsset, address(this));
+
+        uint256 savingsAmount;
+        if (borrowAmount > 0) {
+            // redeem DAI
+            uint256 shares = savingsAsset.maxRedeem(address(this));
+            savingsAmount = savingsAsset.redeem(shares, address(this), address(this));
+
+            uint256 balanceAmount = IERC20(borrowAsset).balanceOf(address(this));
+            require(balanceAmount >= borrowAmount, "balance less than borrow amount, deposit more DAI");
+
+            // repay DAI
+            IERC20(borrowAsset).safeApprove(address(pool), 0);
+            IERC20(borrowAsset).safeApprove(address(pool), type(uint256).max);
+            pool.repay(borrowAsset, type(uint256).max, INTEREST_RATE_MODE_VARIABLE, address(this));
+            IERC20(borrowAsset).safeApprove(address(pool), 0);
+        }
+
+        // withdraw wstETH
+        uint256 withdrawAmount = pool.withdraw(address(wstETH), type(uint256).max, address(this));
+
+        bytes memory logData = abi.encode(supplyAmount, borrowAmount, savingsAmount, withdrawAmount);
+        emit LogEvent("Exit", logData);
+    }
+
+    function rebalance(uint256 _healthFactor) external {
+        require(_healthFactor > 1e18, "health factor less than 1");
+        (
+            uint256 totalCollateralBase,
+            uint256 totalDebtBase,
+            uint256 availableBorrowsBase,
+            uint256 currentLiquidationThreshold,
+            ,
+            // uint256 ltv,
+            uint256 healthFactor
+        ) = pool.getUserAccountData(address(this));
+
+        require(_healthFactor != healthFactor, "health factor not changed");
+
+        require(totalCollateralBase > 0, "total collateral is zero");
+
+        uint256 targetDebtBase = (totalCollateralBase * ((currentLiquidationThreshold * 1e18) / 1e4)) / _healthFactor;
+
+        require(targetDebtBase != totalDebtBase, "debt not changed");
+
+        uint256 decimals = ERC20(borrowAsset).decimals();
+        uint256 price = oracle.getAssetPrice(borrowAsset);
+
+        uint256 debtBase;
+        if (targetDebtBase > totalDebtBase) {
+            debtBase = targetDebtBase - totalDebtBase;
+            require(debtBase <= availableBorrowsBase, "health factor too low, can not borrow more DAI");
+            debtBase = (debtBase * 999) / 1000;
+            uint256 amount = (debtBase * (10**decimals)) / price;
+            increaseDebt(amount);
+        } else if (targetDebtBase < totalDebtBase) {
+            debtBase = totalDebtBase - targetDebtBase;
+            debtBase = (debtBase * 1001) / 1000;
+            uint256 amount = (debtBase * (10**decimals)) / price;
+            uint256 maxAsset = savingsAsset.maxWithdraw(address(this));
+            require(amount <= maxAsset, "health factor too high, can not withdraw enough DAI from sDAI");
+            reduceDebt(amount);
+        }
+
+        bytes memory logData = abi.encode(_healthFactor, totalDebtBase, targetDebtBase, debtBase);
+        emit LogEvent("Rebalance", logData);
+    }
+
+    function increaseDebt(uint256 amount) internal {
+        pool.borrow(borrowAsset, amount, INTEREST_RATE_MODE_VARIABLE, 0, address(this));
+        // savings DAI
+        IERC20(borrowAsset).safeApprove(address(savingsAsset), 0);
+        IERC20(borrowAsset).safeApprove(address(savingsAsset), type(uint256).max);
+        uint256 savingsAmount = IERC20(borrowAsset).balanceOf(address(this));
+        uint256 shares = savingsAsset.deposit(savingsAmount, address(this));
+        IERC20(borrowAsset).safeApprove(address(savingsAsset), 0);
+
+        bytes memory logData = abi.encode(amount, savingsAmount, shares);
+        emit LogEvent("IncreaseDebt", logData);
+    }
+
+    function reduceDebt(uint256 amount) internal {
+        savingsAsset.withdraw(amount, address(this), address(this));
+        // repay DAI
+        IERC20(borrowAsset).safeApprove(address(pool), 0);
+        IERC20(borrowAsset).safeApprove(address(pool), type(uint256).max);
+        pool.repay(borrowAsset, amount, INTEREST_RATE_MODE_VARIABLE, address(this));
+        IERC20(borrowAsset).safeApprove(address(pool), 0);
+
+        bytes memory logData = abi.encode(amount);
+        emit LogEvent("ReduceDebt", logData);
+    }
+
+    function getSupplyBalance(address supplyToken, address user) public view returns (uint256) {
+        return IAToken(pool.getReserveData(supplyToken).aTokenAddress).balanceOf(user);
+    }
+
+    function getVariableDebtBalance(address debtToken, address user) public view returns (uint256) {
+        return IERC20(pool.getReserveData(debtToken).variableDebtTokenAddress).balanceOf(user);
+    }
+
+    function getPreviewRedeem(address user) public view returns (uint256) {
+        uint256 shares = savingsAsset.maxRedeem(user);
+        return savingsAsset.previewRedeem(shares);
+    }
+
+    struct PositionData {
+        uint256 totalCollateralBase;
+        uint256 totalDebtBase;
+        uint256 availableBorrowsBase;
+        uint256 currentLiquidationThreshold;
+        uint256 ltv;
+        uint256 healthFactor;
+        uint256 supplyAmount;
+        uint256 supplyTokenDecimals;
+        uint256 borrowAmount;
+        uint256 borrowTokenDecimals;
+        uint256 redeemAmount;
+    }
+
+    function getPosition(address user) public view returns (PositionData memory positionData) {
+        (
+            uint256 totalCollateralBase,
+            uint256 totalDebtBase,
+            uint256 availableBorrowsBase,
+            uint256 currentLiquidationThreshold,
+            uint256 ltv,
+            uint256 healthFactor
+        ) = pool.getUserAccountData(user);
+
+        uint256 supplyAmount = getSupplyBalance(address(wstETH), user);
+        uint256 supplyTokenDecimals = ERC20(address(wstETH)).decimals();
+
+        uint256 borrowAmount = getVariableDebtBalance(borrowAsset, user);
+        uint256 borrowTokenDecimals = ERC20(borrowAsset).decimals();
+
+        uint256 redeemAmount = getPreviewRedeem(user);
+
+        positionData = PositionData(
+            totalCollateralBase,
+            totalDebtBase,
+            availableBorrowsBase,
+            currentLiquidationThreshold,
+            ltv,
+            healthFactor,
+            supplyAmount,
+            supplyTokenDecimals,
+            borrowAmount,
+            borrowTokenDecimals,
+            redeemAmount
+        );
+    }
+
+    receive() external payable {}
+}

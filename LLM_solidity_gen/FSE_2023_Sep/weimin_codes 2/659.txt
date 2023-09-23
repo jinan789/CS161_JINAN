@@ -1,0 +1,58 @@
+contract ERC721LA is ERC721LACore, Burnable, AirDropable, Whitelistable {
+    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+     *                            Royalties
+     * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+    function setRoyaltyRegistryAddress(
+        address _royaltyRegistry
+    ) public onlyAdmin {
+        ERC721State.ERC721LAState storage state = ERC721State
+            ._getERC721LAState();
+        state._royaltyRegistry = IRoyaltiesRegistry(_royaltyRegistry);
+    }
+
+    function royaltyRegistryAddress() public view returns (IRoyaltiesRegistry) {
+        ERC721State.ERC721LAState storage state = ERC721State
+            ._getERC721LAState();
+        return state._royaltyRegistry;
+    }
+
+    /// @dev see: EIP-2981
+    function royaltyInfo(
+        uint256 _tokenId,
+        uint256 _value
+    ) external view returns (address _receiver, uint256 _royaltyAmount) {
+        ERC721State.ERC721LAState storage state = ERC721State
+            ._getERC721LAState();
+
+        return
+            state._royaltyRegistry.royaltyInfo(address(this), _tokenId, _value);
+    }
+
+    function registerCollectionRoyaltyReceivers(
+        RoyaltiesState.RoyaltyReceiver[] memory royaltyReceivers
+    ) public onlyAdmin {
+        ERC721State.ERC721LAState storage state = ERC721State
+            ._getERC721LAState();
+
+        IRoyaltiesRegistry(state._royaltyRegistry)
+            .registerCollectionRoyaltyReceivers(
+                address(this),
+                msg.sender,
+                royaltyReceivers
+            );
+    }
+
+    function primaryRoyaltyInfo(
+        uint256 tokenId
+    ) public view returns (address payable[] memory, uint256[] memory) {
+        ERC721State.ERC721LAState storage state = ERC721State
+            ._getERC721LAState();
+
+        return
+            IRoyaltiesRegistry(state._royaltyRegistry).primaryRoyaltyInfo(
+                address(this),
+                tokenId
+            );
+    }
+}

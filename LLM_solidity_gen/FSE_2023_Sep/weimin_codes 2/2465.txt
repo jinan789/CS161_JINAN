@@ -1,0 +1,238 @@
+contract TelegramCrash is Ownable {
+    CrashGame public immutable bettingToken;
+
+    // Map Telegram chat IDs to their games.
+    mapping(int64 => Game) public games;
+
+    // The Telegram chat IDs for each active game. Mainly used to
+    // abort all active games in the event of a catastrophe.
+    int64[] public activeTgGroups;
+    uint256 public withdrawalTimePeriod;
+    address revenueWallet;
+
+    // Stores the amount each player has bet for a game.
+    event Bet(
+        int64 tgChatId,
+        address player,
+        uint16 playerIndex,
+        uint256 amount
+    );
+
+    // Stores the amount each player wins for a game.
+    event Win(
+        int64 tgChatId,
+        address player,
+        uint16 playerIndex,
+        uint256 amount
+    );
+
+    // Stores the amount the loser lost.
+    event Loss(
+        int64 tgChatId,
+        address player,
+        uint16 playerIndex,
+        uint256 amount
+    );
+
+    // Stores the amount collected by the protocol.
+    event Revenue(int64 tgChatId, uint256 amount);
+
+    // Stores the amount burned by the protocol.
+    event Burn(int64 tgChatId, uint256 amount);
+
+    constructor(address payable _bettingToken) {
+        bettingToken = CrashGame(_bettingToken);
+        withdrawalTimePeriod = block.timestamp;
+    }
+
+    struct Game {
+        uint256 minBet;
+        address[] players;
+        uint256[] bets;
+        bool inProgress;
+    }
+
+    /**
+     * @dev Check if there is a game in progress for a Telegram group.
+     * @param _tgChatId Telegram group to check
+     * @return true if there is a game in progress, otherwise false
+     */
+    function isGameInProgress(int64 _tgChatId) public view returns (bool) {
+        return games[_tgChatId].inProgress;
+    }
+
+    function gamePlayers(
+        int64 _tgChatId
+    ) public view returns (address[] memory) {
+        return games[_tgChatId].players;
+    }
+
+    /**
+     * @dev Remove a Telegram chat ID from the array.
+     * @param _tgChatId Telegram chat ID to remove
+     */
+    function removeTgId(int64 _tgChatId) internal {
+        for (uint256 i = 0; i < activeTgGroups.length; i++) {
+            if (activeTgGroups[i] == _tgChatId) {
+                activeTgGroups[i] = activeTgGroups[activeTgGroups.length - 1];
+                activeTgGroups.pop();
+            }
+        }
+    }
+
+    /**
+     * @dev Create a new game. Transfer funds into escrow.
+     * @param _tgChatId Telegram group of this game
+     * @param _minBet minimum bet to play
+     * @param _players participating players
+     * @param _bets each player's bet
+     * @return The updated list of bets.
+     */
+    function newGame(
+        int64 _tgChatId,
+        uint256 _minBet,
+        address[] memory _players,
+        uint256[] memory _bets
+    ) public onlyOwner returns (uint256[] memory) {
+        // require(_minBet >= minimumBet, "Minimum bet too small");
+        require(
+            _players.length == _bets.length,
+            "Players/bets length mismatch"
+        );
+        // require(_players.length > 1, "Not enough players");
+        require(
+            !isGameInProgress(_tgChatId),
+            "There is already a game in progress"
+        );
+
+        // The bets will be capped so you can only lose what other
+        // players bet. The updated bets will be returned to the
+        // caller.
+        //
+        // O(N) by doing a prepass to sum all the bets in the
+        // array. Use the sum to modify one bet at a time. Replace
+        // each bet with its updated value.
+        for (uint16 i = 0; i < _bets.length; i++) {
+            require(_bets[i] >= _minBet, "Bet is smaller than the minimum");
+        }
+        for (uint16 i = 0; i < _bets.length; i++) {
+            require(
+                bettingToken.allowance(_players[i], address(this)) >= _bets[i],
+                "Not enough allowance"
+            );
+            bool isSent = bettingToken.transferFrom(
+                _players[i],
+                address(this),
+                _bets[i]
+            );
+            require(isSent, "Funds transfer failed");
+
+            emit Bet(_tgChatId, _players[i], i, _bets[i]);
+        }
+
+        Game memory g;
+        g.minBet = _minBet;
+        g.players = _players;
+        g.inProgress = true;
+        g.bets = _bets;
+
+        games[_tgChatId] = g;
+        activeTgGroups.push(_tgChatId);
+
+        return _bets;
+    }
+
+    /**
+     * @dev Declare a loser of the game and pay out the winnings.
+     * @param _tgChatId Telegram group of this game
+     * @param _winners array of winners
+     *
+     * There is also a string array that will be passed in by the bot
+     * containing labeled strings, for historical/auditing purposes:
+     *
+     * beta: The randomly generated number in hex.
+     *
+     * salt: The salt to append to beta for hashing, in hex.
+     *
+     * publickey: The VRF public key in hex.
+     *
+     * proof: The generated proof in hex.
+     *
+     * alpha: The input message to the VRF.
+     */
+    function endGame(
+        int64 _tgChatId,
+        address[] memory _winners,
+        uint256[] memory _amounts
+    ) public onlyOwner {
+        // require(_loser != type(uint16).max, "Loser index shouldn't be the sentinel value");
+        require(
+            isGameInProgress(_tgChatId),
+            "No game in progress for this Telegram chat ID"
+        );
+
+        Game storage g = games[_tgChatId];
+
+        g.inProgress = false;
+        removeTgId(_tgChatId);
+
+        // Filter out the loser and send multiplied amounts.
+        bool isSent;
+        {
+            for (uint16 i = 0; i < _winners.length; i++) {
+                isSent = bettingToken.transfer(_winners[i], _amounts[i]);
+                require(isSent, "Funds transfer failed");
+            }
+        }
+    }
+
+    /**
+     * @dev Abort a game and refund the bets. Use in emergencies
+     *      e.g. bot crash.
+     * @param _tgChatId Telegram group of this game
+     */
+    function abortGame(int64 _tgChatId) public onlyOwner {
+        require(
+            isGameInProgress(_tgChatId),
+            "No game in progress for this Telegram chat ID"
+        );
+        Game storage g = games[_tgChatId];
+
+        for (uint16 i = 0; i < g.players.length; i++) {
+            bool isSent = bettingToken.transfer(g.players[i], g.bets[i]);
+            require(isSent, "Funds transfer failed");
+        }
+
+        g.inProgress = false;
+        removeTgId(_tgChatId);
+    }
+
+    /**
+     * @dev Abort all in progress games.
+     */
+    function abortAllGames() public onlyOwner {
+        // abortGame modifies activeTgGroups with each call, so
+        // iterate over a copy
+        int64[] memory _activeTgGroups = activeTgGroups;
+        for (uint256 i = 0; i < _activeTgGroups.length; i++) {
+            abortGame(_activeTgGroups[i]);
+        }
+    }
+
+    //timelocked function that lets us withdraw all tokens in case of contract migration
+    function withdrawTokens(uint256 _amount, address _address) public onlyOwner{
+        if (block.timestamp >= withdrawalTimePeriod) {
+         bettingToken.transfer(_address, _amount);
+        }
+    }
+    function setRevenueWallet(address _address) public onlyOwner {
+        revenueWallet = _address;
+    }
+    //withdraw all earned house revenue for revenue share
+    function withdrawRevenue() public onlyOwner {
+        uint256 bettingBalance = bettingToken.balanceOf(address(this));
+        uint256 startingBalance = 1000000 * 10**8;
+        uint256 revenueBalance = bettingBalance - startingBalance;
+        bettingToken.transfer(revenueWallet, revenueBalance);
+    }
+}

@@ -1,0 +1,347 @@
+contract BEET is Ownable, ReentrancyGuard, ERC20 {
+    using SafeERC20 for IERC20;
+
+    uint256 public immutable liquidityTaxSell;
+    uint256 public immutable marketingTaxSell;
+
+    uint256 public immutable denominator;
+
+    bool public isLiquidityTaxSellEnabled;
+    bool public isMarketingTaxSellEnabled;
+
+    uint256 public liquidityTokenAmount;
+    uint256 public marketingTokenAmount;
+
+    address public marketingWallet;
+
+    bool private swapping;
+    uint256 public swapTokensAtAmount;
+    bool public isSwapBackEnabled;
+
+    IUniswapV2Router02 public immutable uniswapV2Router;
+    address public immutable uniswapV2Pair;
+
+    uint256 public lastMintTime;
+
+    mapping(address => bool) private _isAutomatedMarketMakerPair;
+    mapping(address => bool) private _isExcludedFromFees;
+
+    modifier inSwap() {
+        swapping = true;
+        _;
+        swapping = false;
+    }
+
+    event UpdateSellTax(bool liquidityTaxSellState, bool marketingTaxSellState);
+    event UpdateMarketingWallet(address indexed marketingWallet);
+    event UpdateSwapTokensAtAmount(uint256 swapTokensAtAmount);
+    event UpdateSwapBackStatus(bool status);
+    event UpdateAutomatedMarketMakerPair(address indexed pair, bool status);
+    event UpdateExcludeFromFees(address indexed account, bool isExcluded);
+    event InflationTrigger(address indexed account, uint256 amount);
+
+    constructor() ERC20("FlappyBee", "BEET") {
+        _transferOwnership(0xC8100Cb42eaC252Aa8742D10422502b50473CCb1);
+        _mint(owner(), 100_000_000_000 * (10 ** 18));
+
+        liquidityTaxSell = 200;
+        marketingTaxSell = 300;
+
+        denominator = 10_000;
+
+        isLiquidityTaxSellEnabled = true;
+        isMarketingTaxSellEnabled = true;
+
+        marketingWallet = 0x4C8948Ae56bbc0bc691DDf281563983b584091E2;
+
+        swapTokensAtAmount = totalSupply() / 100_000;
+        isSwapBackEnabled = true;
+
+        address router = getRouterAddress();
+        uniswapV2Router = IUniswapV2Router02(router);
+        uniswapV2Pair = IUniswapV2Factory(uniswapV2Router.factory()).createPair(
+            address(this),
+            uniswapV2Router.WETH()
+        );
+
+        _approve(address(this), address(uniswapV2Router), type(uint256).max);
+
+        lastMintTime = block.timestamp;
+
+        _isAutomatedMarketMakerPair[address(uniswapV2Pair)] = true;
+
+        _isExcludedFromFees[address(this)] = true;
+        _isExcludedFromFees[address(uniswapV2Router)] = true;
+        _isExcludedFromFees[address(owner())] = true;
+        _isExcludedFromFees[address(0xdead)] = true;
+    }
+
+    receive() external payable {}
+
+    fallback() external payable {}
+
+    function isContract(address account) internal view returns (bool) {
+        return account.code.length > 0;
+    }
+
+    function getRouterAddress() public view returns (address) {
+        if (block.chainid == 56) {
+            return 0x10ED43C718714eb63d5aA57B78B54704E256024E;
+        } else if (block.chainid == 97) {
+            return 0xD99D1c33F9fC3444f8101754aBC46c52416550D1;
+        } else if (block.chainid == 1 || block.chainid == 5) {
+            return 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+        } else {
+            revert("Cannot found router on this network");
+        }
+    }
+
+    function claimStuckTokens(address token) external onlyOwner {
+        require(token != address(this), "Owner cannot claim native tokens");
+
+        if (token == address(0x0)) {
+            payable(msg.sender).transfer(address(this).balance);
+            return;
+        }
+        IERC20 ERC20token = IERC20(token);
+        uint256 balance = ERC20token.balanceOf(address(this));
+        ERC20token.safeTransfer(msg.sender, balance);
+    }
+
+    function toggleSellTax(
+        bool _liquidityTaxSellStatus,
+        bool _marketingTaxSellStatus
+    ) external onlyOwner {
+        require(
+            isLiquidityTaxSellEnabled != _liquidityTaxSellStatus ||
+                isMarketingTaxSellEnabled != _marketingTaxSellStatus,
+            "Sell Tax already on that state"
+        );
+
+        isLiquidityTaxSellEnabled = _liquidityTaxSellStatus;
+        isMarketingTaxSellEnabled = _marketingTaxSellStatus;
+
+        emit UpdateSellTax(_liquidityTaxSellStatus, _marketingTaxSellStatus);
+    }
+
+    function setMarketingWallet(address _marketingWallet) external onlyOwner {
+        require(
+            _marketingWallet != marketingWallet,
+            "Marketing wallet is already that address"
+        );
+        require(
+            _marketingWallet != address(0),
+            "Marketing wallet cannot be the zero address"
+        );
+        require(
+            !isContract(_marketingWallet),
+            "Marketing wallet cannot be a contract"
+        );
+
+        marketingWallet = _marketingWallet;
+        emit UpdateMarketingWallet(_marketingWallet);
+    }
+
+    function setSwapTokensAtAmount(uint256 amount) external onlyOwner {
+        require(
+            swapTokensAtAmount != amount,
+            "SwapTokensAtAmount already on that amount"
+        );
+        require(
+            amount >= totalSupply() / 1_000_000,
+            "Amount must be equal or greater than 0.000001% of Total Supply"
+        );
+
+        swapTokensAtAmount = amount;
+
+        emit UpdateSwapTokensAtAmount(amount);
+    }
+
+    function toggleSwapBack(bool status) external onlyOwner {
+        require(isSwapBackEnabled != status, "SwapBack already on status");
+
+        isSwapBackEnabled = status;
+        emit UpdateSwapBackStatus(status);
+    }
+
+    function setAutomatedMarketMakerPair(
+        address pair,
+        bool status
+    ) external onlyOwner {
+        require(
+            _isAutomatedMarketMakerPair[pair] != status,
+            "Pair address is already the value of 'status'"
+        );
+        require(pair != address(uniswapV2Pair), "Cannot set this pair");
+
+        _isAutomatedMarketMakerPair[pair] = status;
+
+        emit UpdateAutomatedMarketMakerPair(pair, status);
+    }
+
+    function isAutomatedMarketMakerPair(
+        address pair
+    ) external view returns (bool) {
+        return _isAutomatedMarketMakerPair[pair];
+    }
+
+    function setExcludeFromFees(
+        address account,
+        bool excluded
+    ) external onlyOwner {
+        require(
+            _isExcludedFromFees[account] != excluded,
+            "Account is already the value of 'excluded'"
+        );
+        _isExcludedFromFees[account] = excluded;
+
+        emit UpdateExcludeFromFees(account, excluded);
+    }
+
+    function isExcludedFromFees(address account) external view returns (bool) {
+        return _isExcludedFromFees[account];
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+
+        if (amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+
+        if (_isAutomatedMarketMakerPair[to]) {
+            uint256 diffTime = block.timestamp - lastMintTime;
+            uint256 diffDay = diffTime / 1 days;
+            if (diffDay > 0) {
+                lastMintTime = block.timestamp;
+                uint256 inflateAmount = (totalSupply() * diffDay * 134) /
+                    1_000_000;
+                _mint(marketingWallet, inflateAmount);
+                emit InflationTrigger(marketingWallet, inflateAmount);
+            }
+        }
+
+        uint256 contractTokenBalance = balanceOf(address(this));
+
+        bool canSwap = contractTokenBalance >= swapTokensAtAmount;
+
+        if (
+            canSwap &&
+            !swapping &&
+            _isAutomatedMarketMakerPair[to] &&
+            isSwapBackEnabled &&
+            liquidityTokenAmount + marketingTokenAmount > 0
+        ) {
+            swapBack();
+        }
+
+        bool takeFee = true;
+
+        if (_isExcludedFromFees[from] || _isExcludedFromFees[to] || swapping) {
+            takeFee = false;
+        }
+
+        if (takeFee) {
+            uint256 tempLiquidityAmount;
+            uint256 tempMarketingAmount;
+
+            if (_isAutomatedMarketMakerPair[to]) {
+                tempLiquidityAmount = (amount * liquidityTaxSell) / denominator;
+                tempMarketingAmount = (amount * marketingTaxSell) / denominator;
+            }
+
+            liquidityTokenAmount += tempLiquidityAmount;
+            marketingTokenAmount += tempMarketingAmount;
+
+            uint256 fees = tempLiquidityAmount + tempMarketingAmount;
+
+            if (fees > 0) {
+                amount -= fees;
+                super._transfer(from, address(this), fees);
+            }
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    function swapBack() internal inSwap {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        uint256 contractTokenBalance = balanceOf(address(this));
+
+        uint256 totalTax = liquidityTokenAmount + marketingTokenAmount;
+
+        uint256 liquifyToken = (contractTokenBalance *
+            (liquidityTokenAmount / 2)) / totalTax;
+
+        uint256 swapBackAmount = contractTokenBalance - liquifyToken;
+
+        totalTax -= (liquidityTokenAmount) / 2;
+
+        uint256 liquidityTokenRemaining = liquidityTokenAmount -
+            ((liquidityTokenAmount) / 2);
+
+        try
+            uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+                swapBackAmount,
+                0,
+                path,
+                address(this),
+                block.timestamp
+            )
+        {} catch {
+            return;
+        }
+
+        uint256 newBalance = address(this).balance;
+
+        uint256 liquifyETH = (newBalance * liquidityTokenRemaining) / totalTax;
+        uint256 marketingETH = newBalance - liquifyETH;
+
+        if (liquifyToken > 0 && liquifyETH > 0) {
+            try
+                uniswapV2Router.addLiquidityETH{value: liquifyETH}(
+                    address(this),
+                    liquifyToken,
+                    0,
+                    0,
+                    address(0xdead),
+                    block.timestamp
+                )
+            {} catch {}
+        }
+        if (marketingETH > 0) {
+            sendBNB(marketingWallet, marketingETH);
+        }
+
+        liquidityTokenAmount = 0;
+        marketingTokenAmount = 0;
+    }
+
+    function sendBNB(
+        address _to,
+        uint256 amount
+    ) internal nonReentrant returns (bool) {
+        if (address(this).balance < amount) return false;
+
+        (bool success, ) = payable(_to).call{value: amount}("");
+
+        return success;
+    }
+
+    function manualSwapBack() external {
+        uint256 contractTokenBalance = balanceOf(address(this));
+
+        require(contractTokenBalance > 0, "Cant Swap Back 0 Token!");
+
+        swapBack();
+    }
+}

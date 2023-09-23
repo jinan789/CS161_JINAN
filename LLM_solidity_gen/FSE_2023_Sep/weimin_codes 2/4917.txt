@@ -1,0 +1,103 @@
+contract batchSender {
+    using SafeERC20 for ERC20;
+    event Multisended(uint256 total, address tokenAddress);
+
+    uint256 _arrayLimit = 200;
+
+    constructor() {}
+
+    modifier validInputs(address[] calldata to,uint256[] calldata balances) {
+        require(to.length <= arrayLimit());
+        require(to.length == balances.length, "Invalid inputs");
+        _;
+    }
+
+    function arrayLimit() public view returns (uint256) {
+        return _arrayLimit;
+    }
+
+    function multisendToken(
+        address token,
+        address[] calldata to,
+        uint256[] calldata balances
+    ) public validInputs(to, balances){
+        uint256 total = 0;
+        ERC20 erc20token = ERC20(token);
+        for (uint256 i = 0; i < to.length; ++i) {
+            erc20token.safeTransferFrom(
+                msg.sender,
+                to[i],
+                balances[i]
+            );
+            total += balances[i];
+        }
+
+        emit Multisended(total, token);
+    }
+
+    function multisendTokenWithPermit(
+        address token,
+        address[] calldata to,
+        uint256[] calldata balances,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s,
+        bool isDAI
+    ) external validInputs(to, balances){
+        // 1. approve
+        if (isDAI) {
+            IDAI(token).permit(
+                msg.sender,
+                address(this),
+                amount,
+                deadline,
+                true,
+                v,
+                r,
+                s
+            );
+        } else {
+            IERC20Permit(token).permit(
+                msg.sender,
+                address(this),
+                amount,
+                deadline,
+                v,
+                r,
+                s
+            );
+        }
+
+        // 2. transfer
+        multisendToken(token,to,balances);
+    }
+
+    function multisendEther(
+        address[] calldata to,
+        uint256[] calldata balances
+    ) external payable validInputs(to, balances){
+        uint256 totalSent = 0;
+        for (uint256 i = 0; i < balances.length; ++i) {
+            totalSent += balances[i];
+        }
+        require(
+            totalSent == msg.value,
+            "The amount sent by the user does not match the transfer amount."
+        );
+
+        for (uint256 i = 0; i < to.length; ++i) {
+            (bool success, ) = payable(to[i]).call{
+                value: balances[i]
+            }("");
+            require(success, "Failed to send Ether");
+        }
+
+        emit Multisended(msg.value, 0x0000000000000000000000000000000000000000);
+    }
+
+    receive() external payable {
+        revert("Directly transfer is not allowed");
+    }
+}

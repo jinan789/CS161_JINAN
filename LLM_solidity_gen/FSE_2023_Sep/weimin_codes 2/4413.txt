@@ -1,0 +1,51 @@
+contract ApepeLootMinter is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+    LootMainInterface public lootMain;
+    IERC721 public genesis;
+    IERC721 public zombie;
+
+    event ZombiePurged(address indexed owner, uint256 tokenId);
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _lootMain, address _genesis, address _zombie) public initializer {
+        __Ownable_init();
+        __UUPSUpgradeable_init();
+        lootMain = LootMainInterface(_lootMain);
+        genesis = IERC721(_genesis);
+        zombie = IERC721(_zombie);
+    }
+
+    function mint0(
+        uint256[] calldata _ids,
+        address _receivingAddress
+    ) external {
+        uint256 quantity = _ids.length;
+        for (uint256 i = 0; i < quantity; i++) {
+            uint256 tokenId = _ids[i];
+            require(
+                zombie.ownerOf(tokenId) == msg.sender,
+                "Caller does not own Zombie"
+            );
+            require( tokenId < 10000, "Mega Zombies cannot be purged." );
+            zombie.transferFrom(
+                msg.sender,
+                0x000000000000000000000000000000000000dEaD,
+                tokenId
+            );
+            emit ZombiePurged(msg.sender, tokenId);
+        }
+        lootMain.contractMint(
+            _receivingAddress == address(0) ? msg.sender : _receivingAddress,
+            0,
+            quantity
+        );
+    }
+
+    //require by upgradable contract
+    function _authorizeUpgrade(
+        address _newImplementation
+    ) internal override onlyOwner {}
+}

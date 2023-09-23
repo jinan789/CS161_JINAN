@@ -1,0 +1,248 @@
+contract Cpaytoday is Ownable {
+    using SafeERC20 for IERC20;
+
+    /// @notice fee per one account to transfer
+    uint256 private _feePerAccount = 100;
+
+    /// @notice fee decimals
+    uint256 private constant FEE_DECIMALS = 1000;
+
+    /// @notice precision decimals
+    uint256 private constant PRECISION = 1e18;
+
+    /// @notice additional feed precision
+    uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
+
+    ///@notice price feed address
+    AggregatorV3Interface private _priceFeed;
+
+    /// @notice owners wallet to transfer fee
+    address public ownerWallet;
+
+    /// @notice erc-20 token sending params
+    struct RecipientOfERC20 {
+        address account;
+        uint256 quantity;
+    }
+
+    /// @notice native token sending params
+    struct RecipientOfNativeToken {
+        address account;
+        uint256 quantity;
+    }
+
+    /// @notice 721 token sending params
+    struct RecipientOfERC721 {
+        address account;
+        uint256 id;
+    }
+
+    /// @notice 1155 token sending params
+    struct RecipientOfERC1155 {
+        address account;
+        uint256 id;
+        uint256 quantity;
+    }
+
+    /////////////////////
+    //      Errors     //
+    /////////////////////
+
+    /// @notice When not enough Fee from user
+    error NotEnoughFee();
+
+    /// @notice When failed to send native token
+    error SendNativeAssetsFailed();
+
+    /// @notice When passed zero address or quantity of "0"
+    error PassedZeroValueArguments();
+
+    /////////////////////
+    //      Events     //
+    /////////////////////
+
+    /// @notice Emitted when  ERC20 tokens are sent
+    event Erc20TokenSent(
+        address indexed token,
+        address indexed sender,
+        uint256 totalSent
+    );
+
+    /// @notice Emitted when native token sent
+    event NativeTokenSent(
+        address indexed sender,
+        uint256 totalSent,
+        uint256 refundAmount
+    );
+
+    /// @notice Emitted when NFT sent
+    event Erc721TokenSent(
+        address indexed token,
+        address indexed sender,
+        uint256[] tokenIds
+    );
+
+    /// @notice Emitted when 1155 tokens sent
+    event Erc1155TokenSent(
+        address indexed token,
+        address indexed sender,
+        uint256[] tokenIds
+    );
+
+    /// @notice Emitted when fee per account changed
+    event FeePerAccountChanged(address indexed operator, uint256 feePerAccount);
+
+    /// @notice Emitted when owner wallet changed
+    event OwnerWalletChanged(address wallet);
+
+    constructor(address priceFeedAddress)  {
+        _priceFeed = AggregatorV3Interface(priceFeedAddress);
+    }
+
+    /// @notice Sends erc20 tokens to the list of addresses
+    /// @param token Token to be distributed
+    /// @param users List of recipients
+    function multiSendErc20(
+        address token,
+        RecipientOfERC20[] calldata users
+    ) external payable {
+        uint256 totalSent;
+        uint userCount = users.length;
+        _takeFee(userCount);
+        for (uint256 i = 0; i < userCount; i++) {
+            if (users[i].account == address(0) || users[i].quantity == 0) {
+                revert PassedZeroValueArguments();
+            }
+
+            IERC20(token).safeTransferFrom(
+                msg.sender,
+                users[i].account,
+                users[i].quantity
+            );
+
+            totalSent += users[i].quantity;
+        }
+        emit Erc20TokenSent(token, msg.sender, totalSent);
+    }
+
+    /// @notice Sends native token to the list of addresses
+    /// @param users List of recipients
+    function multiSendNativeToken(
+        RecipientOfNativeToken[] calldata users
+    ) external payable {
+        uint256 totalSent;
+        uint userCount = users.length;
+        _takeFee(userCount);
+        for (uint256 i = 0; i < userCount; i++) {
+            if (users[i].account == address(0) || users[i].quantity == 0) {
+                revert PassedZeroValueArguments();
+            }
+            _safeTransferETH(users[i].account, users[i].quantity);
+            totalSent += users[i].quantity;
+        }
+        uint256 refund = address(this).balance;
+        if (refund > 0) {
+            _safeTransferETH(msg.sender, refund);
+        }
+        emit NativeTokenSent(msg.sender, totalSent, refund);
+    }
+
+    /// @notice Sends ERC-721 tokens to the list of addresses
+    /// @param token Token to be distributed
+    /// @param users List of recipients
+    function multiSendERC721(
+        IERC721 token,
+        RecipientOfERC721[] calldata users
+    ) external payable {
+        uint userCount = users.length;
+        _takeFee(userCount);
+        uint256[] memory _transferredTokenIds = new uint256[](userCount);
+        for (uint256 i = 0; i < userCount; i++) {
+            if (users[i].account == address(0)) {
+                revert PassedZeroValueArguments();
+            }
+            IERC721(token).safeTransferFrom(
+                msg.sender,
+                users[i].account,
+                users[i].id
+            );
+            _transferredTokenIds[i] = users[i].id;
+        }
+        emit Erc721TokenSent(address(token), msg.sender, _transferredTokenIds);
+    }
+
+    /// @notice Sends ERC-1155 tokens to the list of addresses
+    /// @param token Token to be distributed
+    /// @param users List of recipients
+    function multiSendERC1155(
+        IERC1155 token,
+        RecipientOfERC1155[] calldata users
+    ) external payable {
+        uint userCount = users.length;
+        _takeFee(userCount);
+        uint256[] memory transferredTokenIds = new uint256[](userCount);
+        for (uint256 i = 0; i < userCount; i++) {
+            if (users[i].account == address(0) || users[i].quantity == 0) {
+                revert PassedZeroValueArguments();
+            }
+            IERC1155(token).safeTransferFrom(
+                msg.sender,
+                users[i].account,
+                users[i].id,
+                users[i].quantity,
+                ""
+            );
+            transferredTokenIds[i] = users[i].id;
+        }
+        emit Erc1155TokenSent(address(token), msg.sender, transferredTokenIds);
+    }
+
+    ///@notice set fee per account to send
+    ///@param fee amount of fee
+    function setFeePerAccount(uint256 fee) external onlyOwner {
+        _feePerAccount = fee;
+        emit FeePerAccountChanged(msg.sender, _feePerAccount);
+    }
+
+    ///@notice set owners wallet
+    ///@param wallet owners wallet
+    function setOwnerWallet(address wallet) external onlyOwner {
+        ownerWallet = wallet;
+        emit OwnerWalletChanged(wallet);
+    }
+
+    ///@notice get fee per account to send
+    function getFeePerAccount() external view returns (uint256) {
+        return _feePerAccount;
+    }
+
+    ///@notice calculate required fee in eth from user count
+    function calculateFee(uint256 userCount) public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(
+            _priceFeed
+        );
+        (, int256 price, , , ) = priceFeed.latestRoundData();
+        
+    return (((_feePerAccount * userCount * PRECISION) / FEE_DECIMALS)) / ((uint256(price) * ADDITIONAL_FEED_PRECISION) / PRECISION);
+    }
+
+    ///@notice private function to make safe eth transfer
+    ///@param to address to send
+    ///@param value amount to send
+    function _safeTransferETH(address to, uint256 value) private {
+        (bool success, ) = to.call{value: value}("");
+        if (!success) {
+            revert SendNativeAssetsFailed();
+        }
+    }
+
+    ///@notice private function to calculate and take fee
+    ///@param userCount amount of users to send
+    function _takeFee(uint256 userCount) private {
+        uint256 value = calculateFee(userCount);
+        (bool success, ) = ownerWallet.call{value: value}("");
+        if (!success) {
+            revert SendNativeAssetsFailed();
+        }
+    }
+}

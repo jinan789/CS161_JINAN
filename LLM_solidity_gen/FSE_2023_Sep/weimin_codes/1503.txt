@@ -1,0 +1,357 @@
+contract RichMen is ERC20, Ownable {
+
+    mapping (address => bool) public exemptFromFees;
+    mapping (address => bool) public exemptFromLimits;
+
+    bool public tradingAllowed;
+
+    mapping (address => bool) public isAMMPair;
+
+    address public marketingAddress;
+    address public devAddress;
+
+    Taxes public buyTax;
+    Taxes public sellTax;
+
+    TokensForTax public tokensForTax;
+
+    mapping(address => uint256) private _holderLastTransferBlock; // MEV protection
+    bool public antiMevEnabled = true;
+
+    bool public limited = true;
+
+    uint256 public swapTokensAtAmt;
+
+    address public lpPair;
+    IDexRouter public dexRouter;
+    address public immutable WETH;
+
+    TxLimits public txLimits;
+
+    uint64 public constant FEE_DIVISOR = 10000;
+
+    // structs
+
+    struct TxLimits {
+        uint128 transactionLimit;
+        uint128 walletLimit;
+    }
+
+    struct Taxes {
+        uint64 marketingTax;
+        uint64 devTax;
+        uint64 liquidityTax;
+        uint64 totalTax;
+    }
+
+    struct TokensForTax {
+        uint80 tokensForMarketing;
+        uint80 tokensForLiquidity;
+        uint80 tokensForDev;
+        bool gasSaver;
+    }
+
+    // events
+
+    event UpdatedTransactionLimit(uint newMax);
+    event UpdatedWalletLimit(uint newMax);
+    event SetExemptFromFees(address _address, bool _isExempt);
+    event SetExemptFromLimits(address _address, bool _isExempt);
+    event RemovedLimits();
+    event UpdatedBuyTax(uint newAmt);
+    event UpdatedSellTax(uint newAmt);
+
+    // constructor
+
+    constructor()
+        ERC20("RichMenNorthOfRichmond", "RICH")
+    {   
+        _mint(msg.sender, 1_000_000_000 * 1e18);
+
+        address _v2Router;
+
+        // @dev assumes WETH pair
+        if(block.chainid == 1){
+            _v2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+        } else if(block.chainid == 5){
+            _v2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+        } else if(block.chainid == 97){
+            _v2Router = 0xD99D1c33F9fC3444f8101754aBC46c52416550D1;
+        } else if(block.chainid == 42161){
+            _v2Router = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
+        } else {
+            revert("Chain not configured");
+        }
+
+        dexRouter = IDexRouter(_v2Router);
+
+        txLimits.transactionLimit = uint128(totalSupply() * 10 / 1000);
+        txLimits.walletLimit = uint128(totalSupply() * 10 / 1000);
+        swapTokensAtAmt = totalSupply() * 25 / 100000;
+
+        marketingAddress = 0xE7DaCd227829484EEFD08A926F15739D2CB572e2; // update
+        devAddress = 0x54B2b5f1C88f65B76d715AA3BFA3482D675cC331; // update
+
+         // 1% = 100
+        buyTax.marketingTax = 1500;
+        buyTax.liquidityTax = 0;
+        buyTax.devTax = 500;
+        buyTax.totalTax = buyTax.marketingTax + buyTax.liquidityTax + buyTax.devTax;
+
+        sellTax.marketingTax = 4000;
+        sellTax.liquidityTax = 0;
+        sellTax.devTax = 500;
+        sellTax.totalTax = sellTax.marketingTax + sellTax.liquidityTax + sellTax.devTax;
+
+        tokensForTax.gasSaver = true;
+
+        WETH = dexRouter.WETH();
+        lpPair = IDexFactory(dexRouter.factory()).createPair(address(this), WETH);
+
+        isAMMPair[lpPair] = true;
+
+        exemptFromLimits[lpPair] = true;
+        exemptFromLimits[msg.sender] = true;
+        exemptFromLimits[address(this)] = true;
+
+        exemptFromFees[msg.sender] = true;
+        exemptFromFees[address(this)] = true;
+ 
+        _approve(address(this), address(dexRouter), type(uint256).max);
+        _approve(address(msg.sender), address(dexRouter), totalSupply());
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual override {
+        
+        if(!exemptFromFees[from] && !exemptFromFees[to]){
+            require(tradingAllowed, "Trading not active");
+            checkLimits(from, to, amount);
+            amount -= handleTax(from, to, amount);
+        }
+
+        super._transfer(from,to,amount);
+    }
+
+    function checkLimits(address from, address to, uint256 amount) internal {
+        if(limited){
+            bool exFromLimitsTo = exemptFromLimits[to];
+            uint256 balanceOfTo = balanceOf(to);
+            TxLimits memory _txLimits = txLimits;
+            // buy
+            if (isAMMPair[from] && !exFromLimitsTo) {
+                require(amount <= _txLimits.transactionLimit, "Max Txn");
+                require(amount + balanceOfTo <= _txLimits.walletLimit, "Max Wallet");
+            } 
+            // sell
+            else if (isAMMPair[to] && !exemptFromLimits[from]) {
+                require(amount <= _txLimits.transactionLimit, "Max Txn");
+            }
+            else if(!exFromLimitsTo) {
+                require(amount + balanceOfTo <= _txLimits.walletLimit, "Max Wallet");
+            }
+        }
+
+        if (antiMevEnabled){
+            if(isAMMPair[to]){
+                require(_holderLastTransferBlock[from] < block.number, "Anti MEV");
+            } else {
+                _holderLastTransferBlock[to] = block.number;
+                _holderLastTransferBlock[tx.origin] = block.number;
+            }
+        }
+    }
+
+    function handleTax(address from, address to, uint256 amount) internal returns (uint256){
+
+        if(balanceOf(address(this)) >= swapTokensAtAmt && !isAMMPair[from]) {
+            convertTaxes();
+        }
+        
+        uint128 tax = 0;
+
+        Taxes memory taxes;
+
+        if (isAMMPair[to]){
+            taxes = sellTax;
+        } else if(isAMMPair[from]){
+            taxes = buyTax;
+        }
+
+        if(taxes.totalTax > 0){
+            TokensForTax memory tokensForTaxUpdate = tokensForTax;
+            tax = uint128(amount * taxes.totalTax / FEE_DIVISOR);
+            tokensForTaxUpdate.tokensForLiquidity += uint80(tax * taxes.liquidityTax / taxes.totalTax / 1e9);
+            tokensForTaxUpdate.tokensForMarketing += uint80(tax * taxes.marketingTax / taxes.totalTax / 1e9);
+            tokensForTaxUpdate.tokensForDev += uint80(tax * taxes.devTax / taxes.totalTax / 1e9);
+            tokensForTax = tokensForTaxUpdate;
+            super._transfer(from, address(this), tax);
+        }
+        
+        return tax;
+    }
+
+    function swapTokensForETH(uint256 tokenAmt) private {
+
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = WETH;
+
+        dexRouter.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmt,
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
+    function convertTaxes() private {
+
+        uint256 contractBalance = balanceOf(address(this));
+        TokensForTax memory tokensForTaxMem = tokensForTax;
+        uint256 totalTokensToSwap = tokensForTaxMem.tokensForLiquidity + tokensForTaxMem.tokensForMarketing + tokensForTaxMem.tokensForDev;
+        
+        if(contractBalance == 0 || totalTokensToSwap == 0) {return;}
+
+        if(contractBalance > swapTokensAtAmt * 20){
+            contractBalance = swapTokensAtAmt * 20;
+        }
+
+        if(tokensForTaxMem.tokensForLiquidity > 0){
+            uint256 liquidityTokens = contractBalance * tokensForTaxMem.tokensForLiquidity / totalTokensToSwap;
+            super._transfer(address(this), lpPair, liquidityTokens);
+            try ILpPair(lpPair).sync(){} catch {}
+            contractBalance -= liquidityTokens;
+            totalTokensToSwap -= tokensForTaxMem.tokensForLiquidity;
+        }
+
+        if(contractBalance > 0){
+
+            swapTokensForETH(contractBalance);
+            
+            uint256 ethBalance = address(this).balance;
+
+            bool success;
+
+            if(tokensForTaxMem.tokensForDev > 0){
+                (success,) = devAddress.call{value: ethBalance * tokensForTaxMem.tokensForDev / totalTokensToSwap}("");  
+            }
+
+            ethBalance = address(this).balance;
+
+            if(ethBalance > 0){
+                (success,) = marketingAddress.call{value: ethBalance}("");  
+            }
+        }
+
+        tokensForTaxMem.tokensForLiquidity = 0;
+        tokensForTaxMem.tokensForMarketing = 0;
+        tokensForTaxMem.tokensForDev = 0;
+
+        tokensForTax = tokensForTaxMem;
+    }
+
+    // owner functions
+    function setExemptFromFee(address _address, bool _isExempt) external onlyOwner {
+        require(_address != address(0), "Zero Address");
+        require(_address != address(this), "Cannot unexempt contract");
+        exemptFromFees[_address] = _isExempt;
+        emit SetExemptFromFees(_address, _isExempt);
+    }
+
+    function setExemptFromLimit(address _address, bool _isExempt) external onlyOwner {
+        require(_address != address(0), "Zero Address");
+        if(!_isExempt){
+            require(_address != lpPair, "Cannot remove pair");
+        }
+        exemptFromLimits[_address] = _isExempt;
+        emit SetExemptFromLimits(_address, _isExempt);
+    }
+
+    function updateTransactionLimit(uint128 newNumInTokens) external onlyOwner {
+        require(newNumInTokens >= (totalSupply() * 1 / 1000)/(10**decimals()), "Too low");
+        txLimits.transactionLimit = uint128(newNumInTokens * (10**decimals()));
+        emit UpdatedTransactionLimit(txLimits.transactionLimit);
+    }
+
+    function updateWalletLimit(uint128 newNumInTokens) external onlyOwner {
+        require(newNumInTokens >= (totalSupply() * 1 / 1000)/(10**decimals()), "Too low");
+        txLimits.walletLimit = uint128(newNumInTokens * (10**decimals()));
+        emit UpdatedWalletLimit(txLimits.walletLimit);
+    }
+
+    function updateSwapTokensAmt(uint256 newAmount) external onlyOwner {
+        require(newAmount >= (totalSupply() * 1) / 100000, "Swap amount cannot be lower than 0.001% total supply.");
+        require(newAmount <= (totalSupply() * 5) / 1000, "Swap amount cannot be higher than 0.5% total supply.");
+        swapTokensAtAmt = newAmount;
+    }
+
+    function updateBuyTax(uint64 _marketingTax, uint64 _liquidityTax, uint64 _devTax) external onlyOwner {
+        Taxes memory taxes;
+        taxes.marketingTax = _marketingTax;
+        taxes.liquidityTax = _liquidityTax;
+        taxes.devTax = _devTax;
+        taxes.totalTax = _marketingTax + _liquidityTax + _devTax;
+        require(taxes.totalTax  <= 1000, "Keep tax below 10%");
+        emit UpdatedBuyTax(taxes.totalTax);
+        buyTax = taxes;
+    }
+
+    function updateSellTax(uint64 _marketingTax, uint64 _liquidityTax, uint64 _devTax) external onlyOwner {
+        Taxes memory taxes;
+        taxes.marketingTax = _marketingTax;
+        taxes.liquidityTax = _liquidityTax;
+        taxes.devTax = _devTax;
+        taxes.totalTax = _marketingTax + _liquidityTax + _devTax;
+        require(taxes.totalTax  <= 1000, "Keep tax below 10%");
+        emit UpdatedSellTax(taxes.totalTax);
+        sellTax = taxes;
+    }
+
+    function enableTrading() external onlyOwner {
+        tradingAllowed = true;
+    }
+
+    function removeLimits() external onlyOwner {
+        limited = false;
+        TxLimits memory _txLimits;
+        uint256 supply = totalSupply();
+        _txLimits.transactionLimit = uint128(supply);
+        _txLimits.walletLimit = uint128(supply);
+        txLimits = _txLimits;
+        emit RemovedLimits();
+    }
+
+    function updateMevBlockerEnabled(bool _enabled) external onlyOwner {
+        antiMevEnabled = _enabled;
+    }
+
+    function airdropToWallets(address[] calldata wallets, uint256[] calldata amountsInWei) external onlyOwner {
+        require(wallets.length == amountsInWei.length, "arrays length mismatch");
+        for(uint256 i = 0; i < wallets.length; i++){
+            super._transfer(msg.sender, wallets[i], amountsInWei[i]);
+        }
+    }
+
+    function rescueTokens(address _token, address _to) external onlyOwner {
+        require(_token != address(0), "_token address cannot be 0");
+        uint256 _contractBalance = IERC20(_token).balanceOf(address(this));
+        SafeERC20.safeTransfer(IERC20(_token),_to, _contractBalance);
+    }
+
+    function updateMarketingAddress(address _address) external onlyOwner {
+        require(_address != address(0), "zero address");
+        marketingAddress = _address;
+    }
+
+    function updateDevAddress(address _address) external onlyOwner {
+        require(_address != address(0), "zero address");
+        devAddress = _address;
+    }
+
+    receive() payable external {}
+}

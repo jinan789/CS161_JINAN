@@ -1,0 +1,388 @@
+contract XWojak is ERC20, Ownable {
+    using SafeMath for uint256;
+
+    IUniswapV2Router02 public immutable uniswapV2Router;
+    address public immutable uniswapV2Pair;
+
+    bool private swapping;
+
+    address public devWallet;
+    address public swapToken; 
+    address public daoWallet;
+
+    uint256 public maxTransactionAmount;
+    uint256 public swapTokensAtAmount;
+    uint256 public maxWallet;
+
+    bool public limitsInEffect = true;
+    bool public tradingActive = false;
+    bool public swapEnabled = false;
+
+    uint256 public buyTotalFees;
+    uint256 public buyMMWFee;
+    uint256 public buyMarketingFee;
+    uint256 public buyBurnFee;
+
+    uint256 public sellTotalFees;
+    uint256 public sellMMWFee;
+    uint256 public sellMarketingFee;
+    uint256 public sellBurnFee;
+
+	uint256 public tokensForMMW;
+    uint256 public tokensForMarketing;
+    uint256 public burnFees;
+    uint256 public tokensBurnt;
+
+    // exclude from fees and max transaction amount
+    mapping(address => bool) private _isExcludedFromFees;
+    mapping(address => bool) public _isExcludedMaxTransactionAmount;
+
+    // store addresses that a automatic market maker pairs. Any transfer *to* these addresses
+    // could be subject to a maximum transfer amount
+    mapping(address => bool) public automatedMarketMakerPairs;
+
+    event ExcludeFromFees(address indexed account, bool isExcluded);
+
+    event SetAutomatedMarketMakerPair(address indexed pair, bool indexed value);
+
+    event SwapAndLiquify(
+        uint256 tokensSwapped,
+        uint256 ethReceived,
+        uint256 tokensIntoMMW
+    );
+
+    constructor() ERC20("Magic Money Wojak", "XWojak") {
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
+            0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+        );
+
+        excludeFromMaxTransaction(address(_uniswapV2Router), true);
+        uniswapV2Router = _uniswapV2Router;
+
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+            .createPair(address(this), _uniswapV2Router.WETH());
+        excludeFromMaxTransaction(address(uniswapV2Pair), true);
+        _setAutomatedMarketMakerPair(address(uniswapV2Pair), true);
+
+        uint256 _buyMMWFee = 10;
+        uint256 _buyMarketingFee = 10;
+        uint256 _buyBurnFee = 0;
+
+        uint256 _sellMMWFee = 10;
+        uint256 _sellMarketingFee = 20;
+        uint256 _sellBurnFee = 0;
+
+        uint256 totalSupply = 1 * 1e9 * 1e18;
+
+        maxTransactionAmount = 2 * 1e7 * 1e18; 
+        maxWallet = 2 * 1e7 * 1e18; 
+        swapTokensAtAmount = (totalSupply * 10) / 10000; 
+
+        buyMMWFee = _buyMMWFee;
+        buyMarketingFee = _buyMarketingFee;
+        buyBurnFee = _buyBurnFee;
+        buyTotalFees = buyMMWFee + buyMarketingFee + buyBurnFee;
+
+        sellMMWFee = _sellMMWFee;
+        sellMarketingFee = _sellMarketingFee;
+        sellBurnFee = _sellBurnFee;
+        sellTotalFees = sellMMWFee + sellMarketingFee + sellBurnFee;
+
+        devWallet = address(0x7988B7C6089ce811d1aecd409e859598c29c66f8); 
+        swapToken = address(0x7988B7C6089ce811d1aecd409e859598c29c66f8); // MMW DAO Token
+        daoWallet = address(0x7988B7C6089ce811d1aecd409e859598c29c66f8);
+        
+        // exclude from paying fees or having max transaction amount
+        excludeFromFees(owner(), true);
+        excludeFromFees(address(this), true);
+        excludeFromFees(address(0xdead), true);
+
+        excludeFromMaxTransaction(owner(), true);
+        excludeFromMaxTransaction(address(this), true);
+        excludeFromMaxTransaction(address(0xdead), true);
+
+        _mint(msg.sender, totalSupply);
+    }
+
+    receive() external payable {}
+
+    // once enabled, can never be turned off
+    function enableTrading() external onlyOwner {
+        tradingActive = true;
+        swapEnabled = true;
+    }
+
+    function updateFees(uint256 _buyMMWFee, uint256 _buyMarketingFee, uint256 _buyBurnFee, uint256 _sellMMWFee, uint256 _sellMarketingFee, uint256 _sellBurnFee) external onlyOwner {
+        buyMMWFee = _buyMMWFee;
+        buyMarketingFee = _buyMarketingFee;
+        buyBurnFee = _buyBurnFee;
+        buyTotalFees = buyMMWFee + buyMarketingFee + buyBurnFee;
+
+        sellMMWFee = _sellMMWFee;
+        sellMarketingFee = _sellMarketingFee;
+        sellBurnFee = _sellBurnFee;
+        sellTotalFees = sellMMWFee + sellMarketingFee + sellBurnFee;
+    } 
+
+    function updateswapTokenAddress(address _swapToken) external onlyOwner {
+        swapToken = _swapToken;
+    }
+
+    function removeLimits() external onlyOwner returns (bool) {
+        limitsInEffect = false;
+        return true;
+    }
+
+    // change the minimum amount of tokens to sell from fees
+    function updateSwapTokensAtAmount(uint256 newAmount)
+        external
+        onlyOwner
+        returns (bool)
+    {
+        require(
+            newAmount >= (totalSupply() * 1) / 100000,
+            "Swap amount cannot be lower than 0.001% total supply."
+        );
+        require(
+            newAmount <= (totalSupply() * 5) / 1000,
+            "Swap amount cannot be higher than 0.5% total supply."
+        );
+        swapTokensAtAmount = newAmount;
+        return true;
+    }
+	
+    function excludeFromMaxTransaction(address updAds, bool isEx)
+        public
+        onlyOwner
+    {
+        _isExcludedMaxTransactionAmount[updAds] = isEx;
+    }
+
+    // only use to disable contract sales if absolutely necessary (emergency use only)
+    function updateSwapEnabled(bool enabled) external onlyOwner {
+        swapEnabled = enabled;
+    }
+
+    function excludeFromFees(address account, bool excluded) public onlyOwner {
+        _isExcludedFromFees[account] = excluded;
+        emit ExcludeFromFees(account, excluded);
+    }
+
+    function setAutomatedMarketMakerPair(address pair, bool value)
+        public
+        onlyOwner
+    {
+        require(
+            pair != uniswapV2Pair,
+            "The pair cannot be removed from automatedMarketMakerPairs"
+        );
+
+        _setAutomatedMarketMakerPair(pair, value);
+    }
+
+    function _setAutomatedMarketMakerPair(address pair, bool value) private {
+        automatedMarketMakerPairs[pair] = value;
+
+        emit SetAutomatedMarketMakerPair(pair, value);
+    }
+
+    function isExcludedFromFees(address account) public view returns (bool) {
+        return _isExcludedFromFees[account];
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+
+        if (amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+
+        if (limitsInEffect) {
+            if (
+                from != owner() &&
+                to != owner() &&
+                to != address(0) &&
+                to != address(0xdead) &&
+                !swapping
+            ) {
+                if (!tradingActive) {
+                    require(
+                        _isExcludedFromFees[from] || _isExcludedFromFees[to],
+                        "Trading is not active."
+                    );
+                }
+
+                //when buy
+                if (
+                    automatedMarketMakerPairs[from] &&
+                    !_isExcludedMaxTransactionAmount[to]
+                ) {
+                    require(
+                        amount <= maxTransactionAmount,
+                        "Buy transfer amount exceeds the maxTransactionAmount."
+                    );
+                    require(
+                        amount + balanceOf(to) <= maxWallet,
+                        "Max wallet exceeded"
+                    );
+                }
+                //when sell
+                else if (
+                    automatedMarketMakerPairs[to] &&
+                    !_isExcludedMaxTransactionAmount[from]
+                ) {
+                    require(
+                        amount <= maxTransactionAmount,
+                        "Sell transfer amount exceeds the maxTransactionAmount."
+                    );
+                } else if (!_isExcludedMaxTransactionAmount[to]) {
+                    require(
+                        amount + balanceOf(to) <= maxWallet,
+                        "Max wallet exceeded"
+                    );
+                }
+            }
+        }
+
+        uint256 contractTokenBalance = balanceOf(address(this));
+
+        bool canSwap = contractTokenBalance >= swapTokensAtAmount;
+
+        if (
+            canSwap &&
+            swapEnabled &&
+            !swapping &&
+            !automatedMarketMakerPairs[from] &&
+            !_isExcludedFromFees[from] &&
+            !_isExcludedFromFees[to]
+        ) {
+            swapping = true;
+            swapBack();
+
+            swapping = false;
+        }
+
+        bool takeFee = !swapping;
+
+        // if any account belongs to _isExcludedFromFee account then remove the fee
+        if (_isExcludedFromFees[from] || _isExcludedFromFees[to]) {
+            takeFee = false;
+        }
+
+        uint256 fees = 0;
+
+        // only take fees on buys/sells, do not take on wallet transfers
+        if (takeFee) {
+            // on sell
+            if (automatedMarketMakerPairs[to] && sellTotalFees > 0) {
+                fees = amount.mul(sellTotalFees).div(100);
+                tokensForMMW += (fees * sellMMWFee) / sellTotalFees;
+                tokensForMarketing += (fees * sellMarketingFee) / sellTotalFees;  
+                burnFees = (fees * sellBurnFee) / sellTotalFees;  
+            }
+            // on buy
+            else if (automatedMarketMakerPairs[from] && buyTotalFees > 0) {
+                fees = amount.mul(buyTotalFees).div(100);
+                tokensForMMW += (fees * buyMMWFee) / buyTotalFees;
+                tokensForMarketing += (fees * buyMarketingFee) / buyTotalFees;
+                burnFees = (fees * buyBurnFee) / buyTotalFees; 
+            }
+            
+            if (fees > 0) {
+                
+                super._transfer(from, address(this), fees.sub(burnFees));
+                if(burnFees > 0) {
+                    super._transfer(from, address(0xdead), burnFees);
+                    // _totalSupply -= burnFees;
+                    tokensBurnt += burnFees;
+                }
+            }
+            
+            amount -= fees;
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    function swapTokensForEth(uint256 tokenAmount) private {
+        // generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        // make the swap
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // accept any amount of ETH
+            path,
+            address(this),
+            block.timestamp
+        );
+
+    }
+
+    function burnEthForMMW(uint256 ethAmount) private {
+        // generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = uniswapV2Router.WETH(); 
+        path[1] = swapToken;
+
+        // make the swap
+        uniswapV2Router.swapExactETHForTokens{value: ethAmount}(
+            0,
+            path,
+            daoWallet,
+            block.timestamp
+        );
+
+    }
+
+    function updateMarketingWallet(address newMarketingWallet)
+        external
+        onlyOwner
+    {
+    }
+
+    function swapBack() private {
+        uint256 contractBalance = balanceOf(address(this));
+        uint256 totalTokensToSwap = tokensForMMW + tokensForMarketing;
+        bool success;
+
+        if (contractBalance == 0 || totalTokensToSwap == 0) {
+            return;
+        }
+
+        if (contractBalance > swapTokensAtAmount * 20) {
+            contractBalance = swapTokensAtAmount * 20;
+        }
+
+        uint256 amountToSwapForETH = contractBalance;
+
+        uint256 initialETHBalance = address(this).balance;
+
+        swapTokensForEth(amountToSwapForETH);
+
+        uint256 ethBalance = address(this).balance.sub(initialETHBalance);
+
+        uint256 ethForMarketing = ethBalance.mul(tokensForMarketing).div(totalTokensToSwap);
+
+        uint256 ethForMMW = ethBalance - ethForMarketing;
+
+        burnEthForMMW(ethForMMW);
+
+        tokensForMMW = 0;
+        tokensForMarketing = 0;
+
+        //there will be no leftover eth in the contract 
+        (success, ) = address(devWallet).call{value: address(this).balance}("");
+    }
+
+}

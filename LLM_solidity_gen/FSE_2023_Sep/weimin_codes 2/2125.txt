@@ -1,0 +1,81 @@
+contract EmblemVault is NFTokenEnumerableMetadata, Clonable, ERC2981Royalties {
+  address payable public streamAddress;
+  function initialize() public override initializer {
+    __Ownable_init();
+    nftName = "Emblem Vault V2";
+    nftSymbol = "Emblem.pro";
+    _registerInterface(0x5b5e139f); // ERC721Metadata
+    _registerInterface(0x780e9d63); // ERC721Enumerable
+    _registerInterface(0x80ac58cd); // ERC721
+    _registerInterface(0x2a55205a); // ERC2981
+    initializeERC165();
+    streamAddress = payable(address(new Stream()));
+    Stream(streamAddress).initialize();
+    OwnableUpgradeable(streamAddress).transferOwnership(_msgSender());
+    isClaimable = true;
+    // __OperatorFilterer_init(0x9dC5EE2D52d014f8b81D662FA8f4CA525F27cD6b, true);
+  }
+
+  // function upgrade() public initializer {
+  //   __OperatorFilterer_init(0x9dC5EE2D52d014f8b81D662FA8f4CA525F27cD6b, true);
+  // }
+
+  function updateStreamAddress(address _streamAddress) public onlyOwner {
+    streamAddress = payable(_streamAddress);
+  }
+  
+  function changeName(string calldata _name, string calldata _symbol) public onlyOwner {
+      nftName = _name;
+      nftSymbol = _symbol;
+  }
+
+  /**
+   * @dev Mints a new NFT.
+   * @param _to The address that will own the minted NFT.
+   * @param _tokenId of the NFT to be minted by the msg.sender.
+   * @param _uri String representing RFC 3986 URI.
+   */
+  function mint( address _to, uint256 _tokenId, string calldata _uri, string calldata _payload) public onlyOwner {
+    super._mint(_to, _tokenId);
+    super._setTokenUri(_tokenId, _uri);
+    super._setTokenPayload(_tokenId, _payload);
+    if (registeredOfType[3].length > 0 && registeredOfType[3][0] == _msgSender()) {
+      IHandlerCallback(_msgSender()).executeCallbacks(address(0), _to, _tokenId, IHandlerCallback.CallbackType.MINT);  
+    }
+  }
+  
+  function burn(uint256 _tokenId) external canTransfer(_tokenId) {
+    super._burn(_tokenId);
+    if (registeredOfType[3].length > 0 && registeredOfType[3][0] != address(0)) {
+      IHandlerCallback(registeredOfType[3][0]).executeCallbacks(_msgSender(), address(0), _tokenId, IHandlerCallback.CallbackType.BURN);
+    }
+  }
+  
+  function contractURI() public view returns (string memory) {
+    return nftContractMetadataUri;
+  }
+  
+  event UpdatedContractURI(string _from, string _to);
+  function updateContractURI(string memory uri) public onlyOwner {
+    emit UpdatedContractURI(nftContractMetadataUri, uri);
+    nftContractMetadataUri = uri;
+  }
+  
+  function getOwnerNFTCount(address _owner) public view returns (uint256) {
+      return NFTokenEnumerableMetadata._getOwnerNFTCount(_owner);
+  }
+  
+  function updateTokenUri(
+    uint256 _tokenId,
+    string memory _uri
+  )
+    public
+    validNFToken(_tokenId)
+    onlyOwner
+  {
+    idToUri[_tokenId] = _uri;
+  }
+  
+  
+
+}

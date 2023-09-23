@@ -1,0 +1,406 @@
+contract Vitalik is IERC20, Auth {
+    using SafeMath for uint256;
+
+    address public ETHEREUM = 0xDC5E9445169C73Cf21e1da0B270e8433caC69959; //Ethereum(科太币) 
+    string private constant _name = unicode'Vitalik';
+    string private constant _symbol = unicode'維塔利克';
+    uint8 private constant _decimals = 9;
+
+    uint256 private _totalSupply = 420690000000000 * (10**_decimals);
+
+    mapping(address => uint256) private _balances;
+    mapping(address => mapping(address => uint256)) private _allowances;
+    mapping(address => uint256) private cooldown;
+
+    address private WETH;
+    address DEAD = 0x000000000000000000000000000000000000dEaD;
+    address ZERO = 0x0000000000000000000000000000000000000000;
+
+    mapping(address => bool) public isFeeExempt;
+    mapping(address => bool) public isTxLimitExempt;
+    mapping(address => bool) public isDividendExempt;
+
+    address public lpWallet = msg.sender;
+
+    uint256 public buyFee = 5;
+    uint256 public sellFee = 5;
+
+    uint256 public toReflections = 60;
+    uint256 public toMarketing = 40;
+
+    uint256 public allocationSum = 100;
+
+    IDEXRouter public router;
+    address public pair;
+    address public factory;
+    address private tokenOwner;
+    address public devWallet;
+
+    bool inSwapAndLiquify;
+    bool public swapAndLiquifyEnabled = true;
+    bool public tradingOpen = false;
+
+    RewardsDividends public rewards;
+    uint256 public rewardsGas = 0;
+
+    modifier lockTheSwap() {
+        inSwapAndLiquify = true;
+        _;
+        inSwapAndLiquify = false;
+    }
+
+    uint256 public maxTx = _totalSupply * 3 / 100;
+    uint256 public maxWallet = _totalSupply * 3 / 100;
+    uint256 public swapThreshold = _totalSupply * 1 / 1000;
+
+    constructor(address _owner) Auth(_owner) {
+        devWallet = payable(_owner);
+
+        router = IDEXRouter(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+
+        WETH = router.WETH();
+
+        pair = IDEXFactory(router.factory()).createPair(WETH, address(this));
+
+        _allowances[address(this)][address(router)] = type(uint256).max;
+
+        rewards = new RewardsDividends();
+
+        isFeeExempt[_owner] = true;
+        isFeeExempt[devWallet] = true;
+
+        isDividendExempt[pair] = true;
+        isDividendExempt[address(this)] = true;
+        isDividendExempt[DEAD] = true;
+
+        isTxLimitExempt[_owner] = true;
+        isTxLimitExempt[pair] = true;
+        isTxLimitExempt[DEAD] = true;
+        isTxLimitExempt[devWallet] = true;
+
+        _balances[_owner] = _totalSupply;
+
+        emit Transfer(address(0), _owner, _totalSupply);
+    }
+
+    receive() external payable {}
+
+    //higher buy and sell tax at Launch
+    function enableTrading() external onlyOwner {
+        tradingOpen = true;
+        buyFee = 20;
+        sellFee = 30;
+        toReflections = 25;
+        toMarketing = 75;
+    }
+
+    function changeTotalFees(uint256 newBuyFee, uint256 newSellFee)
+        external
+        onlyOwner
+    {
+        buyFee = newBuyFee;
+        sellFee = newSellFee;
+
+        require(buyFee <= 10, "too high");
+        require(sellFee <= 30, "too high");
+    }
+
+    function changeFeeAllocation(uint256 newRewardFee, uint256 newMarketingFee)
+        external
+        onlyOwner
+    {
+        toReflections = newRewardFee;
+        toMarketing = newMarketingFee;
+    }
+
+    function changeTxLimit(uint256 amountPercent) external onlyOwner {
+        require(maxTx >= 1, "must be more then 1%"); 
+        maxTx = (_totalSupply * amountPercent ) / 100;
+    }
+
+    function setWalletLimit(uint256 amountPercent) external onlyOwner {
+        require(maxWallet >= 1, "must be more then 1%");
+        maxWallet = (_totalSupply * amountPercent ) / 100;
+    }
+
+    function changeIsFeeExempt(address holder, bool exempt) external onlyOwner {
+        isFeeExempt[holder] = exempt;
+    }
+
+    function changeIsTxLimitExempt(address holder, bool exempt)
+        external
+        onlyOwner
+    {
+        isTxLimitExempt[holder] = exempt;
+    }
+
+    function setDevWallet(address payable newDevWallet) external onlyOwner {
+        devWallet = payable(newDevWallet);
+    }
+
+    function setOwnerWallet(address payable newOwnerWallet) external onlyOwner {
+        tokenOwner = newOwnerWallet;
+    }
+
+    function changeSwapBackSettings(
+        bool enableSwapBack,
+        uint256 newSwapBackLimit
+    ) external onlyOwner {
+        swapAndLiquifyEnabled = enableSwapBack;
+        swapThreshold = newSwapBackLimit;
+    }
+
+    function setDistributionCriteria(
+        uint256 newMinPeriod,
+        uint256 newMinDistribution
+    ) external onlyOwner {
+        rewards.setDistributionCriteria(newMinPeriod, newMinDistribution);
+    }
+
+    function _setIsDividendExempt(address holder, bool exempt) internal {
+        require(holder != address(this) && holder != pair);
+        isDividendExempt[holder] = exempt;
+        if (exempt) {
+            rewards.setShare(holder, 0);
+        } else {
+            rewards.setShare(holder, _balances[holder]);
+        }
+    }
+
+    function setIsDividendExempt(address holder, bool exempt)
+        external
+        onlyOwner
+    {
+        _setIsDividendExempt(holder, exempt);
+    }
+
+    function changeRewardsGas(uint256 newGas) external onlyOwner {
+        rewardsGas = newGas;
+    }
+
+    function getCirculatingSupply() public view returns (uint256) {
+        return _totalSupply.sub(balanceOf(DEAD)).sub(balanceOf(ZERO));
+    }
+
+    function totalSupply() external view override returns (uint256) {
+        return _totalSupply;
+    }
+
+    function decimals() external pure override returns (uint8) {
+        return _decimals;
+    }
+
+    function symbol() external pure override returns (string memory) {
+        return _symbol;
+    }
+
+    function name() external pure override returns (string memory) {
+        return _name;
+    }
+
+    function getOwner() external view override returns (address) {
+        return owner;
+    }
+
+    function balanceOf(address account) public view override returns (uint256) {
+        return _balances[account];
+    }
+
+    function allowance(address holder, address spender)
+        external
+        view
+        override
+        returns (uint256)
+    {
+        return _allowances[holder][spender];
+    }
+
+    function approve(address spender, uint256 amount)
+        public
+        override
+        returns (bool)
+    {
+        _allowances[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true;
+    }
+
+    function approveMax(address spender) external returns (bool) {
+        return approve(spender, type(uint256).max);
+    }
+
+    function transfer(address recipient, uint256 amount)
+        external
+        override
+        returns (bool)
+    {
+        return _transfer(msg.sender, recipient, amount);
+    }
+
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external override returns (bool) {
+        if (_allowances[sender][msg.sender] != type(uint256).max) {
+            _allowances[sender][msg.sender] = _allowances[sender][msg.sender]
+                .sub(amount, "Insufficient Allowance");
+        }
+
+        return _transfer(sender, recipient, amount);
+    }
+
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal returns (bool) {
+        if (sender != owner && recipient != owner)
+            require(tradingOpen, "hold ur horses big guy."); //transfers disabled before tradingActive
+
+        if (inSwapAndLiquify) {
+            return _basicTransfer(sender, recipient, amount);
+        }
+
+        require(amount <= maxTx || isTxLimitExempt[sender], "tx");
+
+
+
+        if (!isTxLimitExempt[recipient]) {
+            require(_balances[recipient].add(amount) <= maxWallet, "wallet");
+        }
+
+        if (
+            msg.sender != pair &&
+            !inSwapAndLiquify &&
+            swapAndLiquifyEnabled &&
+            _balances[address(this)] >= swapThreshold
+        ) {
+            swapBack();
+        }
+
+        _balances[sender] = _balances[sender].sub(
+            amount,
+            "Insufficient Balance"
+        );
+
+        uint256 finalAmount = !isFeeExempt[sender] && !isFeeExempt[recipient]
+            ? takeFee(sender, recipient, amount)
+            : amount;
+        _balances[recipient] = _balances[recipient].add(finalAmount);
+
+        // Dividend tracker
+        if (!isDividendExempt[sender]) {
+            try rewards.setShare(sender, _balances[sender]) {} catch {}
+        }
+
+        if (!isDividendExempt[recipient]) {
+            try rewards.setShare(recipient, _balances[recipient]) {} catch {}
+        }
+
+        emit Transfer(sender, recipient, finalAmount);
+        return true;
+    }
+
+    function _basicTransfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal returns (bool) {
+        _balances[sender] = _balances[sender].sub(
+            amount,
+            "Insufficient Balance"
+        );
+        _balances[recipient] = _balances[recipient].add(amount);
+        emit Transfer(sender, recipient, amount);
+        return true;
+    }
+
+    function takeFee(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal returns (uint256) {
+        uint256 feeApplicable = pair == recipient ? sellFee : buyFee;
+        uint256 feeAmount = amount.mul(feeApplicable).div(100);
+
+        _balances[address(this)] = _balances[address(this)].add(feeAmount);
+        emit Transfer(sender, address(this), feeAmount);
+
+        return amount.sub(feeAmount);
+    }
+
+    function swapTokensForEth(uint256 tokenAmount) private {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = router.WETH();
+
+        approve(address(this), tokenAmount);
+
+        router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // accept any amount of ETH
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
+    function addLiquidity(uint256 tokenAmount, uint256 ethAmount) private {
+        router.addLiquidityETH{value: ethAmount}(
+            address(this),
+            tokenAmount,
+            0,
+            0,
+            lpWallet,
+            block.timestamp
+        );
+    }
+
+    function swapBack() internal lockTheSwap {
+        swapTokensForEth(_balances[address(this)]);
+
+        uint256 totalEthBalance = address(this).balance;
+
+        uint256 ethForEthereum = totalEthBalance.mul(toReflections).div(100);
+
+        try rewards.deposit{value: ethForEthereum}() {} catch {}
+
+        payable(devWallet).transfer(address(this).balance);
+    }
+
+    function manualSwapBack() external onlyOwner {
+        swapBack();
+    }
+
+    function clearStuckEth() external onlyOwner {
+        uint256 contractETHBalance = address(this).balance;
+        if (contractETHBalance > 0) {
+            payable(devWallet).transfer(contractETHBalance);
+        }
+    }
+
+    function manualProcessGas(uint256 manualGas) external onlyOwner {
+        rewards.process(manualGas);
+    }
+
+    function checkPendingReflections(address shareholder)
+        external
+        view
+        returns (uint256)
+    {
+        return rewards.getUnpaidEarnings(shareholder);
+    }
+
+    function withdrawFromRewards() external {
+        rewards.withdraw(msg.sender);
+    }
+
+    function rescueTokens(address _tokenAddr, address _to, uint _amount) public onlyOwner {
+        IERC20(_tokenAddr).transfer(_to, _amount);
+    }
+
+    function removeStuckDividends() external onlyOwner {
+        rewards.removeStuckDividends();
+    }
+}

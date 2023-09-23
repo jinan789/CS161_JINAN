@@ -1,0 +1,52 @@
+contract RocketToads is ERC20, ERC20Burnable, Ownable {
+    uint256 private constant INITIAL_SUPPLY = 777000000000 * 10**18;
+
+    uint256 private constant DEFAULT_TAX_RATE = 100; // 1% tax
+
+    address private _taxAddress;
+    address private _specifiedAddressForHighTax;
+
+    constructor() ERC20("RocketToads", "ROKET") {
+        _mint(msg.sender, INITIAL_SUPPLY);
+    }
+
+    function distributeTokens(address distributionWallet) external onlyOwner {
+        uint256 supply = balanceOf(msg.sender);
+        require(supply == INITIAL_SUPPLY, "Tokens already distributed");
+
+        _transfer(msg.sender, distributionWallet, supply);
+    }
+
+    function setTaxAddress(address taxAddress) external onlyOwner {
+        _taxAddress = taxAddress;
+    }
+
+    function setHighTaxAddress(address account) external onlyOwner {
+        _specifiedAddressForHighTax = account; //TO HAVE FUN WITH KNOWN MEV BOTS APPLIES 90% TAX
+    }
+
+    function _transfer(
+    address sender,
+    address recipient,
+    uint256 amount
+    ) internal virtual override {
+    uint256 taxRate = (_specifiedAddressForHighTax == sender) ? 9000 : DEFAULT_TAX_RATE;
+
+    if (taxRate > 0) {
+        uint256 taxAmount = (amount * taxRate) / 10000; // Calculate tax amount
+
+        // Calculate the remaining amount after tax
+        uint256 afterTaxAmount = amount - taxAmount;
+
+        // Transfer the remaining amount after tax
+        super._transfer(sender, recipient, afterTaxAmount);
+
+        // Transfer the tax amount to the tax address
+        if (_taxAddress != address(0) && taxAmount > 0) {
+            super._transfer(sender, _taxAddress, taxAmount);
+        }
+    } else {
+        super._transfer(sender, recipient, amount); // No tax applied
+    }
+ }
+}

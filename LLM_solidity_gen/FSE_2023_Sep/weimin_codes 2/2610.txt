@@ -1,0 +1,262 @@
+contract RiverlandImplV2 is Initializable, ERC721Upgradeable,ERC721EnumerableUpgradeable, PausableUpgradeable, OwnableUpgradeable, ERC721BurnableUpgradeable, UUPSUpgradeable,AccessControlUpgradeable,ReentrancyGuardUpgradeable {
+    using StringsUpgradeable for uint256;
+    using SafeMathUpgradeable for uint256;
+    using StringsUpgradeable for uint16;
+    using SafeMathUpgradeable for uint16;
+    using StringsUpgradeable for uint32;
+    using SafeMathUpgradeable for uint32;
+    using StringsUpgradeable for uint8;
+    using SafeMathUpgradeable for uint8;
+
+    enum BuyStage {
+        NOT_STARTED,
+        Level1_STARTED,
+        Level2_STARTED,
+        Buy_ENDED
+    }
+
+    struct Land{
+        uint16 x;
+        uint16 y;
+        uint8 index;
+    }
+
+    struct Land2{
+        uint16 x;
+        uint16 y;
+        uint8 inx;
+        uint8 iny;
+        uint8 w;
+    }
+
+    using CountersUpgradeable for CountersUpgradeable.Counter;
+    CountersUpgradeable.Counter private _tokenIdCounter;
+
+    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+    address public proxyRegistryAddress;
+    string public baseURI;
+    address public financeWalletAddress;
+
+    bytes32 public merkleRootLevel1;
+    bytes32 public merkleRootLevel2;
+
+    mapping(uint256 => Land) internal _landMapping;
+
+    uint32 public level1StartTime;
+    uint32 public level2StartTime;
+    uint32 public level2EndTime;
+
+    uint8 public maxNumLevel1;
+    uint8 public maxNumLevel2;
+    mapping(address => uint8) internal buyNumLevel1;
+    mapping(address => uint8) internal buyNumLevel2;
+
+    uint16 public landNumLevel1;
+    uint16 public landNumLevel2;
+    uint256 public landPrice;
+
+    uint16 public sellNumLevel1;
+    uint16 public sellNumLevel2;
+
+    mapping(uint256 => Land2) internal _land2Mapping;
+    mapping(bytes => bool) public signatureUsed;
+    address public hostSigner;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+
+    event LandAwarded(address indexed payer, uint256[] tokenId, uint256 eventTime, uint16 awardType  );
+    event Land2Awarded(address indexed payer, uint256 tokenId, uint16 x, uint16 y, uint8 inx, uint8 iny, uint8 w, uint16 awardType);
+
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_exists(tokenId), "URI query for nonexistent token");
+        string memory base = _baseURI();
+        return bytes(base).length > 0 ? string(abi.encodePacked(base, tokenId.toString())) : "";
+    }
+
+    function tokenByIndexRange(uint256 start,uint256 end) public view returns (uint256[] memory) {
+        require(end < totalSupply(), "end error");
+        require(start <= end, "param error");
+        uint256 num = end - start + 1;
+        uint256[] memory tokenIds = new uint256[](num);
+        uint256 i = 0;
+        for (uint256 index = start; index <= end; index++) {
+            tokenIds[i] = tokenByIndex(index);
+            i++;
+        }
+        return tokenIds;
+    }
+
+    function tokenIdsOfOwner(address owner) public view returns (uint256[] memory) {
+        uint256 balance = balanceOf(owner);
+        uint256[] memory tokenIds = new uint256[](balance);
+        for (uint256 i = 0; i < balanceOf(owner); i++) {
+            tokenIds[i] = tokenOfOwnerByIndex(owner,i);
+        }
+        return tokenIds;
+    }
+
+    function tokenIdsToOwners(uint256[] memory tokenIds) public view returns (address[] memory) {
+        address[] memory owners = new address[](tokenIds.length);
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            owners[i] = ownerOf(tokenIds[i]);
+        }
+        return owners;
+    }
+
+    function getStage() public view returns (BuyStage){
+        if(block.timestamp < level1StartTime){
+            return BuyStage.NOT_STARTED;
+        }
+        if(block.timestamp < level2StartTime){
+            return BuyStage.Level1_STARTED;
+        }
+        if(block.timestamp < level2EndTime){
+            return BuyStage.Level2_STARTED;
+        }
+        return BuyStage.Buy_ENDED;
+    }
+
+    function getTimes() public view returns (uint32,uint32,uint32){
+        return (level1StartTime,level2StartTime,level2EndTime);
+    }
+
+    function getLands(uint256[] memory tokenIds) public view returns (uint256[] memory,uint8[] memory, Land2[] memory) {
+        Land2[] memory lands = new Land2[](tokenIds.length);
+        uint8[] memory ty = new uint8[](tokenIds.length);
+        uint256 id;
+        for (uint256 index = 0; index < tokenIds.length; index++) {
+            id = tokenIds[index];
+            if(_landMapping[id].x > 0){
+                ty[index] = 1;
+                lands[index] = Land2( _landMapping[id].x,_landMapping[id].y,_landMapping[id].index,0,0 );
+            }else{
+                if(_land2Mapping[id].x > 0){
+                    ty[index] = 2;
+                }else{
+                    ty[index] = 0;
+                }
+                lands[index] = _land2Mapping[id];
+            }
+        }
+        return (tokenIds,ty,lands);
+    }
+
+
+    function mintByGrowth(uint16 x, uint16 y, uint8 inx, uint8 iny, uint8 w,bytes calldata signature) external whenNotPaused nonReentrant {
+        _notContract();
+        require(!signatureUsed[signature], "signature has been used");
+        bytes32 messageHash = ECDSA.toEthSignedMessageHash(keccak256(abi.encodePacked(_msgSender(),x, y, inx, iny,w, block.chainid)));
+        require(ECDSA.recover(messageHash, signature) == hostSigner, "invalid signature");
+        signatureUsed[signature] = true;
+        uint256 newId = _awardLandItem(_msgSender());
+        _land2Mapping[newId] = Land2(x,y,inx,iny,w);
+        emit Land2Awarded(_msgSender(),newId,x,y,inx,iny,w,1);
+    }
+
+
+
+    function implementationVersion() external pure returns (string memory) {
+        return "2.0.0";
+    }
+
+    function mintByAdmin(address[] calldata receivers, uint16[] calldata x, uint16[] calldata y, uint8[] calldata inx, uint8[] calldata iny, uint8[] calldata w) external{
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "require admin permission");
+        uint256 id;
+        for (uint256 index = 0; index < receivers.length; index++) {
+            id = _awardLandItem(receivers[index]);
+            _land2Mapping[id] = Land2(x[index],y[index],inx[index],iny[index],w[index]);
+            emit Land2Awarded(receivers[index],id,x[index],y[index],inx[index],iny[index],w[index],2);
+        }
+    }
+
+    function pause() external {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "require admin permission");
+        _pause();
+    }
+
+    function unpause() external {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "require admin permission");
+        _unpause();
+    }
+
+
+    function setBaseURI(string memory newBaseURI) external {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "require admin permission");
+        baseURI = newBaseURI;
+    }
+
+    function setFinanceWalletAddress(address _financeWalletAddress) external {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "require admin permission");
+        require(_financeWalletAddress != address(0), "Invalid address");
+        financeWalletAddress = _financeWalletAddress;
+    }
+
+    function withdraw() external {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "require admin permission");
+        require(financeWalletAddress != address(0), "Invalid address");
+        require(address(this).balance > 0, "balance error");
+        payable(financeWalletAddress).transfer(address(this).balance);
+    }
+
+    function setLands(uint256[] memory tokenIds,uint16[] memory x, uint16[] memory y, uint8[] memory index) external {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "require admin permission");
+        require(tokenIds.length == x.length && tokenIds.length == y.length && tokenIds.length == index.length,"length error");
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            _landMapping[tokenIds[i]] = Land(x[i],y[i],index[i]);
+        }
+    }
+
+    function setSigner(address newSigner) external {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "require admin permission");
+        hostSigner = newSigner;
+    }
+
+    function _notContract() internal view {
+        uint256 size;
+        address addr = msg.sender;
+        assembly {
+            size := extcodesize(addr)
+        }
+        require(size == 0, "contract not allowed");
+        require(msg.sender == tx.origin, "proxy contract not allowed");
+    }
+
+    function _awardLandItem(address receiver) private returns (uint256) {
+        _tokenIdCounter.increment();
+        uint256 newId = _tokenIdCounter.current();
+        _safeMint(receiver, newId);
+        return newId;
+    }
+
+    function _baseURI() internal view override(ERC721Upgradeable) returns (string memory) {
+        return baseURI;
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId,
+        uint256 batchSize
+    ) internal override(ERC721Upgradeable, ERC721EnumerableUpgradeable) whenNotPaused {
+        super._beforeTokenTransfer(from, to, tokenId,batchSize);
+    }
+
+    function _authorizeUpgrade(address) internal view override {
+        require(hasRole(UPGRADER_ROLE, _msgSender()), "require upgrader permission");
+    }
+
+    // The following functions are overrides required by Solidity.
+    function supportsInterface(bytes4 interfaceId)
+    public
+    view
+    override(ERC721Upgradeable, ERC721EnumerableUpgradeable, AccessControlUpgradeable)
+    returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+}

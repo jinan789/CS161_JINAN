@@ -1,0 +1,114 @@
+contract MultiOrderRouter is ReentrancyGuard {
+
+    //This should refer to the 1Inch Aggregation Contract
+    ITradingContract public tradingContract;
+
+    constructor(address _tradingContract) {
+        require(
+            _tradingContract != address(0),
+            "Invalid tradingContract address"
+        );
+        tradingContract = ITradingContract(_tradingContract);
+    }
+
+    //Emit event in case of order failure. Could happen due to allowance or insufficient balance etc.
+    event OrderFailed(uint256 index); 
+
+    //Emit event in case of a successful trade. 
+    event TradeSuccessful(
+        address indexed maker,
+        address indexed taker,
+        address makerAsset,
+        address takerAsset,
+        uint256 makerAmount,
+        uint256 takerAmount,
+        bytes32 orderHash
+    );
+
+    struct OrderExecution {
+        ITradingContract.Order orderDetails;
+        bytes signature;
+        bytes interaction;
+        uint256 makingAmount;
+        uint256 takingAmount;
+        uint256 thresholdAmount;
+    }
+
+    //Receive multiple taker order requests and process them. All underlying trade logic is with trading protocol contract (1Inch)
+    function fillMultipleOrders(
+        OrderExecution[] calldata orders,
+        uint256 totalTakerAmount
+    ) external nonReentrant {
+        require(orders.length > 0, "No orders provided");
+        require(totalTakerAmount > 0, "Taker amount cannot be zero");
+
+        address takerAsset = orders[0].orderDetails.takerAsset;
+        for (uint256 i = 1; i < orders.length; i++) {
+            require(
+                orders[i].orderDetails.takerAsset == takerAsset,
+                "Inconsistent taker assets"
+            );
+        }
+
+        // Transfer the total taker amount to this contract
+        require(
+            IERC20(takerAsset).transferFrom(
+                msg.sender,
+                address(this),
+                totalTakerAmount
+            ),
+            "Transfer failed because of allowance or insufficient balance"
+        );
+
+        
+        uint256 initialBalance = IERC20(takerAsset).balanceOf(address(this));
+
+        //Set allowance for the ERC20 token so that the marketplace contract can complete the transfer
+        IERC20(takerAsset).approve(address(tradingContract), totalTakerAmount);
+
+        for (uint256 i = 0; i < orders.length; i++) {
+            try
+                tradingContract.fillOrderTo(
+                    orders[i].orderDetails,
+                    orders[i].signature,
+                    orders[i].interaction,
+                    orders[i].makingAmount,
+                    orders[i].takingAmount,
+                    orders[i].thresholdAmount,
+                    msg.sender
+                )
+            returns (
+                uint256 makerAmount,
+                uint256 takerAmount,
+                bytes32 orderHash
+            ) {
+                emit TradeSuccessful(
+                    orders[i].orderDetails.maker,
+                    msg.sender,
+                    orders[i].orderDetails.makerAsset,
+                    orders[i].orderDetails.takerAsset,
+                    makerAmount,
+                    takerAmount,
+                    orderHash
+                );
+            } catch {
+                emit OrderFailed(i);
+            }
+        }
+
+        uint256 usedAmount = initialBalance -
+            IERC20(takerAsset).balanceOf(address(this));
+        uint256 refundAmount = totalTakerAmount - usedAmount;
+
+        //Remove allowance set for the ERC20 token
+        IERC20(takerAsset).approve(address(tradingContract), 0);
+
+        // Refund the remaining taker assets back to the sender
+        if (refundAmount > 0) {
+            require(
+                IERC20(takerAsset).transfer(msg.sender, refundAmount),
+                "Refund failed"
+            );
+        }
+    }
+}

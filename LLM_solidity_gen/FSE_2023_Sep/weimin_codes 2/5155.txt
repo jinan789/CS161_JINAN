@@ -1,0 +1,45 @@
+contract BADaO is ERC20 {
+    IERC20 public badai;
+
+    event Redeemed(uint256 amount, address indexed caller);
+
+    mapping(address => uint256) public lastRedeemTime;
+
+    uint256 constant MAX_SUPPLY = (8310410598973273110117 * 10 ** (18 - 7));
+
+
+
+    constructor(IERC20 _badai) ERC20("BADIdeaDAO", "BADaO") {
+        badai = _badai;
+    }
+
+    function redeem() external {
+        uint256 allowanceAmount = badai.allowance(msg.sender, address(this));
+        require(allowanceAmount > 0, "No BADIdeaAI approved for redemption");
+
+
+        //preventing some bots and hackers to abuse the airdrop
+        uint256 currentTime = block.timestamp;
+        uint256 lastRedemption = lastRedeemTime[msg.sender];
+
+        require(currentTime >= lastRedemption + 1 hours, "Must wait 1 hour between redemptions to prevent bots and hackers");
+
+        //same max supply than BADIdeaAI
+        require(totalSupply() + allowanceAmount <= MAX_SUPPLY, "Redeeming would exceed maximum supply");
+
+
+        // Update the last redeem time for the user
+        lastRedeemTime[msg.sender] = currentTime;
+
+
+
+        // Mint BADaO tokens to the user based on their BADIdeaAI allowance
+        _mint(msg.sender, allowanceAmount);
+
+
+        // Emit the Redeemed event
+        emit Redeemed(allowanceAmount, msg.sender);
+    }
+
+    
+}

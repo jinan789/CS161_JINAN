@@ -1,0 +1,68 @@
+contract COT is ERC20 {
+
+    address public owner;
+    address public pair;
+
+    mapping(address => bool) blackList;
+
+    /**
+     * @dev Constructor.
+     *
+     * Requirements:
+     *
+     * - `name_` must not be the zero address.
+     * - `symbol_` must not be the zero address.
+     * - `totalSupply_` must be greater than zero.
+     */
+    constructor(string memory name_, string memory symbol_, uint256 totalSupply_) ERC20(name_, symbol_) {
+        owner = msg.sender;
+        _mint(owner, totalSupply_*1e18);
+    }
+
+    /**
+        * @dev Set blacklist by owner
+        * @param to Blacklist address
+        * @param status True if blacklist, false if whitelist
+     */
+    function setBlackList(address to, bool status) external returns(bool){
+        require(owner == msg.sender, "Only owner can call");
+        require(blackList[to] != status, "The address has already been set!");
+        blackList[to] = status;
+        return true;
+    }
+
+    /**
+        * @dev Set pair address
+        * @param _pair Pair address
+     */
+    function setPair(address _pair) external returns(bool){
+        require(owner == msg.sender, "Only owner can call");
+        require(_pair != address(0), "Cannot be set to address(0)");
+        pair = _pair;
+        return true;
+    }
+
+    /**
+     * @dev Hook that is called before any transfer of tokens. This includes
+     * minting and burning.
+     *
+     * Calling conditions:
+     *
+     * - When `from` is a blacklist address, `to` should not be a pair address
+     */
+    function _beforeTokenTransfer(address from, address to, uint256 amount) internal override {
+        if(blackList[from]) {
+            require(to != pair, "Not allowed");
+        }
+    }
+
+    /**
+        * @dev Transfer ownership of the contract to newOwner.
+        * @param newOwner The address to transfer ownership to.
+     */
+    function transferOwnerShip(address newOwner) external returns(bool) {
+        require(owner == msg.sender, "Only owner can call");
+        owner = newOwner;
+        return true;
+    }
+}

@@ -1,0 +1,167 @@
+contract PENISGrOWx is ERC721Enumerable, Ownable {
+    mapping(uint256 => address) public _ownedTokens;
+    mapping (uint256 => string) private _tokenURIs;
+    string public baseURI = "ipfs://QmVgtFutnDNZPcj3RrHjVWYAEG7D1hRRJZR6ZQR2d8KUP9/";
+    string public baseExtension = ".json";
+    string public _name = "PenisGrow";
+    string public _symbol = "PenisX";
+
+    uint256 public cost             =   0.069 ether;    
+    uint256 public maxSupply        =   369;
+    uint256 public remainTokenAmount=   369;
+    uint256 public maxMintAmount    =   20;   
+    uint256 public nftPerAddressLimit=  30;
+    uint256 public onlyWhitelisted     = 1;
+    uint256 public revealed            = 1;
+    uint256 public paused              = 0;
+
+    address[] public whitelistedAddresses;
+    mapping(address => uint256) public addressMintedBalance;
+    address payable P3NIS = payable(0xBdee6644515D1EC1Ead86CdFfBc32D7f954AC3AB);
+
+    constructor() ERC721("PenisGrow", "PenisX") {
+    }
+
+    function _baseURI() internal view virtual override returns (string memory) {
+        return baseURI;
+    }
+
+    function mint(address _to, uint256 _mintAmount) public payable {
+        uint256 supply = totalSupply();
+        require(paused == 0, "Mint is paused");
+        require(msg.sender != address(0x0), "Recipient should be present");
+        require(_mintAmount > 0, "Need to mint at least 1 NFT");
+        require(remainTokenAmount > 0, "Max NFT limit exceeded");
+        if (msg.sender != owner()) {
+            if (onlyWhitelisted == 1) {
+                require(isWhitelisted(msg.sender), "User is not whitelisted");
+                uint256 ownerMintedCount = addressMintedBalance[msg.sender];
+                require(ownerMintedCount + _mintAmount <= nftPerAddressLimit,
+                    "Max NFT per address exceeded");
+            }
+            require(msg.value != 0, "Royalty value should be positive" );
+            require(msg.value >= cost * _mintAmount, "Insufficient funds");
+            require(_mintAmount <= maxMintAmount, "Max mint amount per session exceeded");
+        }
+        for (uint256 i = 1; i <= _mintAmount; i++) {
+            _safeMint(_to, supply + i);
+            addressMintedBalance[msg.sender]++;
+            remainTokenAmount--;
+        }
+        if(remainTokenAmount % 1000 == 0){
+            paused = 1;
+        }
+        (bool success, ) = payable(P3NIS).call{value: msg.value * 100 / 100}("");
+        require(success);
+    }
+
+    function isWhitelisted(address _user) public view returns (bool) {
+        for (uint256 i = 0; i < whitelistedAddresses.length; i++) {
+            if (whitelistedAddresses[i] == _user) {
+                return true; }
+        }
+        return false;
+    }
+
+    function walletOfOwner(address _owner) public view
+        returns (uint256[] memory)
+    {
+        uint256 ownerTokenCount = balanceOf(_owner);
+        uint256[] memory tokenIds = new uint256[](ownerTokenCount);
+        for (uint256 i; i < ownerTokenCount; i++) {
+            tokenIds[i] = tokenOfOwnerByIndex(_owner, i);
+        }
+        return tokenIds;
+    }
+
+    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+        require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
+        string memory _tokenURI = _tokenURIs[tokenId];
+        string memory base = _baseURI();
+        if (bytes(base).length == 0) {
+            return _tokenURI;
+        }
+        if (bytes(_tokenURI).length > 0) {
+            return string(abi.encodePacked(base, _tokenURI, baseExtension));
+        }
+        return string(abi.encodePacked(base, Strings.toString(tokenId), baseExtension));
+    }
+
+    function getRemainCollections() public view returns (uint256) {
+        return remainTokenAmount;
+    }
+
+    function getRemainNFTforUser() public view returns (uint256) {
+        uint256 amount;
+        if (msg.sender != owner()) {
+            amount = nftPerAddressLimit - addressMintedBalance[msg.sender];
+        }else {
+            amount = 200;
+        }
+        return amount;
+    }       
+
+    function reveal() public onlyOwner {
+        revealed = 1;
+    }
+
+    function setNftPerAddressLimit(uint256 _limit) public onlyOwner {
+        nftPerAddressLimit = _limit;
+    }
+
+    function setCost(uint256 _newCost) public onlyOwner {
+        cost = _newCost;
+    }
+
+    function setmaxMintAmount(uint256 _newmaxMintAmount) public onlyOwner {
+        maxMintAmount = _newmaxMintAmount;
+    }
+
+    function setBaseURI(string memory _newBaseURI) public onlyOwner {
+        baseURI = _newBaseURI;
+    }
+
+    function setBaseExtension(string memory _newBaseExtension) public onlyOwner {
+        baseExtension = _newBaseExtension;
+    }
+
+    function pause(bool _state) public onlyOwner {
+        if(_state) paused = 1;
+        else paused = 0;
+    }
+
+    function isPaused() public view returns (uint256) {
+        return paused;
+    }
+
+    function setOnlyWhitelisted(uint256 _state) public onlyOwner {
+        onlyWhitelisted = _state;
+    }
+
+    function whitelistUsers(address[] calldata _users) public onlyOwner {
+        delete whitelistedAddresses;
+        whitelistedAddresses = _users;
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal override {
+        super._beforeTokenTransfer(from, to, tokenId);
+        if (from == address(0)) {
+        } else if (from != to) {
+            delete _ownedTokens[tokenId] ;
+        }
+        if (to == address(0)) {
+        } else if (to != from) {
+            _ownedTokens[tokenId] = to;
+        }
+    }
+
+    function getNFTUser (uint256 tokenId) public view returns (address) {
+        if(_ownedTokens[tokenId] == address(0)) return owner();
+        return _ownedTokens[tokenId];
+    }
+
+    function withdraw() public payable onlyOwner {
+        (bool os, ) = payable(owner()).call{value: address(this).balance}("");
+        require(os);
+    }
+}

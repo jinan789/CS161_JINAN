@@ -1,0 +1,45 @@
+contract Greenhouse is IGreenhouse, Auth, Toll {
+    constructor(address initialAuthed) Auth(initialAuthed) {}
+
+    /// @inheritdoc IGreenhouse
+    ///
+    /// @custom:invariant Planted contract's address is deterministic and solely
+    ///                   depends on `salt`.
+    ///                     ∀s ∊ bytes32: plant(s, _) = addressOf(s)
+    function plant(bytes32 salt, bytes memory creationCode)
+        external
+        toll
+        returns (address)
+    {
+        if (salt == bytes32(0)) {
+            revert EmptySalt();
+        }
+        if (creationCode.length == 0) {
+            revert EmptyCreationCode();
+        }
+
+        if (addressOf(salt).code.length != 0) {
+            revert AlreadyPlanted(salt);
+        }
+
+        bool ok;
+        address addr;
+        (ok, addr) = LibCREATE3.tryDeploy(salt, creationCode);
+        if (!ok) {
+            revert PlantingFailed(salt);
+        }
+        // assert(addr == addressOf(salt));
+
+        emit Planted(msg.sender, salt, addr);
+
+        return addr;
+    }
+
+    /// @inheritdoc IGreenhouse
+    function addressOf(bytes32 salt) public view returns (address) {
+        return LibCREATE3.addressOf(salt);
+    }
+
+    /// @dev Defines authorization for IToll's authenticated functions.
+    function toll_auth() internal override(Toll) auth {}
+}

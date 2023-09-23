@@ -1,0 +1,46 @@
+contract RemainingFeaturesStorageManager is IFeaturesProvider {
+    using LabelledBucketLib for bytes;
+    using FeaturesLib for Features;
+    using FeaturesLib for bytes;
+    using PublicInflateLibWrapper for Compressed;
+
+    // =========================================================================
+    //                           Storage
+    // =========================================================================
+
+    /**
+     * @notice Bundle of `BucketStorage`s containing moonbird features.
+     */
+    FeaturesStorageDeployer.Bundle private _bundle;
+
+    // =========================================================================
+    //                           Constructor
+    // =========================================================================
+
+    constructor(FeaturesStorageDeployer.Bundle memory bundle_) {
+        _bundle = bundle_;
+    }
+
+    function getFeatures(uint256 tokenId)
+        external
+        view
+        returns (Features memory)
+    {
+        BucketCoordinates memory bucket = FeaturesStorageMapping.locate(tokenId);
+
+        return _bundle.storages[bucket.storageId].getBucket(bucket.bucketId)
+            .inflate().findFieldByLabel(
+            uint16(tokenId), FeaturesLib.FEATURES_LENGTH
+        ).deserialise();
+    }
+
+    function hasFeatures(uint256 tokenId) external view returns (bool) {
+        BucketCoordinates memory bucket = FeaturesStorageMapping.locate(tokenId);
+
+        try _bundle.storages[bucket.storageId].getBucket(bucket.bucketId) {
+            return true;
+        } catch {
+            return false;
+        }
+    }
+}

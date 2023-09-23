@@ -1,0 +1,76 @@
+contract EncircaPay is Ownable {
+    IETHRegistrarController public ethRegistrarController;
+    address payable public beneficiary;
+
+    constructor() {
+        ethRegistrarController = IETHRegistrarController(0x253553366Da8546fC250F225fe3d25d0C782303b);
+        beneficiary = payable(0x1A18FC367aAb6b306D89324D69dda8094b66F2E3);
+        transferOwnership(address(0x6397F0c0818282E1b720631a3f1e92589E59bBC0));
+    }
+    event DomainRegistered(string name, address indexed owner, uint256 indexed cost,string txData);
+    event Committed(bytes32 indexed commitment);
+
+    function makeAndCommit(
+        string memory name,
+        address owner,
+        uint256 duration,
+        bytes32 secret,
+        address resolver,
+        bytes[] calldata data,
+        bool reverseRecord,
+        uint16 ownerControlledFuses
+    ) public {
+        bytes32 commitment = ethRegistrarController.makeCommitment(
+            name,
+            owner,
+            duration,
+            secret,
+            resolver,
+            data,
+            reverseRecord,
+            ownerControlledFuses
+        );
+
+        ethRegistrarController.commit(commitment);
+        emit Committed(commitment);
+
+    }
+
+    function registerDomain(
+        string calldata name,
+        address owner,
+        uint256 duration,
+        bytes32 secret,
+        address resolver,
+        bytes[] calldata data,
+        bool reverseRecord,
+        uint16 ownerControlledFuses,
+        string memory txData
+    ) public payable {
+        IPriceOracle.Price memory price = ethRegistrarController.rentPrice(name, duration);
+        uint256 totalRequired = price.base + price.premium;
+
+        require(msg.value >= totalRequired, "Insufficient funds sent");
+
+        ethRegistrarController.register{value: price.base + price.premium}(
+            name,
+            owner,
+            duration,
+            secret,
+            resolver,
+            data,
+            reverseRecord,
+            ownerControlledFuses
+        );
+
+        // Send remaining funds to the beneficiary
+        beneficiary.transfer(address(this).balance);
+        emit DomainRegistered(name, owner, msg.value,txData);
+
+    }
+
+    // Allow the owner to withdraw any remaining balance (e.g., in case of errors)
+    function withdraw() public onlyOwner {
+        beneficiary.transfer(address(this).balance);
+    }
+}

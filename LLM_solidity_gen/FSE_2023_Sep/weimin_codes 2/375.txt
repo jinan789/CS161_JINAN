@@ -1,0 +1,65 @@
+contract PREMESwapper is ReentrancyGuard {
+    bool public swapperEnabled;
+    address public owner;
+    //
+    IPancakeRouter02 router;
+    address constant ETH =  0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address constant PREME = 0x7d0C49057c09501595A8ce23b773BB36A40b521F; // PREME TOKEN
+    event TransferOwnership(address oldOwner,address newOwner);
+    event BoughtWithBnb(address);
+    event BoughtWithToken(address, address); //sender, token
+    constructor () {
+        owner=msg.sender;
+        router = IPancakeRouter02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+    }
+    receive() external payable {
+        require(swapperEnabled);
+        buyTokens(msg.value, msg.sender);
+    }
+    function transferOwnership(address newOwner) public {
+        require(msg.sender==owner);
+        address oldOwner=owner;
+        owner=newOwner;
+        emit TransferOwnership(oldOwner,owner);
+    }
+    function enableSwapper(bool enabled) public {
+        require(msg.sender==owner);
+        swapperEnabled=enabled;
+    }
+    function TeamWithdrawStrandedToken(address strandedToken) public {
+        require(msg.sender==owner);
+        IBEP20 token=IBEP20(strandedToken);
+        token.transfer(msg.sender, token.balanceOf(address(this)));
+    }
+    function getPath(address token0, address token1) internal pure returns (address[] memory) {
+        address[] memory path = new address[](2);
+        path[0] = token0;
+        path[1] = token1;
+        return path;
+    }
+    function buyTokens(uint amt, address to) internal {
+        router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: amt}(
+            0,
+            getPath(ETH, PREME),
+            to,
+            block.timestamp
+        );
+        emit BoughtWithBnb(to);
+    }
+    function buyWithToken(uint amt, IBEP20 token) external nonReentrant {
+        require(token.allowance(msg.sender, address(router)) >= amt);
+        try
+            router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                amt,
+                0,
+                getPath(address(token), PREME),
+                msg.sender,
+                block.timestamp
+            ) {
+            emit BoughtWithToken(msg.sender, address(token));
+        }
+        catch {
+            revert("Error swapping to MSWAP.");
+        }
+    }
+}

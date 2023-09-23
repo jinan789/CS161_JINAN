@@ -1,0 +1,73 @@
+1. Repeated computation of the same expression
+
+2. Extractable code chunks
+
+3. State Variable Refactoring
+
+4. Redundant operations with same effects
+
+5. Pre-computable operations on constants
+
+6. Deterministic conditional checks
+
+7. Conditional statements with simpler equivalents
+
+8. DELETED (Refactorable function)
+
+9. Replacing item-by-item iterated arrays by a map
+
+10. Conditionally execute unnecessarily universal operations
+
+11. Repeated security checks across function calls
+
+12. Unnecessarily introducing variables
+
+13. UMBRELLA TERM UNDER 1
+
+14. DELETED (Excessive usage of try-catches)
+
+15. Unnecessary overflow/underflow validation since Solidity 0.8.0
+
+16. UMBRELLA TERM UNDER 11
+
+17. Redundant memory array initialization
+
+18. Placement of require statements
+
+19. Avoid no-op writes to state variables
+
+20. Reordering conditional checks for short-circuiting
+
+21. Combinable events
+
+22. UMBRELLA TERM UNDER 15
+
+23. add constant modifier for non-changing variables
+
+24. caching repeated operations across loop iterations
+
+25. Function visibility
+
+26. Dead codes
+
+27. UMBRELLA TERM UNDER 28
+
+28. Using revert instead of require for error handling
+
+29. Minimization of event message string
+
+30. Replacing MUL/DIV of powers of 2 by SHL/SHR
+
+31. Struct variable reordering
+
+32. Loop invariant codes
+
+33. Avoid expensive operations inside loops
+
+34. Struct refactoring by usage frequency
+
+35. Breaking up complex require statements into multiple simple requires
+
+36. Sub-optimal loading from storage to memory
+
+37. Using bytes32 for string representation

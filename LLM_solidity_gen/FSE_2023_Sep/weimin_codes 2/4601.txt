@@ -1,0 +1,692 @@
+contract Token1984 is ERC20, Ownable {
+    using SafeMath for uint256;
+    using Counters for Counters.Counter;
+
+    Counters.Counter private _skipCount; //total skip count
+    Counters.Counter private _walletCount; //total count for wallets
+
+    /**
+     * @dev Emitted when a wallet address is blacklisted.
+     * @param wallet The blacklisted wallet address.
+     */
+    event WalletBlacklisted(address indexed wallet);
+    /**
+     * @dev Emitted when an exchange wallet address is blacklisted.
+     * @param wallet The blacklisted exchange wallet address.
+     */
+    event ExchangeWalletBlacklisted(address indexed wallet);
+    /**
+     * @dev Emitted when a wallet address is removed from the blacklist.
+     * @param wallet The wallet address that was removed from the blacklist.
+     */
+    event RemovedWalletBlacklisted(address indexed wallet);
+    /**
+     * @dev Emitted when an exchange wallet address is removed from the blacklist.
+     * @param wallet The exchange wallet address that was removed from the blacklist.
+     */
+    event RemovedExchangeWalletBlacklisted(address indexed wallet);
+    /**
+     * @dev Emitted when a winner is determined.
+     * @param winner The address of the winner.
+     */
+    event Winner(address indexed winner);
+    /**
+     * @dev Emitted when the marketing address is updated.
+     * @param marketingAddress The updated marketing address.
+     */
+    event MarketingAddress(address indexed marketingAddress);
+
+    mapping(address => bool) public existingWallet;
+    mapping(address => bool) private airdropBlacklistedWallets;
+    mapping(address => bool) private blacklistedExchangeWallets;
+    mapping(address => bool) public isDexAddress;
+    mapping(address => bool) public isStopSell;
+
+    address public socialRewardBeneficiary;
+    uint256 public chosenTimestamp;
+
+    uint256 private LotteryPool;
+    uint256 private liquidityPool;
+    uint256 private minimumBalance;
+    uint256 private startTime;
+    uint256 private endTime;
+    uint256 private lockedTokens;
+    address private marketingAddress;
+
+    address[] private walletAddresses;
+    address[] private allLotteryBlacklistedWallets;
+    address[] private allBlacklistedExchangeWallets;
+    address[] private recentWinners;
+    address[] private lpPairs;
+
+    // The list of DEX addresses
+    // address[] public dexAddresses;
+
+    // The status of selling on DEX
+    mapping(address => bool) public isSellingDeactivatedOnDex;
+
+    // The timestamp when the selling was deactivated on DEX
+    mapping(address => uint256) public sellingDeactivatedTimestamp;
+
+    // The duration of selling deactivation on DEX (in seconds)
+    uint256 public sellingDeactivationDuration;
+
+    // The interval between automatic selling deactivations (in seconds)
+    // uint256 public sellingDeactivationInterval = 7 days;
+
+    // The minimum duration of selling deactivation (in seconds)
+    uint256 public minSellingDeactivationDuration = 2 days;
+
+    // The maximum duration of selling deactivation (in seconds)
+    uint256 public maxSellingDeactivationDuration = 12 days;
+
+    // The timestamp of the last automatic selling deactivation
+    uint256 public lastSellingDeactivationTimestamp;
+
+    /**
+     * @dev Modifier to check if the specified wallet address is not blacklisted for exchange.
+     * @param wallet The address to be checked.
+     *
+     * Requirements:
+     * - The wallet address must not be blacklisted for exchange operations.
+     */
+    modifier notBlacklistedExchange(address wallet) {
+        _notBlackListedExchange(wallet);
+        _;
+    }
+
+    uint256 public launchTime;
+    uint256 public recentWinnersCount = 10;
+    uint256 public transferTax = 25;
+    uint256 public requiredTxns = 150;
+    uint256 public noSellLimt = 1 * 10**decimals();
+
+    /**
+ * @notice 
+ Contract 
+ uint256 public launchTime;
+address public lpPair;
+uint256 public transferTax = 25;
+constructor.
+ * @dev Constructor function for the KLVR token contract.
+ * It also sets the minimum balance, start time, end time, and locks a portion of the total supply.
+
+ */
+
+    constructor(address _marketingAddress) ERC20("1984", "1984") {
+        launchTime = block.timestamp;
+        uint256 totalSupply = 10_000_000_000 * 10**18;
+        _mint(msg.sender, totalSupply);
+        minimumBalance = 5_000_000 * 10**decimals();
+        startTime = block.timestamp;
+        endTime = startTime.add(30 days);
+        marketingAddress = _marketingAddress;
+        lockedTokens = (totalSupply).mul(50).div(100);
+        super._transfer(owner(), address(this), lockedTokens);
+    }
+
+    /**
+     * @notice Allows the owner of the contract to withdraw locked tokens and distribute them among specified wallets.
+     * @param wallets An array of wallet addresses to receive the locked tokens.
+     * @dev Requires the contract to have locked tokens, at least one wallet address, and the current time to be after the end time.
+     * @dev Emits a `Transfer` event for each successful token transfer.
+     * @dev Sets the `lockedTokens` variable to 0 after successful distribution.
+     * @dev Throws an error if any wallet address is invalid.
+     */
+    function withdrawLockedTokens(address[] memory wallets) external onlyOwner {
+        require(lockedTokens > 0, "No Locked Tokens");
+        require(wallets.length > 0, "No wallets provided");
+        require(
+            block.timestamp >= endTime,
+            "There is still time left to withdraw tokens, Please Wait."
+        );
+        uint256 totalAmountShare = lockedTokens.div(wallets.length);
+        for (uint256 i = 0; i < wallets.length; i++) {
+            require(
+                wallets[i] != address(0),
+                "Withdraw: Invalid wallet address"
+            );
+            _transfer(address(this), wallets[i], totalAmountShare);
+            emit Transfer(address(this), wallets[i], totalAmountShare);
+        }
+        lockedTokens = 0;
+    }
+
+    /**
+     * @dev Blacklists multiple wallets to prevent them from participating in the airdrop.
+     * @param wallets An array of addresses to be blacklisted.
+     *
+     * Requirements:
+     * - The caller must be the owner of the contract.
+     * - At least one wallet address must be provided.
+     * - Each wallet address must be valid and not already blacklisted.
+     *
+     * Effects:
+     * - Adds each wallet address to the airdrop blacklist.
+     * - Appends each wallet address to the array of all blacklisted wallets.
+     * - Emits a `WalletBlacklisted` event for each blacklisted wallet address.
+     */
+    function blacklistWallets(address[] memory wallets) external onlyOwner {
+        require(wallets.length > 0, "No wallets provided");
+
+        for (uint256 i = 0; i < wallets.length; i++) {
+            address wallet = wallets[i];
+            require(wallet != address(0), "Invalid wallet address");
+            require(
+                !airdropBlacklistedWallets[wallet],
+                "Wallet is already blacklisted"
+            );
+
+            airdropBlacklistedWallets[wallet] = true;
+            allLotteryBlacklistedWallets.push(wallet);
+            emit WalletBlacklisted(wallet);
+        }
+    }
+
+    /**
+     * @notice Blacklists multiple exchange wallets to restrict their access and participation.
+     * @param wallets An array of exchange wallet addresses to be blacklisted.
+     *
+     * Requirements:
+     * - The caller must be the owner of the contract.
+     * - At least one wallet address must be provided.
+     * - Each wallet address must be valid and not already blacklisted.
+     *
+     * Effects:
+     * - Adds each exchange wallet address to the blacklist.
+     * - Appends each wallet address to the array of all blacklisted exchange wallets.
+     * - Emits an `ExchangeWalletBlacklisted` event for each blacklisted exchange wallet address.
+     */
+    function blacklistExchangeWallets(address[] memory wallets)
+        external
+        onlyOwner
+    {
+        require(wallets.length > 0, "No wallets provided");
+
+        for (uint256 i = 0; i < wallets.length; i++) {
+            address wallet = wallets[i];
+            require(wallet != address(0), "Invalid wallet address");
+            require(
+                !blacklistedExchangeWallets[wallet],
+                "Wallet is already blacklisted"
+            );
+
+            blacklistedExchangeWallets[wallet] = true;
+            allBlacklistedExchangeWallets.push(wallet);
+            emit ExchangeWalletBlacklisted(wallet);
+        }
+    }
+
+    /**
+     * @notice Removes a wallet from the blacklist.
+     * @param wallet The address of the wallet to be removed from the blacklist.
+     *
+     * Requirements:
+     * - The caller must be the owner of the contract.
+     * - The array of blacklisted wallets must not be empty.
+     *
+     * Effects:
+     * - Finds the provided wallet address in the array of all blacklisted wallets.
+     * - Replaces the found wallet address with the last address in the array.
+     * - Removes the last element from the array of all blacklisted wallets.
+     * - Sets the `airdropBlacklistedWallets` mapping value for the removed wallet address to `false`.
+     */
+    function removeBlacklistWallet(address wallet) external onlyOwner {
+        require(
+            allLotteryBlacklistedWallets.length > 0,
+            "No blacklisted wallet to remove"
+        );
+
+        for (uint256 i = 0; i < allLotteryBlacklistedWallets.length; i++) {
+            if (allLotteryBlacklistedWallets[i] == wallet) {
+                allLotteryBlacklistedWallets[i] = allLotteryBlacklistedWallets[
+                    allLotteryBlacklistedWallets.length - 1
+                ];
+                allLotteryBlacklistedWallets.pop();
+                airdropBlacklistedWallets[wallet] = false;
+                emit RemovedWalletBlacklisted(wallet);
+            }
+        }
+    }
+
+    /**
+     * @notice Removes a wallet from the blacklist for exchange wallets.
+     * @param wallet The address of the wallet to be removed from the blacklist.
+     *
+     * Requirements:
+     * - The caller must be the owner of the contract.
+     * - The array of blacklisted exchange wallets must not be empty.
+     *
+     * Effects:
+     * - Finds the provided wallet address in the array of all blacklisted exchange wallets.
+     * - Replaces the found wallet address with the last address in the array.
+     * - Removes the last element from the array of all blacklisted exchange wallets.
+     * - Sets the `blacklistedExchangeWallets` mapping value for the removed wallet address to `false`.
+     */
+    function removeBlacklistExchangeWallet(address wallet) external onlyOwner {
+        require(
+            allBlacklistedExchangeWallets.length > 0,
+            "No blacklisted exchange wallet to remove"
+        );
+
+        for (uint256 i = 0; i < allBlacklistedExchangeWallets.length; i++) {
+            if (allBlacklistedExchangeWallets[i] == wallet) {
+                allBlacklistedExchangeWallets[
+                    i
+                ] = allBlacklistedExchangeWallets[
+                    allBlacklistedExchangeWallets.length - 1
+                ];
+                allBlacklistedExchangeWallets.pop();
+                blacklistedExchangeWallets[wallet] = false;
+                emit RemovedExchangeWalletBlacklisted(wallet);
+            }
+        }
+    }
+
+    /**
+     * @dev Sets the marketing address.
+     * @param _marketingAddress The address to set as the marketing address.
+     *
+     * Requirements:
+     * - Only the contract owner is allowed to call this function.
+     */
+    function setMarketingAddress(address _marketingAddress) external onlyOwner {
+        require(_marketingAddress != address(0), "Set: Invalid wallet address");
+
+        marketingAddress = _marketingAddress;
+        emit MarketingAddress(marketingAddress);
+    }
+
+    /**
+     * @dev Retrieves the addresses stored in allLotteryBlacklistedWallets.
+     * @return An array containing all the addresses stored in allLotteryBlacklistedWallets.
+     */
+    function getAirdropBlacklistedWallets()
+        external
+        view
+        returns (address[] memory)
+    {
+        return allLotteryBlacklistedWallets;
+    }
+
+    /**
+     * @dev Retrieves the addresses stored in allBlacklistedExchangeWallets.
+     * @return An array containing all the addresses stored in allBlacklistedExchangeWallets.
+     */
+    function getBlacklistedExchangeWallets()
+        external
+        view
+        returns (address[] memory)
+    {
+        return allBlacklistedExchangeWallets;
+    }
+
+    /**
+     * @dev Retrieves the addresses stored in walletAddresses.
+     * @return An array containing all the addresses stored in walletAddresses.
+     */
+    function getAddedWallets() external view returns (address[] memory) {
+        return walletAddresses;
+    }
+
+    /**
+     * @dev Returns the marketing address.
+     * @return The current marketing address.
+     */
+    function getMarketingAddress() external view returns (address) {
+        return marketingAddress;
+    }
+
+    /**
+     * @dev Retrieves the value of LotteryPool.
+     * @return The current value of LotteryPool.
+     */
+    function getLotteryPool() external view returns (uint256) {
+        return LotteryPool;
+    }
+
+    /**
+     * @dev Retrieves the value of liquidityPool.
+     * @return The current value of liquidityPool.
+     */
+    function getLiquidityPool() external view returns (uint256) {
+        return liquidityPool;
+    }
+
+    /**
+     * @dev Retrieves the total count of wallets or addresses registered in the system.
+     * @return The total count of wallets or addresses.
+     */
+    function getWalletCount() external view returns (uint256) {
+        return _walletCount.current();
+    }
+
+    /**
+     * @dev Retrieves the value of minimumBalance.
+     * @return The current value of minimumBalance.
+     */
+    function getMinimumBalanceAirdrop() external view returns (uint256) {
+        return minimumBalance;
+    }
+
+    /**
+     * @dev Retrieves the value of lockedTokens.
+     * @return The current value of lockedTokens.
+     */
+    function getLockedTokens() external view returns (uint256) {
+        return lockedTokens;
+    }
+
+    /**
+     * @dev Retrieves the start time of the event or period.
+     * @return The start time represented as a Unix timestamp.
+     */
+    function getStartTime() external view returns (uint256) {
+        return startTime;
+    }
+
+    /**
+     * @dev Retrieves the end time of the event or period.
+     * @return The end time represented as a Unix timestamp.
+     */
+    function getEndTime() external view returns (uint256) {
+        return endTime;
+    }
+
+    /**
+     * @notice Transfers a specified amount of tokens from the sender's account to the recipient's account.
+     * @dev This function implements the ERC20 `transfer` function and includes additional functionality.
+     * The transferred amount is subject to a 2.5% tax, which is divided equally between the airdrop pool and the liquidity pool.
+     * Additionally, if the recipient address is not blacklisted for exchanges, the transfer is allowed.
+     * @param recipient The address of the recipient account.
+     * @param amount The amount of tokens to be transferred.
+     * @return A boolean value indicating the success of the transfer.
+     */
+    function transfer(address recipient, uint256 amount)
+        public
+        override
+        notBlacklistedExchange(recipient)
+        returns (bool)
+    {
+        _transfer(msg.sender, recipient, amount);
+
+        return true;
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        bool isLpPair;
+        for (uint256 i = 0; i < lpPairs.length; i++) {
+            if (to == lpPairs[i]) {
+                isLpPair = true;
+                break;
+            }
+        }
+
+        if (isLpPair && isSellingDeactivatedOnDex[to]) {
+            reactivateSellingOnDex();
+        }
+        uint256 taxAmount = amount.mul(transferTax).div(1000);
+        uint256 marketingAmount = amount.mul(10).div(1000);
+
+        //0.5 percent for lotteryPool and 1 % for liqudityPool
+        liquidityPool = liquidityPool.add(amount.mul(10).div(1000));
+
+        // Allocate 0.5% to lottery pool
+        LotteryPool = LotteryPool.add(amount.mul(5).div(1000));
+
+        if (!existingWallet[to] && !isLpPair) {
+            walletAddresses.push(to);
+            _walletCount.increment();
+            existingWallet[to] = true;
+        }
+        if (_walletCount.current() % requiredTxns == 0) {
+            triggerLotteryAirdrop();
+        }
+
+        // Check if the caller is a recent winner
+        bool isRecentWinner = false;
+        for (uint256 i = 0; i < recentWinners.length; i++) {
+            if (recentWinners[i] == from) {
+                isRecentWinner = true;
+                break;
+            }
+        }
+
+        // Check if a recent winner is selling more than 1 token
+        if (isRecentWinner && amount > noSellLimt) {
+            if (!isStopSell[from] && isLpPair) {
+                deactivateSellingOnDex();
+            }
+        }
+
+        super._transfer(from, address(this), taxAmount);
+        super._transfer(address(this), marketingAddress, marketingAmount);
+        super._transfer(from, to, amount.sub(taxAmount));
+        emit Transfer(from, to, amount.sub(taxAmount));
+    }
+
+    /**
+     * @dev Burns a specific amount of tokens from the caller's address.
+     * @param amount The amount of tokens to burn.
+     *
+     * Requirements:
+     * - The caller must have a sufficient balance of tokens to burn.
+     *
+     * Emits a {Transfer} event indicating the burning of tokens.
+     */
+    function burn(uint256 amount) public {
+        _burn(msg.sender, amount);
+    }
+
+    /**
+     * @notice Returns a randomly selected eligible address from the list of wallet addresses.
+     * @dev The eligibility criteria include having a balance greater than or equal to the minimumBalance multiplied by 10
+     * and not being blacklisted for airdrop.
+     * @return The randomly selected eligible address.
+     */
+    function getRandomEligibleAddress() internal returns (address) {
+        uint256 eligibleCount = 0;
+        address[] memory eligibleAddresses = new address[](
+            _walletCount.current()
+        );
+        for (uint256 i = 0; i < _walletCount.current(); i++) {
+            address account = walletAddresses[i];
+            if (
+                balanceOf(account) >= minimumBalance &&
+                !airdropBlacklistedWallets[account]
+            ) {
+                eligibleAddresses[eligibleCount] = account;
+                eligibleCount++;
+            }
+        }
+        if (_skipCount.current() % 10 == 0) {
+            minimumBalance = 5_000_000 * 10**decimals();
+        }
+        if (eligibleCount == 0) {
+            _skipCount.increment();
+            for (uint256 i = 0; i < walletAddresses.length; i++) {
+                existingWallet[walletAddresses[i]] = false;
+            }
+            delete walletAddresses;
+            _walletCount.reset();
+            minimumBalance = 5_000_000 * 10**decimals();
+            return address(0);
+        }
+        address[] memory validAddresses = new address[](eligibleCount);
+        for (uint256 i = 0; i < _walletCount.current(); i++) {
+            if (eligibleAddresses[i] != address(0)) {
+                validAddresses[i] = eligibleAddresses[i];
+            }
+        }
+        uint256 randomIndex = uint256(
+            keccak256(abi.encodePacked(block.timestamp, block.difficulty))
+        ) % eligibleCount;
+        for (uint256 i = 0; i < walletAddresses.length; i++) {
+            existingWallet[walletAddresses[i]] = false;
+        }
+        delete walletAddresses;
+        _walletCount.reset();
+        return validAddresses[randomIndex];
+    }
+
+    /**
+     * @dev Verifies that the provided wallet address is not blacklisted as an exchange wallet.
+     * @param wallet The wallet address to be checked.
+     * @dev Reverts with "Exchange Wallet is blacklisted" if the wallet address is blacklisted.
+     */
+    function _notBlackListedExchange(address wallet) internal view {
+        require(
+            !blacklistedExchangeWallets[wallet],
+            "Exchange Wallet is blacklisted"
+        );
+    }
+
+    // The function to add a DEX address
+    // function addDexAddress(address dexAddress) external onlyOwner {
+    //     dexAddresses.push(dexAddress);
+    // }
+
+    // The function to deactivate selling on DEX
+
+    function deactivateSellingOnDex() internal {
+        // Deactivate selling on all DEX
+        require(
+            block.timestamp >=
+                lastSellingDeactivationTimestamp + sellingDeactivationDuration,
+            "Selling is already off"
+        );
+        for (uint256 i = 0; i < lpPairs.length; i++) {
+            isSellingDeactivatedOnDex[lpPairs[i]] = true;
+            sellingDeactivatedTimestamp[lpPairs[i]] = block.timestamp;
+        }
+
+        // Set the duration of selling deactivation
+        // This is just a placeholder for a secure random number generation
+        sellingDeactivationDuration =
+            minSellingDeactivationDuration +
+            (block.timestamp %
+                (maxSellingDeactivationDuration -
+                    minSellingDeactivationDuration));
+
+        // Update the timestamp of the last automatic selling deactivation
+        isStopSell[msg.sender] = true;
+        lastSellingDeactivationTimestamp = block.timestamp;
+    }
+
+    // The function to reactivate selling on DEX
+    function reactivateSellingOnDex() private {
+        require(
+            block.timestamp >=
+                lastSellingDeactivationTimestamp + sellingDeactivationDuration,
+            "Selling Duration not over yet"
+        );
+        // Reactivate selling on all DEX where the deactivation duration has passed
+        for (uint256 i = 0; i < lpPairs.length; i++) {
+            if (
+                isSellingDeactivatedOnDex[lpPairs[i]] &&
+                block.timestamp >
+                sellingDeactivatedTimestamp[lpPairs[i]] +
+                    sellingDeactivationDuration
+            ) {
+                isSellingDeactivatedOnDex[lpPairs[i]] = false;
+            }
+        }
+    }
+
+    function setDexAddress(address dexAddress, bool status) external onlyOwner {
+        isDexAddress[dexAddress] = status;
+    }
+
+    /**
+     * @notice Triggers an airdrop by transferring tokens from the contract's balance to a randomly selected eligible address.
+     *
+     * Effects:
+     * - Requires the LotteryPool balance to be greater than or equal to the minimumBalance multiplied by 10.
+     * - Generates a random eligible address from the eligible addresses list.
+     * - Transfers the entire LotteryPool balance to the randomly selected eligible address.
+     * - Sets the LotteryPool balance to zero.
+     */
+
+    function triggerLotteryAirdrop() internal {
+        address winner = getRandomEligibleAddress();
+        if (winner != address(0)) {
+            // Add the new winner to the list of recent winners
+            recentWinners.push(winner);
+
+            // If there are more than 10 recent winners, remove the oldest one
+            if (recentWinners.length > recentWinnersCount) {
+                for (uint256 i = 0; i < recentWinners.length - 1; i++) {
+                    recentWinners[i] = recentWinners[i + 1];
+                }
+                recentWinners.pop();
+            }
+            super._transfer(address(this), winner, LotteryPool);
+            LotteryPool = 0;
+            minimumBalance = 5_000_000 * 10**decimals();
+            _skipCount.reset();
+            emit Winner(winner);
+        }
+    }
+
+    function setRecentWinnersCount(uint256 _newWinnersCount)
+        external
+        onlyOwner
+    {
+        recentWinnersCount = _newWinnersCount;
+    }
+
+    function setMinSellingDeactivationDuration(
+        uint256 _newMinSellingDeactivationDuration
+    ) external onlyOwner {
+        minSellingDeactivationDuration = _newMinSellingDeactivationDuration;
+    }
+
+    function setMaxSellingDeactivationDuration(
+        uint256 _newMaxSellingDeactivationDuration
+    ) external onlyOwner {
+        maxSellingDeactivationDuration = _newMaxSellingDeactivationDuration;
+    }
+
+    function setTransferTax(uint256 _newTransferTax) external onlyOwner {
+        transferTax = _newTransferTax;
+    }
+
+    function setRequiredTxns(uint256 _newTxns) external onlyOwner {
+        requiredTxns = _newTxns;
+    }
+
+    function setNoSellLimt(uint256 _noSellLimit) external onlyOwner {
+        noSellLimt = _noSellLimit;
+    }
+
+    function setLpPair(address _lpPair) external onlyOwner {
+        lpPairs.push(_lpPair);
+    }
+
+    function getLpPairs() external view returns (address[] memory) {
+        return lpPairs;
+    }
+
+    function getRecentWinners() external view returns (address[] memory) {
+        return recentWinners;
+    }
+
+    function setSocialRewardBeneficiary(address _socialRewardBeneficiary)
+        external
+        onlyOwner
+    {
+        socialRewardBeneficiary = _socialRewardBeneficiary;
+    }
+
+    function setMinimumBalance(uint256 _newMinBalance) external onlyOwner {
+        minimumBalance = _newMinBalance * 10**decimals();
+    }
+
+    function setChosenTimestamp(uint256 _chosenTimestamp) external onlyOwner {
+        chosenTimestamp = _chosenTimestamp;
+    }
+}

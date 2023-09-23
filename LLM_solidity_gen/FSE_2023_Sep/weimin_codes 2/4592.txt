@@ -1,0 +1,47 @@
+contract Controllers is DSMath {
+
+    event LogAddController(address indexed addr);
+    event LogRemoveController(address indexed addr);
+
+    // DoughIndex Address.
+    address public immutable doughIndex;
+
+    constructor (address _doughIndex) {
+        doughIndex = _doughIndex;
+    }
+
+    // Enabled Chief(Address of Chief => bool).
+    mapping(address => bool) public chief;
+    // Enabled Connectors(Connector Address => bool).
+    mapping(address => bool) public connectors;
+    // Enabled Static Connectors(Connector Address => bool).
+    mapping(address => bool) public staticConnectors;
+
+    /**
+    * @dev Throws if the sender not is Master Address from DoughIndex
+    * or Enabled Chief.
+    */
+    modifier isChief {
+        require(chief[msg.sender] || msg.sender == IndexInterface(doughIndex).master(), "not-an-chief");
+        _;
+    }
+
+    /**
+     * @dev Enable a Chief.
+     * @param _userAddress Chief Address.
+    */
+    function enableChief(address _userAddress) external isChief {
+        chief[_userAddress] = true;
+        emit LogAddController(_userAddress);
+    }
+
+    /**
+     * @dev Disables a Chief.
+     * @param _userAddress Chief Address.
+    */
+    function disableChief(address _userAddress) external isChief {
+        delete chief[_userAddress];
+        emit LogRemoveController(_userAddress);
+    }
+
+}

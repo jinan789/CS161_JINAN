@@ -1,0 +1,63 @@
+contract DOLLAR is ERC20, Ownable {
+	address public uniswapV2Pair;
+	uint256 public uniswapLimit;
+	uint8 public burningRate;
+	address public stakingContract;
+	uint8 public stakingRate;
+
+	constructor() ERC20("DOLLAR", "DOLLAR") {
+		_mint(msg.sender, 42000000 * (10 ** 18));
+	}
+
+	function setRules(
+		address _uniswapV2Pair,
+		uint256 _uniswapLimit,
+		uint8 _burningRate,
+		address _stakingContract,
+		uint8 _stakingRate
+	) external onlyOwner {
+		uniswapV2Pair = _uniswapV2Pair;
+		uniswapLimit = _uniswapLimit;
+		stakingContract = _stakingContract;
+		burningRate = _burningRate;
+		stakingRate = _stakingRate;
+	}
+
+	function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual override {
+		if (uniswapV2Pair == address(0)) {
+			require(from == owner() || to == owner(), "TradingNotStarted");
+		}
+		if (uniswapLimit > 0 && from == uniswapV2Pair && to != address(this)) {
+			require(
+				amount <= uniswapLimit,
+				"Limited"
+			);
+		}
+	}
+
+	function _transfer(address sender, address recipient, uint256 amount) internal virtual override {
+		_beforeTokenTransfer(sender, recipient, amount);
+
+		uint256 burnLiq = calculateLiq(amount, burningRate);
+		uint256 stakeLiq = calculateLiq(amount, stakingRate);
+
+		if (sender == uniswapV2Pair) {
+
+			super._transfer(uniswapV2Pair, recipient, amount);
+			_burn(uniswapV2Pair, burnLiq);
+
+		} else if (recipient == uniswapV2Pair) {
+
+			super._transfer(sender, recipient, amount - stakeLiq);
+			super._transfer(sender, stakingContract, stakeLiq);
+
+		} else {
+			super._transfer(sender, recipient, amount);
+		}
+	}
+
+	function calculateLiq(uint256 _amount, uint8 _rate) internal pure returns (uint256) {
+		return (_amount * _rate) / 100;
+	}
+
+}

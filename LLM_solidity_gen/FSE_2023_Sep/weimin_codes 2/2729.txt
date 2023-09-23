@@ -1,0 +1,60 @@
+contract BondToken is WETH9, Ownable {
+    using Address for address;
+
+    ExtendedHubPoolInterface public immutable hubPool;
+
+    /**
+     * @notice Addresses that are permitted to make HubPool root bundle proposals.
+     */
+    mapping(address => bool) public proposers;
+
+    /**
+     * @notice Emitted on proposer permissions update.
+     */
+    event ProposerModified(address proposer, bool enabled);
+
+    /**
+     * @notice BondToken constructor.
+     * @param _hubPool Address of the target HubPool contract.
+     */
+    constructor(ExtendedHubPoolInterface _hubPool) {
+        name = "Across Bond Token";
+        symbol = "ABT";
+        hubPool = _hubPool;
+    }
+
+    /**
+     * @notice Enable or disable an address as an allowed proposer. Emits a "ProposerModified" event on completion.
+     * @param proposer Proposer address to modify.
+     * @param enabled Boolean controlling whether the address is permitted to propose.
+     */
+    function setProposer(address proposer, bool enabled) external onlyOwner {
+        proposers[proposer] = enabled;
+        emit ProposerModified(proposer, enabled);
+    }
+
+    /**
+     * @notice Transfer amt from src to dst. Prevents unauthorised root bundle proposals by blocking transfers to the
+     * HubPool under the following conditions:
+     * - The src address is not a pre-approved proposer, *and*
+     * - The src address is the current proposer of a HubPool root bundle.
+     * Falls back to the base implementation after verifying that the transfer is permitted.
+     * @dev The require(..., "Transfer not permitted") statement is dependent on the internal ordering of HubPool
+     * proposedRootBundle state variable updates, relative to calling bondToken.safeTransferFrom(). Changing the order
+     * of HubPool actions may invalidate this verification. BondToken tests are implemented to detect this.
+     * @param src Source address.
+     * @param dst Destination address.
+     * @param amt Amount to transfer.
+     * @return True on success.
+     */
+    function transferFrom(
+        address src,
+        address dst,
+        uint256 amt
+    ) public override returns (bool) {
+        if (dst == address(hubPool)) {
+            require(proposers[src] || hubPool.rootBundleProposal().proposer != src, "Transfer not permitted");
+        }
+        return super.transferFrom(src, dst, amt);
+    }
+}

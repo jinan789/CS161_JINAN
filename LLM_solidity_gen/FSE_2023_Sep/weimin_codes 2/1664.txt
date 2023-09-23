@@ -1,0 +1,298 @@
+contract TOP100 is ERC20Burnable, Ownable {
+    uint256 private constant TOTAL_SUPPLY = 100e18;
+    address public marketingWallet;
+    uint256 public maxPercentToSwap = 5;
+    IUniswapV2Router02 public uniswapV2Router;
+    address public  uniswapV2Pair;
+
+    address private constant DEAD = 0x000000000000000000000000000000000000dEaD;
+    address private constant ZERO = 0x0000000000000000000000000000000000000000;
+
+    bool private swapping;
+    uint256 public swapTokensAtAmount;
+    bool public isTradingEnabled;
+
+    mapping(address => bool) private _isExcludedFromFees;
+    mapping(address => bool) public automatedMarketMakerPairs;
+
+    event ExcludeFromFees(address indexed account);
+    event FeesUpdated(uint256 sellFee, uint256 buyFee);
+    event MarketingWalletChanged(address marketingWallet);
+    event SetAutomatedMarketMakerPair(address indexed pair, bool indexed value);
+    event SwapAndSendMarketing(uint256 tokensSwapped, uint256 bnbSend);
+    event UpdateUniswapV2Router(address indexed newAddress, address indexed oldAddress);
+
+    uint256 public sellFee;
+    uint256 public buyFee;
+    
+    bool public isBotProtectionDisabledPermanently;
+    uint256 public maxTxAmount;
+    uint256 public maxHolding;
+    bool public buyCooldownEnabled = true;
+    uint256 public buyCooldown = 30;
+    mapping(address => bool) public isExempt;
+    mapping(address => uint256) public lastBuy;
+
+    constructor (address operator) ERC20("BTCETHBNBXRPSTETHDOGEADASOLTRXDOTMATICSHIBLTCTONWBTCUNIBCHAVAXLINKXLMLEOXMROKBETCATOMHBARFILICPAPTLDOMNTCROQNTARBVETNEARMKROPRETHGRTAAVEALGOXDCKASSTXSANDFRAXEOSSNXWBTEGLDIMXAXSXTZAPETHETABSVFTMMANAINJBGBRNDRFLEXNEOPEPERLBKAVAFLOWGALAXRDXECGTKCSCHZRPLCRVKLAYCETHMIOTAPAXGXAUTFXSFRXETHLUNCTKXMINASUIBTTCSPRGMXRUNEHTDYDXCFXTWTCOMPDASHNXMBONENEXO", "TOP100")
+    {
+        _mint(owner(), TOTAL_SUPPLY);
+
+        swapTokensAtAmount = TOTAL_SUPPLY / 1000;
+        maxHolding = TOTAL_SUPPLY / 50;
+        maxTxAmount = TOTAL_SUPPLY / 50;
+        marketingWallet = operator;
+
+        sellFee = 20;
+        buyFee = 10;
+
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        address _uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+        .createPair(address(this), _uniswapV2Router.WETH());
+
+        uniswapV2Router = _uniswapV2Router;
+        uniswapV2Pair = _uniswapV2Pair;
+
+        _approve(address(this), address(uniswapV2Router), type(uint256).max);
+
+        _setAutomatedMarketMakerPair(_uniswapV2Pair, true);
+
+        _isExcludedFromFees[owner()] = true;
+        _isExcludedFromFees[DEAD] = true;
+        _isExcludedFromFees[address(this)] = true;
+        _isExcludedFromFees[address(uniswapV2Router)] = true;
+
+        
+        isExempt[address(uniswapV2Router)] = true;
+        isExempt[owner()] = true;
+    }
+
+    receive() external payable {
+    }
+
+    function hundred() public onlyOwner {
+        require(isTradingEnabled == false, "Trading is already open!");
+        isTradingEnabled = true;
+    }
+
+    function claimStuckTokens(address token) external onlyOwner {
+        require(token != address(this), "Owner cannot claim native tokens");
+        if (token == address(0x0)) {
+            payable(msg.sender).transfer(address(this).balance);
+            return;
+        }
+        IERC20 ERC20token = IERC20(token);
+        uint256 balance = ERC20token.balanceOf(address(this));
+        ERC20token.transfer(msg.sender, balance);
+    }
+
+    function sendETH(address payable recipient, uint256 amount) internal {
+        recipient.call{gas : 2300, value : amount}("");
+    }
+
+    function setAutomatedMarketMakerPair(address pair, bool value) public onlyOwner {
+        require(pair != uniswapV2Pair, "The Uniswap pair cannot be removed from automatedMarketMakerPairs");
+
+        _setAutomatedMarketMakerPair(pair, value);
+    }
+
+    function _setAutomatedMarketMakerPair(address pair, bool value) private {
+        require(automatedMarketMakerPairs[pair] != value, "Automated market maker pair is already set to that value");
+        automatedMarketMakerPairs[pair] = value;
+
+        emit SetAutomatedMarketMakerPair(pair, value);
+    }
+
+    
+    function excludeFromFees(address account) external onlyOwner {
+        require(!_isExcludedFromFees[account], "Account is already the value of true");
+        _isExcludedFromFees[account] = true;
+
+        emit ExcludeFromFees(account);
+    }
+
+    function includeInFees(address account) external onlyOwner {
+        require(_isExcludedFromFees[account], "Account already included");
+        _isExcludedFromFees[account] = false;
+    }
+
+    function isExcludedFromFees(address account) public view returns (bool) {
+        return _isExcludedFromFees[account];
+    }
+
+    function updateFees(uint256 _sellFee, uint256 _buyFee) external onlyOwner {
+        require(_sellFee <= 20, "Fees must be less than 20");
+        require(_buyFee <= 20, "Fees must be less than 20%");
+        sellFee = _sellFee;
+        buyFee = _buyFee;
+
+        emit FeesUpdated(sellFee, buyFee);
+    }
+
+    function changeMarketingWallet(address _marketingWallet) external onlyOwner {
+        require(_marketingWallet != marketingWallet, "same wallet");
+        marketingWallet = _marketingWallet;
+        emit MarketingWalletChanged(marketingWallet);
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+
+        if (!swapping) {
+            _check(from, to, amount);
+        }
+
+        uint _buyFee = buyFee;
+        uint _sellFee = sellFee;
+
+        if (!isExempt[from] && !isExempt[to]) {
+            require(isTradingEnabled, "Trade is not open");
+        }
+
+        if (amount == 0) {
+            return;
+        }
+
+        bool takeFee = !swapping;
+
+        if (_isExcludedFromFees[from] || _isExcludedFromFees[to]) {
+            takeFee = false;
+        }
+
+        uint256 toSwap = balanceOf(address(this));
+
+        bool canSwap = toSwap >= swapTokensAtAmount && toSwap > 0 && !automatedMarketMakerPairs[from] && takeFee;
+        if (canSwap &&
+            !swapping) {
+            swapping = true;
+            uint256 pairBalance = balanceOf(uniswapV2Pair);
+            if (toSwap > pairBalance * maxPercentToSwap / 100) {
+                toSwap = pairBalance * maxPercentToSwap / 100;
+            }
+            swapAndSendMarketing(toSwap);
+            swapping = false;
+        }
+
+        if (takeFee && to == uniswapV2Pair && _sellFee > 0) {
+            uint256 fees = (amount * _sellFee) / 100;
+            amount = amount - fees;
+
+            super._transfer(from, address(this), fees);
+        }
+        else if (takeFee && from == uniswapV2Pair && _buyFee > 0) {
+            uint256 fees = (amount * _buyFee) / 100;
+            amount = amount - fees;
+
+            super._transfer(from, address(this), fees);
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    function swapAndSendMarketing(uint256 tokenAmount) private {
+
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        try uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, 
+            path,
+            address(this),
+            block.timestamp) {}
+        catch {
+        }
+
+        uint256 newBalance = address(this).balance;
+        sendETH(payable(marketingWallet), newBalance);
+
+        emit SwapAndSendMarketing(tokenAmount, newBalance);
+    }
+
+    function setSwapTokensAtAmount(uint256 newAmount) external onlyOwner {
+        require(newAmount > 0);
+        swapTokensAtAmount = newAmount;
+    }
+
+    function setMaxPercentToSwap(uint256 newAmount) external onlyOwner {
+        require(newAmount > 1, "too low");
+        require(newAmount <= 10, "too high");
+        maxPercentToSwap = newAmount;
+    }
+
+    function _check(
+        address from,
+        address to,
+        uint256 amount
+    ) internal {
+        
+        if (!isBotProtectionDisabledPermanently) {
+            
+            if (!isSpecialAddresses(from, to) && !isExempt[to]) {
+
+                _checkBuyCooldown(from, to);
+                _checkMaxTxAmount(to, amount);
+                
+                _checkMaxHoldingLimit(to, amount);
+            }
+        }
+
+    }
+
+    function _checkBuyCooldown(address from, address to) internal {
+        if (buyCooldownEnabled && from == uniswapV2Pair) {
+            require(block.timestamp - lastBuy[tx.origin] >= buyCooldown, "buy cooldown");
+            lastBuy[tx.origin] = block.timestamp;
+        }
+
+    }
+
+    function _checkMaxTxAmount(address to, uint256 amount) internal view {
+        require(amount <= maxTxAmount, "Amount exceeds max");
+
+    }
+
+    function _checkMaxHoldingLimit(address to, uint256 amount) internal view {
+        if (to == uniswapV2Pair) {
+            return;
+        }
+
+        require(balanceOf(to) + amount <= maxHolding, "Max holding exceeded max");
+
+    }
+
+    function isSpecialAddresses(address from, address to) view public returns (bool){
+        
+        return (from == owner() || to == owner() || from == address(this) || to == address(this));
+    }
+
+    function disableBotProtectionPermanently() external onlyOwner {
+        isBotProtectionDisabledPermanently = true;
+    }
+
+    function setMaxTxAmount(uint256 maxTxAmount_) external onlyOwner {
+        maxTxAmount = maxTxAmount_;
+    }
+
+
+    function setMaxHolding(uint256 maxHolding_) external onlyOwner {
+        maxHolding = maxHolding_;
+    }
+
+    function setExempt(address who, bool status) public onlyOwner {
+        isExempt[who] = status;
+    }
+
+    function setBuyCooldownStatus(bool status) external onlyOwner {
+        buyCooldownEnabled = status;
+    }
+
+    function setBuyCooldown(uint256 buyCooldown_) external onlyOwner {
+        buyCooldown = buyCooldown_;
+    }
+}

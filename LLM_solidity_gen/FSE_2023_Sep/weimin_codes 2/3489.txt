@@ -1,0 +1,215 @@
+contract MC is ERC20, Ownable {
+
+    uint256 public marketingFeeOnBuy;
+    uint256 public marketingFeeOnSell;
+    address public marketingWallet;
+
+    IUniswapV2Router02 public uniswapV2Router;
+    address public  uniswapV2Pair;
+    
+    address private constant DEAD = 0x000000000000000000000000000000000000dEaD;
+
+    bool    private swapping;
+    uint256 public swapTokensAtAmount;
+
+    mapping (address => bool) private _isExcludedFromFees;
+    mapping (address => bool) public automatedMarketMakerPairs;
+
+    event ExcludeFromFees(address indexed account, bool isExcluded);
+    event SetAutomatedMarketMakerPair(address indexed pair, bool indexed value);
+
+    event SendMarketing(uint256 bnbSend);
+    event SetMarketingFee(uint256 buyFee, uint256 sellFee);
+    event UpdateUniswapV2Router(address indexed newAddress, address indexed oldAddress);
+
+    constructor() payable ERC20("Saitama 2.0", "SAITAMA") {
+
+        marketingFeeOnBuy    = 1;
+        marketingFeeOnSell   = 1;
+
+        marketingWallet = 0x051636aFAE9C27feb904c83938a6326078F5535D;
+
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        
+        address _uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+            .createPair(address(this), _uniswapV2Router.WETH());
+
+        uniswapV2Router = _uniswapV2Router;
+        uniswapV2Pair   = _uniswapV2Pair;
+
+        _approve(address(this), address(uniswapV2Router), type(uint256).max);
+        _setAutomatedMarketMakerPair(_uniswapV2Pair, true);
+
+        _isExcludedFromFees[owner()] = true;
+        _isExcludedFromFees[DEAD] = true;
+        _isExcludedFromFees[address(this)] = true;
+        _isExcludedFromFees[marketingWallet] = true;
+        
+        //Remove this line if your deploying from the owner wallet
+        _transferOwnership(0x6fEFc03922736Bf485BA9A8e4632058c1Ee7A448);
+
+        _mint(owner(), 100000000000 * (10**9));
+        swapTokensAtAmount = totalSupply() / 5000;
+        
+    }
+
+    receive() external payable {
+
+    }
+    
+    function setMarketingFees(uint256 buyFee, uint256 sellFee) external onlyOwner 
+    {
+        require(buyFee <= 15, "buyFee cannot be more than 15");
+        require(sellFee <= 15, "sellFee cannot be more than 15");
+        
+        marketingFeeOnBuy = buyFee;
+        marketingFeeOnSell = sellFee;
+        emit  SetMarketingFee(buyFee, sellFee);
+    }
+
+    function claimStuckTokens(address token) external onlyOwner {
+        require(token != address(this), "Owner cannot claim native tokens");
+        if (token == address(0x0)) {
+            payable(msg.sender).transfer(address(this).balance);
+            return;
+        }
+        IERC20 ERC20token = IERC20(token);
+        uint256 balance = ERC20token.balanceOf(address(this));
+        ERC20token.transfer(msg.sender, balance);
+    }
+
+    function isContract(address account) internal view returns (bool) {
+        return account.code.length > 0;
+    }
+
+    function sendBNB(address payable recipient, uint256 amount) internal {
+        require(address(this).balance >= amount, "Address: insufficient balance");
+
+        (bool success, ) = recipient.call{value: amount}("");
+        require(success, "Address: unable to send value, recipient may have reverted");
+    }
+    
+    function updateUniswapV2Router(address newAddress) public onlyOwner {
+        require(newAddress != address(uniswapV2Router), "Address: The router already has that address");
+        
+        emit UpdateUniswapV2Router(newAddress, address(uniswapV2Router));
+        uniswapV2Router = IUniswapV2Router02(newAddress);
+        address _uniswapV2Pair = IUniswapV2Factory(uniswapV2Router.factory())
+            .createPair(address(this), uniswapV2Router.WETH());
+        uniswapV2Pair = _uniswapV2Pair;
+    }
+
+    function setAutomatedMarketMakerPair(address pair, bool value) public onlyOwner {
+        _setAutomatedMarketMakerPair(pair, value);
+    }
+
+    function _setAutomatedMarketMakerPair(address pair, bool value) private {
+        require(automatedMarketMakerPairs[pair] != value, "Automated market maker pair is already set to that value");
+        automatedMarketMakerPairs[pair] = value;
+
+        emit SetAutomatedMarketMakerPair(pair, value);
+    }
+
+    function updateMarketingWallet(address newWallet) external onlyOwner {
+        require(newWallet != address(0), "Fee Address cannot be zero address");
+        marketingWallet = newWallet;
+    }
+
+    function excludeFromFees(address account, bool excluded) external onlyOwner {
+        require(_isExcludedFromFees[account] != excluded, "Account is already set to that state");
+        _isExcludedFromFees[account] = excluded;
+
+        emit ExcludeFromFees(account, excluded);
+    }
+
+    function isExcludedFromFees(address account) public view returns(bool) {
+        return _isExcludedFromFees[account];
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+        
+        if(amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+
+        uint256 contractTokenBalance = balanceOf(address(this));
+
+        bool canSwap = contractTokenBalance >= swapTokensAtAmount;
+
+        if( canSwap &&
+            !swapping &&
+            automatedMarketMakerPairs[to] &&
+            marketingFeeOnBuy + marketingFeeOnSell > 0
+        ) {
+            swapping = true;
+            
+            uint256 bnbShare = (marketingFeeOnBuy + marketingFeeOnSell);
+            
+            if(contractTokenBalance > 0 && bnbShare > 0) {
+                uint256 initialBalance = address(this).balance;
+
+                address[] memory path = new address[](2);
+                path[0] = address(this);
+                path[1] = uniswapV2Router.WETH();
+
+                uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+                    contractTokenBalance,
+                    0,
+                    path,
+                    address(this),
+                    block.timestamp);
+                
+                uint256 newBalance = address(this).balance - initialBalance;
+
+                if((marketingFeeOnBuy + marketingFeeOnSell) > 0) {
+                    uint256 marketingBNB = newBalance * (marketingFeeOnBuy + marketingFeeOnSell) / bnbShare;
+                    sendBNB(payable(marketingWallet), marketingBNB);
+                    emit SendMarketing(marketingBNB);
+                }
+            }
+
+            swapping = false;
+        }
+
+        bool takeFee = !swapping;
+
+        if(_isExcludedFromFees[from] || _isExcludedFromFees[to]) {
+            takeFee = false;
+        }
+
+        // w2w & not excluded from fees
+        if(from != uniswapV2Pair && to != uniswapV2Pair && takeFee) {
+            takeFee = false;
+        }
+
+        if(takeFee) {
+            uint256 _totalFees;
+            if(from == uniswapV2Pair) {
+                _totalFees = marketingFeeOnBuy;
+            } else {
+                _totalFees = marketingFeeOnSell;
+            }
+            uint256 fees = amount * _totalFees / 100;
+            
+            amount = amount - fees;
+
+            super._transfer(from, address(this), fees);
+        }
+
+        super._transfer(from, to, amount);
+
+    }
+
+    function setSwapTokensAtAmount(uint256 newAmount) external onlyOwner{
+        require(newAmount > totalSupply() / 100_000, "SwapTokensAtAmount must be greater than 0.001% of total supply");
+        swapTokensAtAmount = newAmount;
+    }
+
+}

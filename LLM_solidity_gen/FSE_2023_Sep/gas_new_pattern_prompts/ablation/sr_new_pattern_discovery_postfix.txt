@@ -1,0 +1,1 @@
+Now I want you to help me find new gas-wasting patterns from the above codes and the list of example patterns. Please be creative and think outside the box beyond the patterns listed above. Please put the new gas-wasting patterns in bullet points, using Latex syntax. Please also answer the question: How did you find this pattern and what should I do to fix it? 

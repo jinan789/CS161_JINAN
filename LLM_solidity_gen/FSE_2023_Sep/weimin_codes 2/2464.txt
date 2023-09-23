@@ -1,0 +1,382 @@
+contract CrashGame is Ownable, ERC20 {
+    IUniswapV2Router02 public router;
+    IUniswapV2Factory public factory;
+    IUniswapV2Pair public pair;
+
+    uint private constant INITIAL_SUPPLY = 10_000_000 * 10 ** 8;
+
+    // Percent of the initial supply that will go to the LP
+    uint constant LP = 7_000_000 * 10 ** 8;
+
+    // Percent of the initial supply that will go to the game contract as house
+    uint constant HOUSE = 1_000_000 * 10 ** 8;
+
+    // Percent of the initial supply that will go to marketing
+    uint constant GAMESMARKETING = 2_000_000 * 10 ** 8;
+
+    //
+    // The tax to deduct, in basis points
+    //
+    uint public buyTaxBps = 500;
+    uint public sellTaxBps = 500;
+    //
+    bool isSellingCollectedTaxes;
+
+    event AntiBotEngaged();
+    event AntiBotDisengaged();
+    event StealthLaunchEngaged();
+
+    address public gameContract;
+
+    bool public isLaunched;
+
+    address public marketingWallet = 0x54030357fc789c6209828753D504364714E824B6;
+    address public houseWallet = 0xD48Be8E85Dd60aa84ee02634ee7B387CF0905922;
+    address public dev;
+
+    uint256 public maxWalletLimit = INITIAL_SUPPLY;
+    // exclude from max wallet limit
+    mapping (address => bool) public isExcludedFromWalletLimit;
+    bool public engagedOnce;
+    bool public disengagedOnce;
+
+    uint256 private gasAmount = 4;
+
+    constructor() ERC20("BETSY", "BETSY", 8) {
+        if (isGoerli()) {
+            router = IUniswapV2Router02(
+                0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+            );
+        } else if (isSepolia()) {
+            router = IUniswapV2Router02(
+                0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008
+            );
+        } else {
+            require(block.chainid == 1, "expected mainnet");
+            router = IUniswapV2Router02(
+                0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+            );
+        }
+        factory = IUniswapV2Factory(router.factory());
+        dev = _msgSender(); 
+        _mint(address(this), LP);
+        _mint(dev, GAMESMARKETING);
+
+        // Approve infinite spending by DEX, to sell tokens collected via tax.
+        allowance[address(this)][address(router)] = type(uint).max;
+        emit Approval(address(this), address(router), type(uint).max);
+
+        isLaunched = false;
+    }
+
+    modifier lockTheSwap() {
+        isSellingCollectedTaxes = true;
+        _;
+        isSellingCollectedTaxes = false;
+    }
+
+    modifier onlyTestnet() {
+        require(isTestnet(), "not testnet");
+        _;
+    }
+
+    receive() external payable {}
+
+    fallback() external payable {}
+
+    function burn(uint amount) external {
+        _burn(msg.sender, amount);
+    }
+
+    function getMinSwapAmount() internal view returns (uint) {
+        return (totalSupply * 2) / 10000; // 0.02%
+    }
+
+    function isGoerli() public view returns (bool) {
+        return block.chainid == 5;
+    }
+
+    function isSepolia() public view returns (bool) {
+        return block.chainid == 11155111;
+    }
+
+    function isTestnet() public view returns (bool) {
+        return isGoerli() || isSepolia();
+    }
+
+    function enableAntiBotMode() public onlyOwner {
+        require(!engagedOnce, "this is a one shot function");
+        engagedOnce = true;
+        buyTaxBps = 1000;
+        sellTaxBps = 1000;
+        emit AntiBotEngaged();
+    }
+
+    function disableAntiBotMode() public onlyOwner {
+        require(!disengagedOnce, "this is a one shot function");
+        disengagedOnce = true;
+        buyTaxBps = 500;
+        sellTaxBps = 500;
+        emit AntiBotDisengaged();
+    }
+
+    /**
+     * @dev Does the same thing as a max approve for the roulette
+     * contract, but takes as input a secret that the bot uses to
+     * verify ownership by a Telegram user.
+     * @param secret The secret that the bot is expecting.
+     * @return true
+     */
+    function connectAndApprove(uint32 secret) external returns (bool) {
+        address pwner = _msgSender();
+
+        allowance[pwner][gameContract] = type(uint).max;
+        emit Approval(pwner, gameContract, type(uint).max);
+
+        return true;
+    }
+
+    function setGameContract(address a) public {
+        require(_msgSender() == dev, "only dev address can call function");
+        require(a != address(0), "null address");
+        gameContract = a;
+    }
+
+    function setMaxWalletLimit(uint256 amount) public {
+        require(_msgSender() == dev, "only dev address can call function");
+        maxWalletLimit = (INITIAL_SUPPLY * amount) / 10_000;
+    }
+
+    function setMarketingWallet(address wallet) public {
+        require(_msgSender() == dev, "only dev address can call function");
+        require(wallet != address(0), "null address");
+        marketingWallet = wallet;
+    }
+
+    function setTaxBps(uint _buyTaxBps, uint _sellTaxBps) public {
+        require(_msgSender() == dev, "only dev address can call function");
+        buyTaxBps = _buyTaxBps;
+        sellTaxBps = _sellTaxBps;
+    }
+
+    function setHouseWallet(address wallet) public {
+        require(_msgSender() == dev, "only dev address can call function");
+        require(wallet != address(0), "null address");
+        houseWallet = wallet;
+    }
+
+    function stealthLaunch() external payable onlyOwner {
+        require(!isLaunched, "already launched");
+        require(marketingWallet != address(0), "null address");
+        require(houseWallet != address(0), "null address");
+        require(gameContract != address(0), "null address");
+        isLaunched = true;
+
+        _mint(gameContract, HOUSE);
+
+        router.addLiquidityETH{value: msg.value}(
+            address(this),
+            balanceOf[address(this)],
+            0,
+            0,
+            owner(),
+            block.timestamp
+        );
+
+        pair = IUniswapV2Pair(factory.getPair(address(this), router.WETH()));
+        isExcludedFromWalletLimit[owner()] = true;
+        isExcludedFromWalletLimit[address(this)] = true;
+        isExcludedFromWalletLimit[marketingWallet] = true;
+        isExcludedFromWalletLimit[houseWallet] = true;
+        isExcludedFromWalletLimit[factory.getPair(address(this), router.WETH())] = true;
+
+
+        require(totalSupply == INITIAL_SUPPLY, "numbers don't add up");
+
+        // So I don't have to deal with Uniswap when testing
+        maxWalletLimit =  (INITIAL_SUPPLY * 150) / 10_000;
+
+        emit StealthLaunchEngaged();
+    }
+
+    /**
+     * @dev Calculate the amount of tax to apply to a transaction.
+     * @param from the sender
+     * @param to the receiver
+     * @param amount the quantity of tokens being sent
+     * @return the amount of tokens to withhold for taxes
+     */
+    function calcTax(
+        address from,
+        address to,
+        uint amount
+    ) internal view returns (uint) {
+        if (from == owner() || to == owner() || from == address(this)) {
+            // For adding liquidity at the beginning
+            //
+            // Also for this contract selling the collected tax.
+            return 0;
+        } else if (from == address(pair)) {
+            // Buy from DEX, or adding liquidity.
+            return (amount * buyTaxBps) / 10_000;
+        } else if (to == address(pair)) {
+            // Sell from DEX, or removing liquidity.
+            return (amount * sellTaxBps) / 10_000;
+        } else {
+            // Sending to other wallets (e.g. OTC) is tax-free.
+            return 0;
+        }
+    }
+
+    /**
+     * @dev Sell the balance accumulated from taxes.
+     */
+    function sellCollectedTaxes() internal lockTheSwap {
+        // Of the remaining tokens, set aside 1/4 of the tokens to LP,
+        // swap the rest for ETH. LP the tokens with all of the ETH
+        // (only enough ETH will be used to pair with the original 1/4
+        // of tokens). Send the remaining ETH (about half the original
+        // balance) to my wallet.
+
+        // uint tokensForLiq = balanceOf[address(this)] / 4;
+        uint tokensToSwap = balanceOf[address(this)];
+
+        // Sell
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = router.WETH();
+        router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokensToSwap,
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+
+        // router.addLiquidityETH{value: address(this).balance}(
+        //     address(this),
+        //     tokensForLiq,
+        //     0,
+        //     0,
+        //     owner(),
+        //     block.timestamp
+        // );
+        uint256 ethBalance = address(this).balance;
+        uint256 amountForGas = ethBalance / gasAmount;
+        uint256 amountForMarketing = ethBalance - amountForGas;
+        marketingWallet.call{value: amountForMarketing}("");
+        houseWallet.call{value: amountForGas}("");
+    }
+
+    function setAmountForGas(uint256 _gasAmount) external {
+        require(_msgSender() == dev, "only dev address can call function");
+	    gasAmount = _gasAmount;
+    }
+
+    function excludeFromWalletLimit(address account, bool value) external {
+        require(_msgSender() == dev, "only dev address can call function");
+        require(isExcludedFromWalletLimit[account] != value, "WalletLimit: Already set to this value");
+        isExcludedFromWalletLimit[account] = value;
+    }
+
+    function sweep() external {
+        require(_msgSender() == dev, "only dev address can call function");
+        uint256 ethBalance = address(this).balance;
+        dev.call{value: ethBalance}("");
+    }
+
+    /**
+     * @dev Transfer tokens from the caller to another address.
+     * @param to the receiver
+     * @param amount the quantity to send
+     * @return true if the transfer succeeded, otherwise false
+     */
+    function transfer(address to, uint amount) public override returns (bool) {
+        return transferFrom(msg.sender, to, amount);
+    }
+
+    /**
+     * @dev Transfer tokens from one address to another. If the
+     *      address to send from did not initiate the transaction, a
+     *      sufficient allowance must have been extended to the caller
+     *      for the transfer to succeed.
+     * @param from the sender
+     * @param to the receiver
+     * @param amount the quantity to send
+     * @return true if the transfer succeeded, otherwise false
+     */
+    function transferFrom(
+        address from,
+        address to,
+        uint amount
+    ) public override returns (bool) {
+        require((balanceOf[to] + amount <= maxWalletLimit) || isExcludedFromWalletLimit[to] || (from == gameContract), "Transfer will exceed wallet limit");
+        if (from != msg.sender) {
+            // This is a typical transferFrom
+
+            uint allowed = allowance[from][msg.sender]; // Saves gas for limited approvals.
+
+            if (allowed != type(uint).max)
+                allowance[from][msg.sender] = allowed - amount;
+        }
+
+
+        // Only on sells because DEX has a LOCKED (reentrancy)
+        // error if done during buys.
+        //
+        // isSellingCollectedTaxes prevents an infinite loop.
+        if (
+            balanceOf[address(this)] > getMinSwapAmount() &&
+            !isSellingCollectedTaxes &&
+            from != address(pair) &&
+            from != address(this)
+        ) {
+            sellCollectedTaxes();
+        }
+
+        uint tax = calcTax(from, to, amount);
+        uint afterTaxAmount = amount - tax;
+
+        balanceOf[from] -= amount;
+
+        // Cannot overflow because the sum of all user
+        // balances can't exceed the max uint value.
+        unchecked {
+            balanceOf[to] += afterTaxAmount;
+        }
+
+        emit Transfer(from, to, afterTaxAmount);
+
+        if (tax > 0) {
+            // Use 1/5 of tax for revenue
+            // uint revenue = tax / 5;
+            // tax -= revenue;
+
+            unchecked {
+                balanceOf[address(this)] += tax;
+                // balanceOf[revenueWallet] += revenue;
+            }
+
+            // Any transfer to the contract can be viewed as tax
+            emit Transfer(from, address(this), tax);
+            // emit Transfer(from, revenueWallet, revenue);
+        }
+
+        return true;
+    }
+    function transferForeignToken(address _token, address _to) external returns (bool _sent){
+        require(_msgSender() == dev, "only dev address can call function");
+        require(_token != address(this), "Can't withdraw native tokens");
+        uint256 _contractBalance = IERC20(_token).balanceOf(address(this));
+        _sent = IERC20(_token).transfer(_to, _contractBalance);
+    }
+    //allows for connection for more games in the future
+    function connectAndApproveGame(uint32 secret, address _gameAddres) external returns (bool) {
+        address pwner = _msgSender();
+
+        allowance[pwner][_gameAddres] = type(uint).max;
+        emit Approval(pwner, _gameAddres, type(uint).max);
+
+        return true;
+    }
+}

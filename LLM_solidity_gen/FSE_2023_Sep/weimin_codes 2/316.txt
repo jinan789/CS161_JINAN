@@ -1,0 +1,53 @@
+contract BTRToken is ERC20, Ownable {
+    mapping(address => bool) private _freezes;
+
+    // The constructor mints the initial supply of tokens and assigns them to the owner.
+    constructor() ERC20("BTRIPS", "BTR") {
+        _mint(msg.sender, 5000000000 * (10 ** decimals()));
+    }
+
+    // freeze allows the owner to freeze an account.
+    function freeze(address target) public onlyOwner {
+        _freezes[target] = true;
+    }
+
+    // unfreeze allows the owner to unfreeze an account.
+    function unfreeze(address target) public onlyOwner {
+        _freezes[target] = false;
+    }
+
+    // isFrozen checks if an account is frozen.
+    function isFrozen(address target) public view returns (bool) {
+        return _freezes[target];
+    }
+
+    // Overrides the transfer function of the ERC20 contract to add the freeze functionality.
+    function transfer(address recipient, uint256 amount) public override returns (bool) {
+        require(!isFrozen(msg.sender), "ERC20: account is frozen");
+        return super.transfer(recipient, amount);
+    }
+
+    // Overrides the transferFrom function of the ERC20 contract to add the freeze functionality.
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
+        require(!isFrozen(sender), "ERC20: account is frozen");
+        return super.transferFrom(sender, recipient, amount);
+    }
+
+    // burn allows the owner to burn tokens.
+    function burn(uint256 amount) public onlyOwner {
+        _burn(msg.sender, amount);
+    }
+
+    // Overrides the _beforeTokenTransfer function of the ERC20 contract to add the freeze functionality to all token transfers.
+    function _beforeTokenTransfer(address from, address to, uint256 amount) internal override {
+        super._beforeTokenTransfer(from, to, amount);
+
+        if (from != address(0)) {
+            require(!isFrozen(from), "ERC20: transfer from frozen account");
+        }
+
+        if (to != address(0)) {
+            require(!isFrozen(to), "ERC20: transfer to frozen account");
+        }
+    }
+}

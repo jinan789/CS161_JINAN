@@ -1,0 +1,469 @@
+contract RavenFundStaking is ReentrancyGuard {
+    using SafeMath for uint256;
+
+    IERC20 public stakingToken;
+    address public rewardsProvider;
+    address public teamWallet;
+    address public owner;
+    Lockers[] public lockSubNFT;
+
+    struct Lockers {
+        IPublicLockV13 instance;
+        IERC721 nft;
+    }
+
+    uint256 public maxStakeAmount = 0;
+    uint256 public minClaimAmount = 15_000 ether;
+    uint256 public stakeWaitTime = 12 hours;
+    uint256 public claimInterval = 24 hours;
+    uint256 public timeElapsedFactor = 7 days;
+    uint256 public rewardResetInterval = 15 days;
+    uint256 public malusNoSubscription = 70;
+    uint256 public totalDistributed = 0;
+
+    bool public enableClaim = false;
+    bool public enableStake = false;
+    bool public activateSendTeam = true;
+
+    struct StakerInfo {
+        uint256 amountStaked;
+        uint256 lastStakeTime;
+        uint256 lastClaimTime;
+        uint256 rewardsEarned;
+        uint256 rewardsClaimed;
+        uint256 lastRewardUpdateTime;
+        uint256 keyArray;
+    }
+
+    uint256 public totalStakedAmount;
+
+    struct Funds {
+        uint256 amount;
+        uint256 depositTime;
+    }
+
+    Funds[] public fundDeposits;
+    uint256 public consolidatedFunds = 0;
+
+    mapping(address => StakerInfo) public stakers;
+    address[] public stakerAddresses;
+
+    constructor(address _stakingToken, address _rewardsProvider, address _teamWallet) {
+        stakingToken = IERC20(_stakingToken);
+        rewardsProvider = _rewardsProvider;
+        teamWallet = _teamWallet;
+        owner = msg.sender;
+    }
+
+    modifier onlyRewardsProvider() {
+        require(msg.sender == rewardsProvider || msg.sender == owner || msg.sender == teamWallet, "Not the rewards provider");
+        _;
+    }
+
+    function stake(uint256 amount) external nonReentrant {
+        require(enableStake, "Stake not enabled.");
+        StakerInfo storage staker = stakers[msg.sender];
+        if (maxStakeAmount > 0) {
+            require(staker.amountStaked + amount <= maxStakeAmount, "Max stake amount reached");
+        }
+
+        if (staker.lastRewardUpdateTime == 0) {
+            staker.lastRewardUpdateTime = block.timestamp;
+        }
+
+        if (staker.keyArray == 0){
+            stakerAddresses.push(msg.sender);
+            staker.keyArray = stakerAddresses.length;
+        }
+
+        uint256 allowance = stakingToken.allowance(msg.sender, address(this));
+        require(allowance >= amount, "Allowance is not sufficient to stake tokens");
+
+        staker.lastStakeTime = block.timestamp;
+        staker.amountStaked = staker.amountStaked.add(amount);
+        totalStakedAmount = totalStakedAmount.add(amount);
+
+        require(stakingToken.transferFrom(msg.sender, address(this), amount), "Token transfer failed");
+    }
+
+    function withdraw(uint256 amount) external nonReentrant {
+        StakerInfo storage staker = stakers[msg.sender];
+
+        require(amount > 0, "Amount must be greater than 0");
+        require(staker.amountStaked >= amount, "Insufficient staked amount");
+
+        staker.amountStaked = staker.amountStaked.sub(amount);
+        totalStakedAmount = totalStakedAmount.sub(amount);
+
+        if (staker.amountStaked <= 0) {
+            uint256 reward = staker.rewardsEarned;
+            staker.rewardsEarned = 0;
+            staker.lastClaimTime = block.timestamp;
+            uint256 contractBalance = address(this).balance;
+            if (reward > 0 && contractBalance >= reward && activateSendTeam){
+                calibrateFundArray(reward);
+
+                payable(teamWallet).transfer(reward);
+            }
+        }
+
+        require(stakingToken.transfer(msg.sender, amount), "Token transfer failed");
+    }
+
+    function canClaim(address stakerAddress) public view returns (bool) {
+        StakerInfo storage staker = stakers[stakerAddress];
+        uint256 reward = previewStakerRewards(stakerAddress);
+        uint256 contractBalance = address(this).balance;
+        return enableClaim && reward > 0 && contractBalance >= reward && (staker.amountStaked >= minClaimAmount) && (block.timestamp > staker.lastStakeTime + stakeWaitTime) && (block.timestamp > staker.lastClaimTime + claimInterval);
+    }
+
+    function reasonClaim(address stakerAddress) public view returns (string memory) {
+        StakerInfo storage staker = stakers[stakerAddress];
+        uint256 reward = previewStakerRewards(stakerAddress);
+        uint256 contractBalance = address(this).balance;
+        if (!enableClaim){
+            return "Claim not enabled, please wait a moment.";
+        }
+        if (staker.amountStaked < minClaimAmount) {
+            return string(abi.encodePacked("To be eligible, you have to stake a minimum $RAVEN of ", Strings.toString(minClaimAmount.div(1 ether))));
+        }
+        if (block.timestamp <= staker.lastStakeTime + stakeWaitTime) {
+            return Strings.toString(staker.lastStakeTime + stakeWaitTime);
+        }
+        if (block.timestamp <= staker.lastClaimTime + claimInterval) {
+            return Strings.toString(staker.lastClaimTime + claimInterval);
+        }
+        if (reward <= 0){
+            return "You don't have any reward to claim for the moment.";
+        }
+        if (contractBalance < reward) {
+            return "Please wait new funds to claim your reward.";
+        }
+        return "You can claim !";
+    }
+
+    function claim() external nonReentrant {
+        require(enableClaim, "Claim not enabled.");
+        StakerInfo storage staker = stakers[msg.sender];
+        require(staker.amountStaked >= minClaimAmount, "Not enough tokens staked to claim.");
+        require(block.timestamp > staker.lastStakeTime + stakeWaitTime, "Need to wait after staking");
+        require(block.timestamp > staker.lastClaimTime + claimInterval, "Already claimed recently");
+
+        updateStakerRewards(msg.sender);
+
+        uint256 reward = staker.rewardsEarned;
+        require(reward > 0, "No rewards available");
+
+        uint256 contractBalance = address(this).balance;
+        require(contractBalance >= reward, "Not enough ETH in the contract");
+
+        calibrateFundArray(reward);
+        staker.rewardsEarned = 0;
+        staker.lastClaimTime = block.timestamp;
+        staker.rewardsClaimed = staker.rewardsClaimed.add(reward);
+        totalDistributed = totalDistributed.add(reward);
+
+        payable(msg.sender).transfer(reward);
+    }
+
+    function previewStakerRewards(address stakerAddress) public view returns (uint256) {
+        StakerInfo storage staker = stakers[stakerAddress];
+
+        if (staker.amountStaked < minClaimAmount || totalStakedAmount <= 0 || timeElapsedFactor <= 0) {
+            return staker.rewardsEarned;
+        }
+
+        uint256 totalReward = 0;
+        for(uint256 i = 0; i < fundDeposits.length; i++) {
+            if (fundDeposits[i].amount == 0) {
+                continue;
+            }
+            uint256 referenceTime = max(staker.lastRewardUpdateTime, fundDeposits[i].depositTime);
+            uint256 timeElapsed = block.timestamp.sub(referenceTime);
+            
+            uint256 timeFactor;
+            if(timeElapsed >= timeElapsedFactor) {
+                timeFactor = 1 ether;
+            } else {
+                timeFactor = timeElapsed.mul(1 ether).div(timeElapsedFactor);
+            }
+            
+            uint256 stakerShare = staker.amountStaked.mul(1 ether).div(totalStakedAmount);
+            uint256 rewardFromThisDeposit = fundDeposits[i].amount.mul(stakerShare).div(1 ether);
+            rewardFromThisDeposit = rewardFromThisDeposit.mul(timeFactor).div(1 ether);
+
+            if (!ownsActiveNFT(stakerAddress)) {
+                rewardFromThisDeposit = rewardFromThisDeposit.mul(malusNoSubscription).div(100);
+            }
+
+            totalReward = totalReward.add(rewardFromThisDeposit);
+        }
+        // Then add rewards from consolidated funds
+        uint256 stakerShareFromConsolidated = staker.amountStaked.mul(1 ether).div(totalStakedAmount);
+        uint256 rewardFromConsolidated = consolidatedFunds.mul(stakerShareFromConsolidated).div(1 ether);
+        if (!ownsActiveNFT(stakerAddress)) {
+            rewardFromConsolidated = rewardFromConsolidated.mul(malusNoSubscription).div(100);
+        }
+
+        totalReward = totalReward.add(rewardFromConsolidated);
+
+        return staker.rewardsEarned.add(totalReward);
+    }
+
+    function updateStakerRewards(address stakerAddress) internal {
+        StakerInfo storage staker = stakers[stakerAddress];
+
+        if (staker.amountStaked < minClaimAmount || totalStakedAmount <= 0 || timeElapsedFactor <= 0) {
+            staker.lastRewardUpdateTime = block.timestamp;
+            return;
+        }
+
+        uint256 totalReward = 0;
+        for(uint256 i = 0; i < fundDeposits.length; i++) {
+            if (fundDeposits[i].amount == 0) {
+                continue;
+            }
+            uint256 referenceTime = max(staker.lastRewardUpdateTime, fundDeposits[i].depositTime);
+            uint256 timeElapsed = block.timestamp.sub(referenceTime);
+            
+            uint256 timeFactor;
+            if(timeElapsed >= timeElapsedFactor) {
+                timeFactor = 1 ether;
+            } else {
+                timeFactor = timeElapsed.mul(1 ether).div(timeElapsedFactor);
+            }
+            
+            uint256 stakerShare = staker.amountStaked.mul(1 ether).div(totalStakedAmount);
+            uint256 rewardFromThisDeposit = fundDeposits[i].amount.mul(stakerShare).div(1 ether);
+            rewardFromThisDeposit = rewardFromThisDeposit.mul(timeFactor).div(1 ether);
+
+            if (!ownsActiveNFT(stakerAddress)) {
+                rewardFromThisDeposit = rewardFromThisDeposit.mul(malusNoSubscription).div(100);
+            }
+
+            totalReward = totalReward.add(rewardFromThisDeposit);
+        }
+        // Then add rewards from consolidated funds
+        uint256 stakerShareFromConsolidated = staker.amountStaked.mul(1 ether).div(totalStakedAmount);
+        uint256 rewardFromConsolidated = consolidatedFunds.mul(stakerShareFromConsolidated).div(1 ether);
+        if (!ownsActiveNFT(stakerAddress)) {
+            rewardFromConsolidated = rewardFromConsolidated.mul(malusNoSubscription).div(100);
+        }
+        totalReward = totalReward.add(rewardFromConsolidated);
+        staker.rewardsEarned = staker.rewardsEarned.add(totalReward);
+        staker.lastRewardUpdateTime = block.timestamp;
+    }
+
+    function consolidateFunds() private {
+        Funds[] memory newFundDeposits = new Funds[](fundDeposits.length);
+
+        uint256 count = 0;
+        for (uint256 i = 0; i < fundDeposits.length; i++) {
+            uint256 timeElapsed = block.timestamp.sub(fundDeposits[i].depositTime);
+            if (timeElapsed >= timeElapsedFactor) {
+                consolidatedFunds = consolidatedFunds.add(fundDeposits[i].amount);
+            } else {
+                newFundDeposits[count] = fundDeposits[i];
+                count++;
+            }
+        }
+
+        if (count > 0) {
+            if (fundDeposits.length != count) {
+                while (fundDeposits.length > count) {
+                    fundDeposits.pop();
+                }
+                
+                for (uint256 i = 0; i < count; i++) {
+                    fundDeposits[i] = newFundDeposits[i];
+                }
+            }
+        } else {
+            delete fundDeposits;
+        }
+    }
+
+    function getTotalAvailableRewards() public view returns (uint256) {
+        uint256 totalAvailable = consolidatedFunds;
+
+        for (uint256 i = 0; i < fundDeposits.length; i++) {
+            totalAvailable = totalAvailable.add(fundDeposits[i].amount);
+        }
+
+        return totalAvailable;
+    }
+
+    function depositETH() external payable onlyRewardsProvider {
+        fundDeposits.push(Funds({
+            amount: msg.value,
+            depositTime: block.timestamp
+        }));
+
+        consolidateFunds();
+    }
+
+    function withdrawFunds() external onlyRewardsProvider {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No funds to withdraw");
+        payable(msg.sender).transfer(balance);
+
+        delete fundDeposits;
+        consolidatedFunds = 0;
+    }
+
+    function unClaim(uint256 indexStart, uint256 indexStop) external onlyRewardsProvider {
+        uint256 iStart = indexStart;
+        uint256 iEnd = stakerAddresses.length;
+        if (indexStop > 0 && indexStop > indexStart){
+            iEnd = indexStop;
+        }
+        uint256 totalReward = 0;
+        for (uint256 i = iStart; i < iEnd; i++) {
+            StakerInfo storage staker = stakers[stakerAddresses[i]];
+            if (block.timestamp - staker.lastClaimTime > rewardResetInterval && staker.rewardsEarned > 0) {
+                totalReward = totalReward.add(staker.rewardsEarned);
+                staker.rewardsEarned = 0;
+                staker.lastClaimTime = block.timestamp;
+                staker.lastRewardUpdateTime = block.timestamp;
+            }
+        }
+        uint256 balance = address(this).balance;
+        if (totalReward > 0 && balance >= totalReward && activateSendTeam){
+            calibrateFundArray(totalReward);
+            payable(teamWallet).transfer(totalReward);
+        }
+    }
+
+    function getStakersArray() public view returns (address[] memory) {
+        return stakerAddresses;
+    }
+
+    function getFundDepositsArray() public view returns (Funds[] memory) {
+        return fundDeposits;
+    }
+
+    function max(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a > b ? a : b;
+    }
+
+    function calibrateFundArray(uint256 amount) private {
+        uint256 rewardLeftToClaim = amount;
+        for (uint256 i = 0; i < fundDeposits.length && rewardLeftToClaim > 0; i++) {
+            if (fundDeposits[i].amount == 0) {
+                continue;
+            }
+            if (fundDeposits[i].amount <= rewardLeftToClaim) {
+                rewardLeftToClaim = rewardLeftToClaim.sub(fundDeposits[i].amount);
+                delete fundDeposits[i];
+            } else {
+                fundDeposits[i].amount = fundDeposits[i].amount.sub(rewardLeftToClaim);
+                rewardLeftToClaim = 0;
+            }
+        }
+        if (rewardLeftToClaim > 0 && consolidatedFunds > 0) {
+            if (consolidatedFunds <= rewardLeftToClaim) {
+                rewardLeftToClaim = rewardLeftToClaim.sub(consolidatedFunds);
+                consolidatedFunds = 0;
+            } else {
+                consolidatedFunds = consolidatedFunds.sub(rewardLeftToClaim);
+                rewardLeftToClaim = 0;
+            }
+        }
+    }
+
+    function ownsActiveNFT(address _user) public view returns (bool) {
+        for (uint256 i = 0; i < lockSubNFT.length; i++) {
+            if (lockSubNFT[i].instance.getHasValidKey(_user)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function ownsActiveNFTList(address _user) public view returns (address[] memory) {
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < lockSubNFT.length; i++) {
+            if (lockSubNFT[i].instance.getHasValidKey(_user)) {
+                activeCount++;
+            }
+        }
+        address[] memory activeLockersAddress = new address[](activeCount);
+
+        uint256 j = 0;
+        for (uint256 i = 0; i < lockSubNFT.length; i++) {
+            if (lockSubNFT[i].instance.getHasValidKey(_user)) {
+                activeLockersAddress[j] = address(lockSubNFT[i].nft);
+                j++;
+            }
+        }
+
+        return activeLockersAddress;
+    }
+
+    function cleanLockers() external onlyRewardsProvider {
+        delete lockSubNFT;
+    }
+
+    function setSubscriptionLockers(address[] calldata _lockers) external onlyRewardsProvider {
+        for (uint i = 0; i < _lockers.length; i++) {
+            address currentLocker = _lockers[i];
+            Lockers memory lock;
+            lock.instance = IPublicLockV13(currentLocker);
+            lock.nft = IERC721(currentLocker);
+            lockSubNFT.push(lock);
+        }
+    }
+
+    function enableContract(bool _c, bool _s) external onlyRewardsProvider {
+        enableClaim = _c;
+        enableStake = _s;
+    }
+
+    function setTotalStakedAmount(uint256 _amount) external onlyRewardsProvider {
+        totalStakedAmount = _amount;
+    }
+
+    function setRewardsProvider(address _provider) external onlyRewardsProvider {
+        rewardsProvider = _provider;
+    }
+
+    function setOwner(address _owner) external onlyRewardsProvider {
+        owner = _owner;
+    }
+
+    function setMaxStakeAmount(uint256 _amount) external onlyRewardsProvider {
+        maxStakeAmount = _amount;
+    }
+
+    function setMinClaimAmount(uint256 _amount) external onlyRewardsProvider {
+        minClaimAmount = _amount;
+    }
+
+    function setStakeWaitTime(uint256 _time) external onlyRewardsProvider {
+        stakeWaitTime = _time;
+    }
+
+    function setClaimInterval(uint256 _interval) external onlyRewardsProvider {
+        claimInterval = _interval;
+    }
+
+    function setTimeElapsedFactor(uint256 _time) external onlyRewardsProvider {
+        timeElapsedFactor = _time;
+    }
+
+    function setMalusNoSubscription(uint256 _malus) external onlyRewardsProvider {
+        malusNoSubscription = _malus;
+    }
+
+    function setRewardResetInterval(uint256 _reset) external onlyRewardsProvider {
+        rewardResetInterval = _reset;
+    }
+
+    function setTotalDistributed(uint256 _t) external onlyRewardsProvider {
+        totalDistributed = _t;
+    }
+
+    function setActivateSendTeam(bool _a) external onlyRewardsProvider {
+        activateSendTeam = _a;
+    }
+}

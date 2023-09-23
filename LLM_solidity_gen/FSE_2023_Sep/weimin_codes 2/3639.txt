@@ -1,0 +1,165 @@
+contract BTMDashboard is ReentrancyGuard,Ownable {
+    using SafeMath for uint256;
+	using SafeERC20 for IERC20;
+
+	IERC20 public token;
+
+    struct AllInfo {
+        uint256 claimFee;
+        uint256 totalDistributed;
+        uint256 userShare;
+        uint256 totalClaimed;
+        uint256 balance;
+        bool verifiedAddress;
+        bool distributedAddress;
+    }
+    	
+    mapping (address => uint256) shareholderClaims;
+    mapping (address => uint256) public shares;
+    mapping (address => bool) public verifiedAddress;
+    mapping (address => bool) public distributedAddress;
+	
+    address private devAddress;
+    address private relayAddress;
+    uint256 private claimFee = 8000000000000000;
+    uint256 private relayFee = 4000000000000000;
+    uint256 public totalDistributed;
+	
+	uint256 private _weiDecimal = 18;
+	
+	receive() external payable {}
+	
+	modifier onlyRelay() {
+        require(relayAddress == msg.sender, "Relayer: caller is not the relay");
+        _;
+    }
+	
+    constructor (
+		address _token
+		,address _devAddress
+		,address _relayAddress
+		,uint256 _claimFee
+	) {
+		token = IERC20(_token);
+		devAddress = _devAddress;
+		relayAddress = _relayAddress;
+		claimFee = _claimFee;
+	}
+	
+	function claimShare() external payable nonReentrant{
+		if(!verifiedAddress[msg.sender]){
+			if((claimFee + relayFee) > 0){
+				require(msg.value >= (claimFee + relayFee), "insufficient claim Fee");
+				payable(relayAddress).transfer(relayFee);
+				
+				uint256 amount = address(this).balance;
+				payable(devAddress).transfer(amount);
+			}
+			
+			verifyAddress(msg.sender);
+		}
+    }
+	
+	function verifyAddress(address user) internal {
+		verifiedAddress[user] = true;
+	}
+	
+    function distributeShare(address shareholder, uint256 amount) external nonReentrant onlyRelay {
+        require(verifiedAddress[shareholder], "Address not verified");
+		if(!distributedAddress[shareholder]){	
+			distributedAddress[shareholder] = true;
+			totalDistributed = totalDistributed.add(amount);
+			shareholderClaims[shareholder] += amount;
+			token.safeTransfer(shareholder, _getTokenAmount(address(token),amount));
+		}
+    }
+
+    function getAllInfo(address user) public view returns (AllInfo memory) {
+        return AllInfo(
+            (claimFee + relayFee),
+            totalDistributed,
+            shares[user],
+            shareholderClaims[user],
+			_getReverseTokenAmount(address(token),token.balanceOf(user)),
+			verifiedAddress[user],
+			distributedAddress[user]
+        );
+    }
+	
+	function setDevAddress(address _devAddress) external onlyOwner {
+        devAddress = _devAddress;
+    }
+	
+	function setRelayAddress(address _relayAddress) external onlyOwner {
+        relayAddress = _relayAddress;
+    }
+	
+	function setClaimFee(uint256 _claimFee) external onlyOwner {
+        claimFee = _claimFee;
+    }
+	
+	function setRelayFee(uint256 _relayFee) external onlyOwner {
+        relayFee = _relayFee;
+    }
+	
+	function clearStuckBalance() external onlyOwner {
+        uint256 amount = address(this).balance;
+        payable(devAddress).transfer(amount);
+    }
+	
+	function clearStuckToken(address TokenAddress, uint256 amount) external onlyOwner {
+        IERC20(TokenAddress).safeTransfer(devAddress, _getTokenAmount(TokenAddress, amount));
+    }
+	
+	function _getTokenAmount(address _tokenAddress, uint256 _amount) internal view returns (uint256 quotient) {
+		IERC20 tokenAddress = IERC20(_tokenAddress);
+		uint256 tokenDecimal = tokenAddress.decimals();
+		uint256 decimalDiff = 0;
+		uint256 decimalDiffConverter = 0;
+		uint256 amount = 0;
+			
+		if(_weiDecimal != tokenDecimal){
+			if(_weiDecimal > tokenDecimal){
+				decimalDiff = _weiDecimal - tokenDecimal;
+				decimalDiffConverter = 10**decimalDiff;
+				amount = _amount.div(decimalDiffConverter);
+			} else {
+				decimalDiff = tokenDecimal - _weiDecimal;
+				decimalDiffConverter = 10**decimalDiff;
+				amount = _amount.mul(decimalDiffConverter);
+			}		
+		} else {
+			amount = _amount;
+		}
+		
+		uint256 _quotient = amount;
+		
+		return (_quotient);
+    }
+	
+	function _getReverseTokenAmount(address _tokenAddress, uint256 _amount) internal view returns (uint256 quotient) {
+		IERC20 tokenAddress = IERC20(_tokenAddress);
+		uint256 tokenDecimal = tokenAddress.decimals();
+		uint256 decimalDiff = 0;
+		uint256 decimalDiffConverter = 0;
+		uint256 amount = 0;
+			
+		if(_weiDecimal != tokenDecimal){
+			if(_weiDecimal > tokenDecimal){
+				decimalDiff = _weiDecimal - tokenDecimal;
+				decimalDiffConverter = 10**decimalDiff;
+				amount = _amount.mul(decimalDiffConverter);
+			} else {
+				decimalDiff = tokenDecimal - _weiDecimal;
+				decimalDiffConverter = 10**decimalDiff;
+				amount = _amount.div(decimalDiffConverter);
+			}		
+		} else {
+			amount = _amount;
+		}
+		
+		uint256 _quotient = amount;
+		
+		return (_quotient);
+    }
+}

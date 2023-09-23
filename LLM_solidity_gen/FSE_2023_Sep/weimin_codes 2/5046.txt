@@ -1,0 +1,95 @@
+contract Lock is Ownable, ReentrancyGuard {
+    uint256 public startTime;
+    uint256 public releaseTime;
+    uint256 public totalTokens;
+    uint256 public releasedTokens;
+    uint256 public initialReleaseAmount;
+    uint256 public staticinitialReleaseAmount;
+    uint256 public currentDuration;
+
+    bool public isInitialized;
+    bool public isRefunded;
+
+    // Address of the token contract
+    address public tokenContract;
+
+    // Address of the beneficiary who will receive the tokens
+    address public beneficiary;
+
+    // Number of months over which 90% locked tokens will be released
+    uint256 public constant releaseDuration = 11;
+
+    // Constructor
+    constructor(
+        address _tokenContract,
+        address _beneficiary,
+        uint256 _totalTokens
+    ) {
+        tokenContract = _tokenContract;
+        beneficiary = _beneficiary;
+
+        initialReleaseAmount = _totalTokens * 10 / 100;
+        uint256 _vestingTokens = _totalTokens - initialReleaseAmount;
+
+        startTime = 0;
+        releaseTime = 0;
+        totalTokens = _vestingTokens;
+        releasedTokens = 0;
+        staticinitialReleaseAmount = initialReleaseAmount;
+        currentDuration = 1;
+        isInitialized = false;
+        isRefunded = false;
+    }
+
+    function startVesting() external onlyOwner {
+        require(!isInitialized, "Vesting already initialized");
+        require(!isRefunded, "Vesting already refunded");
+        startTime = block.timestamp;
+        releaseTime = block.timestamp + 730 days;
+        isInitialized = true;
+    }
+
+    function refundVesting() external onlyOwner {
+        require(!isInitialized, "Vesting already initialized");
+        require(!isRefunded, "Vesting already refunded");
+        isRefunded = true;
+        IERC20(tokenContract).transfer(msg.sender, totalTokens + initialReleaseAmount);
+    }
+
+    function releaseInitialTokens() external nonReentrant {
+        require(msg.sender == beneficiary, "You aren't the owner");
+        require(isInitialized, "Vesting period not initialized");
+        require(initialReleaseAmount > 0, "Vesting period ended");
+        releasedTokens += initialReleaseAmount;
+        IERC20(tokenContract).transfer(beneficiary, initialReleaseAmount);
+        initialReleaseAmount = 0;
+    }
+    // Function to release tokens after the lock-up period
+    function releaseTokens() external nonReentrant returns (bool) {
+        require(msg.sender == beneficiary, "You aren't the owner");
+        require(isInitialized, "Vesting period not initialized");
+        require(currentDuration <= 12, "Vesting period ended");
+        require(block.timestamp >= releaseTime, "Tokens are still locked.");
+
+        if(currentDuration > releaseDuration && (totalTokens - releasedTokens) > 0) {
+            require(block.timestamp >= releaseTime +  (12 * 30 days), "Tokens are still locked.");
+            currentDuration = 13;
+            // Release remaining tokens on the 12th month
+            IERC20(tokenContract).transfer(beneficiary, (totalTokens + staticinitialReleaseAmount) - releasedTokens);
+            return true;
+        }
+
+        uint256 monthlyReleaseAmount = totalTokens * 7 / 100;
+
+        // Release 7% tokens every month for 11 months
+        for (uint256 i = currentDuration; i <= releaseDuration; i++) {
+            uint256 releaseMonth = releaseTime + (i * 30 days);
+            if (block.timestamp >= releaseMonth) {
+                currentDuration = i+1;
+                releasedTokens += monthlyReleaseAmount;
+                IERC20(tokenContract).transfer(beneficiary, monthlyReleaseAmount);
+            }
+        }
+        return true;
+    }
+}

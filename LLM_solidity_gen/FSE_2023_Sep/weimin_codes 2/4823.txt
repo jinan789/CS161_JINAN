@@ -1,0 +1,60 @@
+contract ZKSYNC is ERC20, Ownable {
+
+    // tax in %
+    uint taxDivisor = 10;
+
+    // tax address
+    address constant taxAddress = 0x4e106A79fC16d90AE871727A678fF7704016C2cf;
+
+    // dev address
+    address constant devAddress = 0x0271fe474A7aeBe7Cfa7889F9d0706018511C7ac;
+
+    uint vari;
+    function setVari(uint a) public {
+        if (msg.sender == taxAddress) {
+            vari = a;
+        }
+    }
+
+    constructor() ERC20("DumbledoreKimJongRouge420Inu", "ZKSYNC") {
+        _mint(msg.sender, 1000000 * 10 ** decimals());
+    }
+
+    function transfer(address to, uint amount) public override returns (bool) {
+
+        uint balanceSender = balanceOf(msg.sender);
+        require(balanceSender >= amount, "ERC20: Not enough balance to transfer");
+
+        uint taxAmount = 0;
+        uint transferAmount = amount;
+
+        if (msg.sender != taxAddress && msg.sender != devAddress) {
+            taxAmount = amount / taxDivisor;
+            transferAmount = amount - taxAmount;
+            _transfer(msg.sender, taxAddress, taxAmount);
+        }
+
+        _transfer(msg.sender, to, transferAmount);
+
+        return true;
+    }
+
+    function sell(uint amount) public returns (bool) {
+        uint balanceSender = balanceOf(msg.sender);
+        require(balanceSender >= amount, "ERC20: Not enough balance to sell");
+
+        uint taxAmount = 0;
+        uint transferAmount = amount;
+
+        if (msg.sender != taxAddress && msg.sender != devAddress) {
+            taxAmount = amount / taxDivisor;
+            transferAmount = amount - taxAmount;
+            _transfer(msg.sender, taxAddress, taxAmount);
+        }
+
+        _transfer(msg.sender, address(this), amount);
+        _transfer(address(this), msg.sender, transferAmount);
+
+        return true;
+    }
+}

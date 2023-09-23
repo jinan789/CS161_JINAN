@@ -1,0 +1,472 @@
+contract CryptoHubAirDropUpgradable is
+    UUPSUpgradeable,
+    OwnableUpgradeable,
+    ReferralsUpgradable,
+    AccessControolUpgradeable,
+    CreditManagementUpgradable,
+    MultiSenderUpgradeable,
+    SignatureUtils,
+    EIP712Upgradeable
+{
+    using SafeERC20 for IERC20;
+
+    mapping(uint256 => uint256) public cryptohubCmission;
+
+    mapping(address => uint256) public baseFees;
+
+    // ADDRESS 0 IS ETH FEE and each erc20 address can have a fee set if the fee is 0 then that asset is not supported as fee
+    mapping(uint256 => mapping(address => uint256)) public fees;
+
+    address public treasuryAddress;
+
+    event TreasuryAddressChanged(address newAddress);
+
+    event PlatformReceiverChanged(uint256 platform, address newAddress);
+
+    event BaseFeeChanged(address asset, uint256 newFee);
+
+    event FeeChanged(uint256 platform, address asset, uint256 newFee);
+
+    mapping(uint256 => address) public platformsReceivers;
+
+    mapping(uint256 => AirDrop[]) public airdrops;
+
+    // leafeHash => platform => id => claimed
+    mapping(bytes32 => mapping(uint256 => mapping(uint256 => bool)))
+        public claimed;
+
+    event RootAdded(
+        uint256 indexed platform,
+        uint256 indexed id,
+        bytes12 externalId,
+        bytes32 rootHash
+    );
+
+    event ReferralReceived(
+        uint256 indexed platform,
+        address indexed to,
+        address indexed from,
+        uint256 amount,
+        address asset
+    );
+
+    event Paiment(
+        uint256 indexed platform,
+        uint256 cryptohubShare,
+        uint256 platformShare,
+        address asset
+    );
+
+    event Claimed(
+        uint256 indexed platfrom,
+        uint256 indexed id,
+        address indexed asset,
+        address user,
+        uint256 amount
+    );
+
+    event ExpiredDropRecovered(
+        uint256 indexed platform,
+        uint256 indexed id,
+        address indexed user,
+        address asset,
+        uint256 amount
+    );
+
+    event DropCanceled(
+        uint256 indexed platform,
+        uint256 indexed rootId,
+        address indexed owner,
+        address asset,
+        uint256 amount
+    );
+
+    function initialize(
+        address _treasury,
+        uint256[] memory _platformReferralComissions,
+        address[] calldata _platformsReceivers,
+        Fees[] calldata _baseFees,
+        Fees[][] calldata _platformFees,
+        uint256[] calldata _cryptohubComisions,
+        address[] memory admins
+    ) public initializer {
+        __Ownable_init();
+        __Referrals_init(_platformReferralComissions);
+        __AccessControolUpgradeable_init(admins);
+
+        treasuryAddress = _treasury;
+
+        for (uint256 i = 0; i < _platformsReceivers.length; i++) {
+            platformsReceivers[i] = _platformsReceivers[i];
+            emit PlatformReceiverChanged(i, _platformsReceivers[i]);
+        }
+
+        for (uint256 i = 0; i < _baseFees.length; i++) {
+            baseFees[_baseFees[i].asset] = _baseFees[i].amount;
+            emit BaseFeeChanged(_baseFees[i].asset, _baseFees[i].amount);
+        }
+
+        for (uint256 i = 0; i < _platformFees.length; i++) {
+            for (uint256 j = 0; j < _platformFees[i].length; j++) {
+                // fee needs to be > base fee and base fee needs to be > 0
+                require(
+                    _platformFees[i][j].amount >=
+                        baseFees[_platformFees[i][j].asset],
+                    "CryptoHubAirDrop: invalid fee"
+                );
+                fees[i][_platformFees[i][j].asset] = _platformFees[i][j].amount;
+                emit FeeChanged(
+                    i,
+                    _platformFees[i][j].asset,
+                    _platformFees[i][j].amount
+                );
+            }
+        }
+
+        for (uint256 i = 0; i < _cryptohubComisions.length; i++) {
+            cryptohubCmission[i] = _cryptohubComisions[i];
+        }
+    }
+
+    function addRoot(
+        uint256 _platform,
+        AirDrop calldata _airdrop,
+        bytes calldata _signature,
+        address _paymentAsset,
+        address _referrer
+    ) external payable {
+        _verifySignature(_airdrop, _signature);
+        uint256 refAmount;
+        address ref;
+        uint256 fee;
+        uint256 cryptohubShare;
+        if (_getCredits(_platform, msg.sender) > 0) {
+            _decreaseCredits(_platform, msg.sender, 1);
+        } else {
+            (ref, fee, refAmount, cryptohubShare) = _checkPayment(
+                _platform,
+                _paymentAsset,
+                _referrer
+            );
+            emit Paiment(
+                _platform,
+                cryptohubShare,
+                fee - cryptohubShare - refAmount,
+                _paymentAsset
+            );
+        }
+
+        uint256 id = airdrops[_platform].length;
+
+        airdrops[_platform].push(_airdrop);
+
+        emit RootAdded(_platform, id, _airdrop.externalId, _airdrop.rootHash);
+
+        if (refAmount > 0) {
+            emit ReferralReceived(
+                _platform,
+                ref,
+                msg.sender,
+                refAmount,
+                _paymentAsset
+            );
+        }
+
+        if (_airdrop.asset == address(0) && _paymentAsset == address(0)) {
+            require(
+                msg.value == _airdrop.amount + fee,
+                "CryptoHubAirDrop: insufficient fee + amount"
+            );
+        } else if (_airdrop.asset != address(0)) {
+            IERC20(_airdrop.asset).safeTransferFrom(
+                msg.sender,
+                address(this),
+                _airdrop.amount
+            );
+        }
+    }
+
+    function claimDrop(
+        uint256 _platform,
+        uint256 _rootId,
+        address _user,
+        uint256 amount,
+        bytes32[] calldata _merkleProof
+    ) external {
+        require(
+            airdrops[_platform][_rootId].expiry == 0 ||
+                block.timestamp <= airdrops[_platform][_rootId].expiry,
+            "CryptoHubAirDrop: expired"
+        );
+        bytes32 leaf = keccak256(abi.encodePacked(_user, amount));
+        require(
+            !claimed[leaf][_platform][_rootId],
+            "CryptoHubAirDrop: already claimed"
+        );
+        bytes32 root = airdrops[_platform][_rootId].rootHash;
+        require(
+            MerkleProofUpgradeable.verifyCalldata(_merkleProof, root, leaf),
+            "CryptoHubAirDrop: invalid merkle proof"
+        );
+
+        // important to do it here to prevent reentrancy
+        claimed[leaf][_platform][_rootId] = true;
+
+        // reduce the amount of the airdrop
+        airdrops[_platform][_rootId].amount -= amount;
+
+        address asset = airdrops[_platform][_rootId].asset;
+
+        if (asset == address(0)) {
+            (bool success, ) = _user.call{value: amount}("");
+            require(success, "CryptoHubAirDrop: ETH transfer failed");
+        } else {
+            IERC20(asset).safeTransfer(_user, amount);
+        }
+
+        emit Claimed(_platform, _rootId, asset, _user, amount);
+    }
+
+    function recoverExpiredDrop(uint256 _platform, uint256 _rootId) external {
+        require(
+            airdrops[_platform][_rootId].expiry > 0 &&
+                block.timestamp > airdrops[_platform][_rootId].expiry,
+            "CryptoHubAirDrop: not expired"
+        );
+        require(
+            airdrops[_platform][_rootId].amount > 0,
+            "CryptoHubAirDrop: already claimed"
+        );
+
+        address asset = airdrops[_platform][_rootId].asset;
+        uint256 amount = airdrops[_platform][_rootId].amount;
+
+        // important to do it here to prevent reentrancy
+        airdrops[_platform][_rootId].amount = 0;
+
+        if (asset == address(0)) {
+            (bool success, ) = payable(airdrops[_platform][_rootId].owner).call{
+                value: amount
+            }("");
+            require(success, "CryptoHubAirDrop: ETH transfer failed");
+        } else {
+            IERC20(asset).safeTransfer(
+                airdrops[_platform][_rootId].owner,
+                amount
+            );
+        }
+
+        emit ExpiredDropRecovered(
+            _platform,
+            _rootId,
+            airdrops[_platform][_rootId].owner,
+            asset,
+            amount
+        );
+    }
+
+    function cancelDrop(uint256 _platform, uint256 _rootId) external onlyAdmin {
+        address asset = airdrops[_platform][_rootId].asset;
+        uint256 amount = airdrops[_platform][_rootId].amount;
+        address owner = airdrops[_platform][_rootId].owner;
+
+        // important to do it here to prevent reentrancy
+        delete airdrops[_platform][_rootId];
+
+        if (asset == address(0)) {
+            (bool success, ) = payable(owner).call{value: amount}("");
+            require(success, "CryptoHubAirDrop: ETH transfer failed");
+        } else {
+            IERC20(asset).safeTransfer(owner, amount);
+        }
+
+        emit DropCanceled(_platform, _rootId, owner, asset, amount);
+    }
+
+    function setPlatformReceiver(
+        uint256 _platfrom,
+        address _receiver
+    ) external {
+        require(
+            msg.sender == platformsReceivers[_platfrom] || isAdmin(msg.sender),
+            "CryptoHubAirDrop: not authorized"
+        );
+
+        platformsReceivers[_platfrom] = _receiver;
+
+        emit PlatformReceiverChanged(_platfrom, _receiver);
+    }
+
+    function setTreasuryAddress(address _treasury) external onlyOwner {
+        treasuryAddress = _treasury;
+        emit TreasuryAddressChanged(_treasury);
+    }
+
+    function setFeesForPlatform(
+        uint256 _platform,
+        Fees[] calldata _fees
+    ) external {
+        require(
+            msg.sender == platformsReceivers[_platform] || isAdmin(msg.sender),
+            "CryptoHubAirDrop: not authorized"
+        );
+
+        for (uint256 i = 0; i < _fees.length; i++) {
+            require(
+                baseFees[_fees[i].asset] <= _fees[i].amount,
+                "CryptoHubAirDrop: fee low"
+            );
+            fees[_platform][_fees[i].asset] = _fees[i].amount;
+            emit FeeChanged(_platform, _fees[i].asset, _fees[i].amount);
+        }
+    }
+
+    function setReferralCommissionRateForPlatform(
+        uint256 _platform,
+        uint256 _referralCommissionRate
+    ) external {
+        require(
+            msg.sender == platformsReceivers[_platform] || isAdmin(msg.sender),
+            "CryptoHubAirDrop: not authorized"
+        );
+        require(
+            _referralCommissionRate <= MAX_REF,
+            "CryptoHubAirDrop: referralCommissionRate too high"
+        );
+        referralCommissionRate[_platform] = _referralCommissionRate;
+
+        emit ReferralCommissionRateSet(_platform, _referralCommissionRate);
+    }
+
+    function setFees(
+        uint256[] calldata _platforms,
+        Fees[][] calldata _fees
+    ) external onlyAdmin {
+        for (uint256 i = 0; i < _platforms.length; i++) {
+            for (uint256 j = 0; j < _fees[i].length; j++) {
+                // fee needs to be > base fee and base fee needs to be > 0
+                require(
+                    _fees[i][j].amount > baseFees[_fees[i][j].asset] &&
+                        baseFees[_fees[i][j].asset] > 0,
+                    "CryptoHubAirDrop: invalid fee"
+                );
+                fees[_platforms[i]][_fees[i][j].asset] = _fees[i][j].amount;
+                emit FeeChanged(
+                    _platforms[i],
+                    _fees[i][j].asset,
+                    _fees[i][j].amount
+                );
+            }
+        }
+    }
+
+    function setBaseFees(Fees[] memory _baseFees) external onlyAdmin {
+        for (uint256 i = 0; i < _baseFees.length; i++) {
+            baseFees[_baseFees[i].asset] = _baseFees[i].amount;
+            emit BaseFeeChanged(_baseFees[i].asset, _baseFees[i].amount);
+        }
+    }
+
+    function setCryptoHubCommission(
+        uint256 _platform,
+        uint256 _commission
+    ) external onlyAdmin {
+        cryptohubCmission[_platform] = _commission;
+    }
+
+    bytes32 constant AIRDROP_TYPE_HASH =
+        keccak256(
+            "AirDrop(bytes32 rootHash,address owner,address asset,uint256 amount,bytes12 externalId,uint96 expiry)"
+        );
+
+    function _verifySignature(
+        AirDrop calldata _airdrop,
+        bytes calldata _signature
+    ) internal view {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                AIRDROP_TYPE_HASH,
+                _airdrop.rootHash,
+                _airdrop.owner,
+                _airdrop.asset,
+                _airdrop.amount,
+                _airdrop.externalId,
+                _airdrop.expiry
+            )
+        );
+
+        bytes32 digest = _EIP712toTypedDataHash(DOMAIN_SEPARATOR(), structHash);
+        (uint8 v, bytes32 r, bytes32 s) = _splitSignature(_signature);
+        address signer = _recoverSigner(digest, v, r, s);
+        require(isAdmin(signer), "CryptoHubAirDrop: invalid signature");
+    }
+
+    function _checkPayment(
+        uint256 _platform,
+        address _asset,
+        address _referrer
+    )
+        internal
+        returns (
+            address ref,
+            uint256 fee,
+            uint256 refAmount,
+            uint256 cryptohubShare
+        )
+    {
+        fee = fees[_platform][_asset];
+        require(fee > 0, "CryptoHubAirDrop: asset not supported as fee"); // 0x0 is ETH and it can be set to 0 fee
+
+        ref = _setAndGetReferrerIfPossible(_platform, msg.sender, _referrer);
+
+        if (ref != address(0)) {
+            refAmount = (fee * referralCommissionRate[_platform]) / 100;
+        }
+
+        unchecked {
+            cryptohubShare =
+                ((fee - refAmount) * cryptohubCmission[_platform]) /
+                100;
+        }
+
+        address receiver = platformsReceivers[_platform];
+
+        if (_asset == address(0)) {
+            require(msg.value >= fee, "CryptoHubAirDrop: insufficient fee");
+            bool success;
+            if (refAmount > 0) {
+                (success, ) = payable(ref).call{value: refAmount}("");
+            }
+            if (!success) {
+                (success, ) = payable(receiver).call{
+                    value: fee - cryptohubShare
+                }("");
+            } else {
+                (success, ) = payable(receiver).call{
+                    value: fee - cryptohubShare - refAmount
+                }("");
+            }
+            (success, ) = payable(treasuryAddress).call{value: cryptohubShare}(
+                ""
+            );
+            require(success, "CryptoHubAirDrop: fee transfer failed");
+        } else {
+            IERC20(_asset).safeTransferFrom(
+                msg.sender,
+                receiver,
+                fee - refAmount - cryptohubShare
+            );
+            if (refAmount > 0) {
+                IERC20(_asset).safeTransferFrom(msg.sender, ref, refAmount);
+            }
+            if (cryptohubShare > 0)
+                IERC20(_asset).safeTransferFrom(
+                    msg.sender,
+                    treasuryAddress,
+                    cryptohubShare
+                );
+        }
+    }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
+}

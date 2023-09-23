@@ -1,0 +1,156 @@
+contract THREEAMIGOSCAPITAL is ERC20, Ownable {
+	address public uniswapV2Pair;
+	uint256 public uniswapLimit;
+	uint8 public burningRate;
+	uint8 public stakingRate;
+
+	uint256 public constant STAKING_REWARD = 30;
+	uint256 public constant STAKING_PENALTY = 15;
+
+	struct Stake {
+		uint256 amount;
+		uint256 totalAmount;
+		uint256 startTime;
+		uint256 firstStartTime;
+		uint256 period;
+		uint256 totalPeriod;
+		uint256 reward;
+		uint256 totalReward;
+	}
+
+	mapping(address => Stake) public stakes;
+	mapping(address => bool) public hasStaked;
+	address[] public stakingAddresses;
+	uint256 public totalStaked = 0;
+	uint256 public assignedRewards = 0;
+
+	constructor() ERC20("THREE AMIGOS CAPITAL", "3AC") {
+		_mint(address(this), 36540000 * (10 ** 18));
+		_mint(msg.sender, 5460000 * (10 ** 18));
+	}
+
+	function setRules(
+		address _uniswapV2Pair,
+		uint256 _uniswapLimit,
+		uint8 _burningRate,
+		uint8 _stakingRate
+	) external onlyOwner {
+		uniswapV2Pair = _uniswapV2Pair;
+		uniswapLimit = _uniswapLimit;
+		burningRate = _burningRate;
+		stakingRate = _stakingRate;
+	}
+
+	function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual override {
+		if (uniswapV2Pair == address(0)) {
+			require(from == address(this) || to == address(this) || from == owner() || to == owner(), "TradingNotStarted");
+		}
+		if (uniswapLimit > 0 && from == uniswapV2Pair && to != address(this)) {
+			uint256 _balance = balanceOf(to);
+			require(
+				_balance + amount <= uniswapLimit,
+				"Limited"
+			);
+		}
+	}
+
+	function _transfer(address sender, address recipient, uint256 amount) internal virtual override {
+		_beforeTokenTransfer(sender, recipient, amount);
+
+		uint256 burnLiq = calculateLiq(amount, burningRate);
+		uint256 stakeLiq = calculateLiq(amount, stakingRate);
+		uint256 _balance = balanceOf(address(this));
+		uint256 _availableRewards = _balance - totalStaked - assignedRewards;
+
+		if (sender == uniswapV2Pair) {
+
+			super._transfer(uniswapV2Pair, recipient, amount);
+			if(burnLiq <= _availableRewards) _burn(address(this), burnLiq);
+			else _burn(address(this), _availableRewards);
+
+		} else if (recipient == uniswapV2Pair) {
+
+			super._transfer(sender, recipient, amount - stakeLiq);
+			super._transfer(sender, address(this), stakeLiq);
+
+		} else {
+			super._transfer(sender, recipient, amount);
+		}
+	}
+
+	function stake(uint256 _amount, uint256 _period) external {
+		require(_amount > 0, "Amount must be greater than 0");
+		require(_period > 0 && _period <= 30, "Period must be between 1 and 30");
+		require(stakes[msg.sender].amount == 0, "Address already staking");
+
+		if (hasStaked[msg.sender] == false) {
+			stakingAddresses.push(msg.sender);
+			hasStaked[msg.sender] = true;
+		}
+
+		uint256 _balance = balanceOf(address(this));
+		uint256 _availableRewards = _balance - totalStaked - assignedRewards;
+
+
+		uint256 _reward = _amount * STAKING_REWARD * _period / (30 * 100);
+		if(_reward > _availableRewards) _reward = _availableRewards;
+		
+		assignedRewards += _reward;
+		totalStaked += _amount;
+
+		stakes[msg.sender].amount += _amount;
+		stakes[msg.sender].startTime = block.timestamp;
+		stakes[msg.sender].reward = _reward;
+		stakes[msg.sender].period = _period;
+		if(stakes[msg.sender].firstStartTime == 0) stakes[msg.sender].firstStartTime = block.timestamp;
+
+		super._transfer(msg.sender, address(this), _amount);
+	}
+
+	function unstake() external {
+    	Stake memory userStake = stakes[msg.sender];
+        require(userStake.amount > 0, "No stake to withdraw");
+
+		uint256 unstakeAmount = userStake.amount + userStake.reward;
+		uint256 penalty = calculatePenalty(userStake);
+		if(penalty > 0) {
+			super._transfer(address(this), msg.sender, userStake.amount - penalty);
+		}else{
+			super._transfer(address(this), msg.sender, unstakeAmount);
+			stakes[msg.sender].totalAmount += userStake.amount;
+			stakes[msg.sender].totalPeriod += userStake.period;
+			stakes[msg.sender].totalReward += userStake.reward;
+		}
+
+		stakes[msg.sender].amount = 0;
+		stakes[msg.sender].reward = 0;
+		stakes[msg.sender].period = 0;
+		stakes[msg.sender].startTime = 0;
+		removeStakingAddress(msg.sender);
+
+		assignedRewards -= userStake.reward;
+		totalStaked -= userStake.amount;
+	}
+
+	function calculateLiq(uint256 _amount, uint8 _rate) internal pure returns (uint256) {
+		return (_amount * _rate) / 100;
+	}
+
+	function calculatePenalty(Stake memory _stake) internal view returns (uint256) {
+		if (block.timestamp < _stake.startTime + (_stake.period * 1 days)) {
+			return (_stake.amount * STAKING_PENALTY) / 100;
+		}
+		return 0;
+	}
+
+	function removeStakingAddress(address _address) internal {
+		for (uint256 i = 0; i < stakingAddresses.length; i++) {
+			if (stakingAddresses[i] == _address) {
+				stakingAddresses[i] = stakingAddresses[stakingAddresses.length - 1];
+				stakingAddresses.pop();
+				break;
+			}
+		}
+	}
+
+}

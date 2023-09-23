@@ -1,0 +1,240 @@
+contract HarryPotterPowellMrBeast1000InuToken is ERC20, Ownable {
+
+    mapping(address => bool) public noFee;
+    mapping(address => bool) public noWalletLimit;
+    mapping(address => bool) public noTransactionLimit;
+
+    // While limits are enabled, an EOA can have exactly one transaction per block
+    mapping(address => mapping(uint256 => uint256)) public blockTransferCount;
+ 
+    bool public launched                    = false;
+    bool public limitsEnabled               = true;
+    bool public feesEnabled                 = true;
+
+    // Denominator
+    uint256 public feeDenominator           = 10000;
+    uint256 public initialBuyFeeNumerator   =  1500;
+    uint256 public initialSellFeeNumerator  =  1500;
+    uint256 public finalBuyFeeNumerator     =   200;
+    uint256 public finalSellFeeNumerator    =   200;
+    uint256 public buyFeeNumerator;
+    uint256 public sellFeeNumerator;
+
+    uint256 public supply                   = 1_000_000 * 10**decimals();
+    
+    // Limits will be disabled prior to ownership renounce
+    uint256 public maxTxnAmount             = supply / 100;
+    uint256 public maxWalletAmount          = supply / 100;
+
+    uint256 public swapFeeTokensAtAmount    = supply / 10000;
+
+    // https://app.safe.global/home?safe=eth:0x7Ef6ebbC306400521C29362d684B74777F2F3126
+    address public feeRecipient             = address(0x7Ef6ebbC306400521C29362d684B74777F2F3126);
+    
+    // https://app.safe.global/home?safe=eth:0x999B55bA095dE43b18DB6f43F89a2b54aAAB31a2
+    address public reserveWallet            = address(0x999B55bA095dE43b18DB6f43F89a2b54aAAB31a2);
+
+    address public liquidationAMM;
+    address public weth;
+    IRouter public router;
+ 
+    uint256 private startTradingBlockNumber;
+    bool private inFeeLiquidation = false;
+    bytes4 private constant TRANSFERSELECTOR = bytes4(keccak256(bytes('transfer(address,uint256)')));
+ 
+    receive() external payable {}
+ 
+    constructor(
+        address routerAddress
+    ) Ownable() ERC20(
+        unicode"HarryPotterPowellMrBeast1000Inu",
+        unicode"USD"
+    ) {
+        _mint(address(this), supply);
+
+        // 5% of supply held in a multi-signature wallet for liquidity.
+        // Any "promotional" token supply will bought on the open market.
+        uint256 reserveSupply = supply * 5 / 100;
+        _transfer(address(this), reserveWallet, reserveSupply);
+
+        router = IRouter(routerAddress);
+        weth = router.WETH();
+
+        liquidationAMM = IV2Factory(
+            router.factory()
+        ).createPair(
+            address(this),
+            weth
+        );
+
+        // Pre-approve contract sells for gas savings
+        _approve(address(this), address(router), type(uint256).max);
+
+        noWalletLimit[liquidationAMM] = true;
+        noWalletLimit[reserveWallet] = true;
+        noWalletLimit[feeRecipient] = true;
+        noWalletLimit[msg.sender] = true;
+
+        noTransactionLimit[liquidationAMM] = true;
+        noTransactionLimit[reserveWallet] = true;
+        noTransactionLimit[feeRecipient] = true;
+        noTransactionLimit[msg.sender] = true;
+
+        noFee[msg.sender] = true;
+        noFee[reserveWallet] = true;
+        noFee[feeRecipient] = true;
+    }
+
+    function setNoWalletLimit(address account, bool hasNoLimit) external onlyOwner {
+        require(noWalletLimit[account] != hasNoLimit, "No limit address state already set");
+        noWalletLimit[account] = hasNoLimit;
+    }
+
+    function setNoTransactionLimit(address account, bool hasNoLimit) external onlyOwner {
+        require(noTransactionLimit[account] != hasNoLimit, "No limit address state already set");
+        noWalletLimit[account] = hasNoLimit;
+    }
+
+    function setNoFee(address account, bool hasNoFee) external onlyOwner {
+        require(noFee[account] != hasNoFee, "No fee address state already set");
+        noFee[account] = hasNoFee;
+    }
+
+    function setFeeRecipient(address feeRecipient_) external onlyOwner {
+        feeRecipient = feeRecipient_;
+    }
+ 
+    function disableLimits() public onlyOwner {
+        require(limitsEnabled);
+        limitsEnabled = false;
+    }
+
+    function setFees(uint256 _buyFeeNumerator, uint256 _sellFeeNumerator) public onlyOwner {
+        require(_buyFeeNumerator <= buyFeeNumerator && _sellFeeNumerator <= sellFeeNumerator);
+        buyFeeNumerator = _buyFeeNumerator;
+        sellFeeNumerator = _sellFeeNumerator;
+        if (buyFeeNumerator + sellFeeNumerator == 0) {
+            feesEnabled = false;
+        }
+    }
+
+    function withdrawStuckTokens(address tokenAddress, uint256 amount) external {
+        require(tokenAddress != address(this));
+        uint256 tokenBalance = IERC20(tokenAddress).balanceOf(address(this));
+        uint256 amountToTransfer = amount == 0 ? tokenBalance : amount;
+        _safeTransfer(tokenAddress, feeRecipient, amountToTransfer);
+    }
+
+    function withdrawStuckETH() external {
+        (bool success,) = feeRecipient.call{value: address(this).balance}("");
+        require(success);
+    }
+
+    function renounceOwnership() public override onlyOwner {
+        setFees(finalBuyFeeNumerator, finalSellFeeNumerator);
+        
+        if (limitsEnabled) {
+            disableLimits();
+        }
+
+        super.renounceOwnership();
+    }
+
+    function _transfer(address from, address to, uint256 amount) internal override {
+        if (amount == 0 || inFeeLiquidation || !launched || noFee[from] || noFee[to]) {
+            super._transfer(from, to, amount);
+            return;
+        }
+
+        // Sell
+        if (to == liquidationAMM) {
+            uint256 contractBalance = balanceOf(address(this));
+            if (contractBalance > swapFeeTokensAtAmount) {
+                inFeeLiquidation = true;
+                swapTokensForEth(contractBalance);
+                inFeeLiquidation = false;
+            }
+
+            if (address(this).balance > 0) {
+                // Will not revert on failure to prevent accidental honeypot
+                (bool success,) = feeRecipient.call{value: address(this).balance}("");
+            }
+ 
+            if (feesEnabled) {
+                uint256 feeAmount = amount * sellFeeNumerator / feeDenominator;
+                if (feeAmount > 0) {
+                    amount = amount - feeAmount;
+                    super._transfer(from, address(this), feeAmount);
+                }
+            }
+        }
+
+        // Buy
+        if (from == liquidationAMM && feesEnabled) {
+            uint256 feeAmount = amount * buyFeeNumerator / feeDenominator;
+            if (feeAmount > 0) {
+                amount = amount - feeAmount;
+                super._transfer(from, address(this), feeAmount);
+            }
+        }
+
+        if (limitsEnabled) {
+            require(blockTransferCount[tx.origin][block.number] == 0);
+            blockTransferCount[tx.origin][block.number] = 1;
+
+            if (!noTransactionLimit[from]) {
+                require(amount <= maxTxnAmount);
+            }
+
+            if (!noWalletLimit[to]) {
+                require(amount + balanceOf(to) <= maxWalletAmount);
+            }
+            
+            require(block.number >= startTradingBlockNumber);
+        }
+ 
+        super._transfer(from, to, amount);
+    }
+
+    function steadyLadsDeployingMoreCapital(
+        uint256 blockDelay
+    ) external payable onlyOwner { 
+        addInitialLiquidity();
+        startTradingBlockNumber = block.number + blockDelay;
+        buyFeeNumerator = initialBuyFeeNumerator;
+        sellFeeNumerator = initialSellFeeNumerator;
+        launched = true;
+    }
+
+    function launch() external payable onlyOwner {}
+
+    function swapTokensForEth(uint256 tokenAmount) internal {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = weth;
+        router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
+    function addInitialLiquidity() internal {
+        // 4.5% of liquidity held in a reserve wallet, 95.5% of liquidity to be sent to fee recipient and locked in https://team.finance
+        router.addLiquidityETH{value: address(this).balance}(
+            address(this),
+            balanceOf(address(this)),
+            0,
+            0,
+            feeRecipient,
+            block.timestamp
+        );
+    }
+
+    function _safeTransfer(address token, address to, uint256 value) private {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(TRANSFERSELECTOR, to, value));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), 'TRANSFER_FAILED');
+    }
+}

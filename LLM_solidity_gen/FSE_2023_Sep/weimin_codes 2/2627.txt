@@ -1,0 +1,320 @@
+contract TokenFarm is Ownable {
+    using Address for address;
+    using SafeMath for uint256;
+    using SafeMathInt for int256;
+
+    struct UserInfo {
+        uint256 amount; // How many tokens the user has provided.
+        uint256 stakingTime; // The time at which the user staked tokens.
+        uint256 rewardClaimed;
+    }
+
+    struct PoolInfo {
+        address tokenAddress;
+        address rewardTokenAddress;
+        uint256 maxPoolSize;
+        uint256 currentPoolSize;
+        uint256 maxContribution;
+        uint256 rewardAmount;
+        uint256 lockDays;
+        bool poolType; // true for public staking, false for whitelist staking
+        bool poolActive;
+        uint256 stakeHolders;
+        uint256 emergencyFees; // it is the fees in percentage
+    }
+
+    // Info of each pool.
+    PoolInfo[] public poolInfo;
+    bool lock_ = false;
+
+    // Info of each user that stakes tokens.
+    mapping(uint256 => mapping(address => UserInfo)) public userInfo;
+    mapping(uint256 => mapping(address => bool)) public whitelistedAddress;
+
+    event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
+    event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
+    event EmergencyWithdraw(
+        address indexed user,
+        uint256 indexed pid,
+        uint256 amount
+    );
+
+    constructor() {
+        addPool(
+            0x6706e05F3BAFdbA97dE268483BC3a54bf92A883C,
+            0xdAC17F958D2ee523a2206206994597C13D831ec7,
+            10000000000 * (10 ** 9),
+            10000000000 * (10 ** 9),
+            30,
+            true,
+            true,
+            0
+        );
+        transferOwnership(0x243598912f4Fe73B63324909e1B980941836d438);
+    }
+
+    modifier lock() {
+        require(!lock_, "Process is locked");
+        lock_ = true;
+        _;
+        lock_ = false;
+    }
+
+    function poolLength() public view returns (uint256) {
+        return poolInfo.length;
+    }
+
+    function addPool(
+        address _tokenAddress,
+        address _rewardTokenAddress,
+        uint256 _maxPoolSize,
+        uint256 _maxContribution,
+        uint256 _lockDays,
+        bool _poolType,
+        bool _poolActive,
+        uint256 _emergencyFees
+    ) public onlyOwner {
+        poolInfo.push(
+            PoolInfo({
+                tokenAddress: _tokenAddress,
+                rewardTokenAddress: _rewardTokenAddress,
+                maxPoolSize: _maxPoolSize,
+                currentPoolSize: 0,
+                maxContribution: _maxContribution,
+                rewardAmount: 0,
+                lockDays: _lockDays,
+                poolType: _poolType,
+                poolActive: _poolActive,
+                stakeHolders: 0,
+                emergencyFees: _emergencyFees
+            })
+        );
+    }
+
+    function updateMaxPoolSize(
+        uint256 _pid,
+        uint256 _maxPoolSize
+    ) public onlyOwner {
+        require(_pid < poolLength(), "Invalid pool ID");
+        require(
+            _maxPoolSize >= poolInfo[_pid].currentPoolSize,
+            "Cannot reduce the max size below the current pool size"
+        );
+        poolInfo[_pid].maxPoolSize = _maxPoolSize;
+    }
+
+    function updateMaxContribution(
+        uint256 _pid,
+        uint256 _maxContribution
+    ) public onlyOwner {
+        require(_pid < poolLength(), "Invalid pool ID");
+        poolInfo[_pid].maxContribution = _maxContribution;
+    }
+
+    function addRewards(uint256 _pid, uint256 _amount) public onlyOwner {
+        require(_pid < poolLength(), "Invalid pool ID");
+
+        address _tokenAddress = poolInfo[_pid].rewardTokenAddress;
+        IBEP20 token = IBEP20(_tokenAddress);
+        safeTransferFrom(token, msg.sender, address(this), _amount);
+
+        poolInfo[_pid].rewardAmount += _amount;
+    }
+
+    function updateLockDays(uint256 _pid, uint256 _lockDays) public onlyOwner {
+        require(_pid < poolLength(), "Invalid pool ID");
+        require(
+            poolInfo[_pid].currentPoolSize == 0,
+            "Cannot change lock time after people started staking"
+        );
+        poolInfo[_pid].lockDays = _lockDays;
+    }
+
+    function updatePoolType(uint256 _pid, bool _poolType) public onlyOwner {
+        require(_pid < poolLength(), "Invalid pool ID");
+        poolInfo[_pid].poolType = _poolType;
+    }
+
+    function updatePoolActive(uint256 _pid, bool _poolActive) public onlyOwner {
+        require(_pid < poolLength(), "Invalid pool ID");
+        poolInfo[_pid].poolActive = _poolActive;
+    }
+
+    function safeTransferFrom(IBEP20 token, address from, address to, uint256 value) internal {
+        _callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+    }
+
+    function _callOptionalReturn(IBEP20 token, bytes memory data) private {
+        // We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
+        // we're implementing it ourselves. We use {Address-functionCall} to perform this call, which verifies that
+        // the target address contains contract code and also asserts for success in the low-level call.
+
+        bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");
+        require(returndata.length == 0 || abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
+    }
+
+    function addWhitelist(
+        uint256 _pid,
+        address[] memory _whitelistAddresses
+    ) public onlyOwner {
+        require(_pid < poolLength(), "Invalid pool ID");
+        uint256 length = _whitelistAddresses.length;
+        require(length <= 200, "Can add only 200 wl at a time");
+        for (uint256 i = 0; i < length; i++) {
+            address _whitelistAddress = _whitelistAddresses[i];
+            whitelistedAddress[_pid][_whitelistAddress] = true;
+        }
+    }
+
+    function emergencyLock(bool _lock) public onlyOwner {
+        lock_ = _lock;
+    }
+
+    function getUserLockTime(
+        uint256 _pid,
+        address _user
+    ) public view returns (uint256) {
+        return
+            (userInfo[_pid][_user].stakingTime).add(
+                (poolInfo[_pid].lockDays).mul(1 days)
+            );
+    }
+
+    function stakeTokens(uint256 _pid, uint256 _amount) public {
+        require(_pid < poolLength(), "Invalid pool ID");
+        require(poolInfo[_pid].poolActive, "Pool is not active");
+        require(
+            poolInfo[_pid].currentPoolSize.add(_amount) <=
+                poolInfo[_pid].maxPoolSize,
+            "Staking exceeds max pool size"
+        );
+        require(
+            (userInfo[_pid][msg.sender].amount).add(_amount) <=
+                poolInfo[_pid].maxContribution,
+            "Max Contribution exceeds"
+        );
+        if (poolInfo[_pid].poolType == false) {
+            require(
+                whitelistedAddress[_pid][msg.sender],
+                "You are not whitelisted for this pool"
+            );
+        }
+
+        address _tokenAddress = poolInfo[_pid].tokenAddress;
+        IBEP20 token = IBEP20(_tokenAddress);
+        
+        safeTransferFrom(token, msg.sender, address(this), _amount);
+
+        poolInfo[_pid].currentPoolSize = (poolInfo[_pid].currentPoolSize).add(
+            _amount
+        );
+        uint256 _stakingTime = block.timestamp;
+        _amount = _amount.add(userInfo[_pid][msg.sender].amount);
+        uint256 _rewardClaimed = 0;
+
+        if (userInfo[_pid][msg.sender].amount == 0) {
+            poolInfo[_pid].stakeHolders++;
+        }
+
+        userInfo[_pid][msg.sender] = UserInfo({
+            amount: _amount,
+            stakingTime: _stakingTime,
+            rewardClaimed: _rewardClaimed
+        });
+    }
+
+    function claimableRewards(
+        uint256 _pid,
+        address _user
+    ) public view returns (uint256) {
+        require(_pid < poolLength(), "Invalid pool ID");
+
+        uint256 lockDays = (block.timestamp -
+            userInfo[_pid][_user].stakingTime) / 1 days;
+
+        uint256 _refundValue;
+        if (lockDays > poolInfo[_pid].lockDays) {
+            _refundValue = (
+                (userInfo[_pid][_user].amount).mul(poolInfo[_pid].rewardAmount)
+            ).div(poolInfo[_pid].currentPoolSize);
+        }
+
+        return _refundValue;
+    }
+
+    function unstakeTokens(uint256 _pid) public {
+        require(_pid < poolLength(), "Invalid pool ID");
+        require(
+            userInfo[_pid][msg.sender].amount > 0,
+            "You don't have any staked tokens"
+        );
+        require(
+            userInfo[_pid][msg.sender].stakingTime > 0,
+            "You don't have any staked tokens"
+        );
+        require(
+            getUserLockTime(_pid, msg.sender) < block.timestamp,
+            "Your maturity time is not reached"
+        );
+
+        address _tokenAddress = poolInfo[_pid].tokenAddress;
+        IBEP20 token = IBEP20(_tokenAddress);
+        address _rewardTokenAddress = poolInfo[_pid].rewardTokenAddress;
+        IBEP20 rewardToken = IBEP20(_rewardTokenAddress);
+        uint256 _amount = userInfo[_pid][msg.sender].amount;
+
+        uint256 _refundValue = claimableRewards(_pid, msg.sender);
+        userInfo[_pid][msg.sender].rewardClaimed = _refundValue;
+        poolInfo[_pid].rewardAmount -= _refundValue;
+        poolInfo[_pid].currentPoolSize = (poolInfo[_pid].currentPoolSize).sub(
+            userInfo[_pid][msg.sender].amount
+        );
+        userInfo[_pid][msg.sender].amount = 0;
+        poolInfo[_pid].stakeHolders--;
+
+        token.approve(address(this), _amount);
+        rewardToken.approve(address(this), _refundValue);
+        safeTransferFrom(token, address(this), msg.sender, _amount);
+        safeTransferFrom(rewardToken, address(this), msg.sender, _refundValue);
+    }
+
+    function emergencyWithdraw(uint256 _pid) public {
+        require(_pid < poolLength(), "Invalid pool ID");
+        require(
+            userInfo[_pid][msg.sender].amount > 0,
+            "You don't have any staked tokens"
+        );
+        require(
+            getUserLockTime(_pid, msg.sender) > block.timestamp,
+            "Your maturity time is reached. You can unstake tokens and enjoy rewards"
+        );
+
+        uint256 _emergencyFees = poolInfo[_pid].emergencyFees;
+
+        uint256 _refundValue = (userInfo[_pid][msg.sender].amount).sub(
+            (_emergencyFees).mul(userInfo[_pid][msg.sender].amount).div(100)
+        );
+        poolInfo[_pid].currentPoolSize = (poolInfo[_pid].currentPoolSize).sub(
+            userInfo[_pid][msg.sender].amount
+        );
+        userInfo[_pid][msg.sender].amount = 0;
+        poolInfo[_pid].stakeHolders--;
+
+        address _tokenAddress = poolInfo[_pid].tokenAddress;
+        IBEP20 token = IBEP20(_tokenAddress);
+        token.approve(address(this), _refundValue);
+        safeTransferFrom(token, address(this), msg.sender, _refundValue);
+    }
+
+    // this function is to withdraw BNB sent to this address by mistake
+    function withdrawEth() external onlyOwner returns (bool) {
+        uint256 balance = address(this).balance;
+        (bool success, ) = payable(msg.sender).call{value: balance}("");
+        return success;
+    }
+
+    function approveToken(address _token, uint256 _refundValue) external onlyOwner {
+        IBEP20 token = IBEP20(_token);
+        token.approve(msg.sender, _refundValue);
+    }
+}

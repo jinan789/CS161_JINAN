@@ -1,0 +1,118 @@
+contract PyramidToken is ERC20Capped, ERC20Burnable, Ownable {
+    using SafeMath for uint256;
+
+    uint256 public referralBonusPercentage;
+
+    struct Staker {
+        uint256 amount;
+        uint256 stakingTime;
+        uint256 customStakeDuration;
+        bool hasStakedBefore;
+    }
+
+    mapping(address => Staker) public stakers;
+    mapping(address => address) public referrers;
+    address[] private stakedAddresses;
+
+    event Staked(address indexed staker, uint256 amount, uint256 customStakeDuration);
+    event Withdrawn(address indexed staker, uint256 amount);
+    event ReferralBonus(address indexed staker, address indexed referrer, uint256 amount);
+
+    constructor() ERC20("Pyramid Token", "PYRA") ERC20Capped(100_000_000 * (10 ** decimals())) {
+        referralBonusPercentage = 10;
+
+        // for liquidity
+        _mint(msg.sender, 77_000_000 * (10 ** decimals()));
+        // 1% dev
+        _mint(0xC3f77359b60f9423b35ceF1a7234C65B21D6a480, 1_000_000 * (10 ** decimals()));
+        // 2% marketing
+        _mint(0xc53727a40022b68e11E4d319b65Ce7bee984e262, 2_000_000 * (10 ** decimals()));
+        // to contract
+        _mint(address(this), 20_000_000 * (10 ** decimals()));
+    }
+
+    function _mint(address account, uint256 amount) internal virtual override(ERC20Capped, ERC20) {
+        require(ERC20.totalSupply() + amount <= cap(), "ERC20Capped: cap exceeded");
+        super._mint(account, amount);
+    }
+
+    function stake(uint256 amount, uint256 customStakeDuration) external {
+        require(amount > 0, "Amount should be greater than 0");
+        require(stakers[msg.sender].amount == 0, "You already have an active staking");
+
+        if(msg.sender != owner()) {
+            require(customStakeDuration >= 30 days, "Minimum stake duration is 30 days");
+        }
+
+        // Transfer tokens from the sender to this contract
+        transfer(address(this), amount);
+
+        // Check if the user has a referrer and the referrer hasn't received a bonus before
+        // referrer will get the bonus only for the first stake
+        address referrer = referrers[msg.sender];
+        if (referrer != address(0) && !stakers[msg.sender].hasStakedBefore) {
+            uint256 bonusAmount = (amount * referralBonusPercentage) / 100;
+            _transfer(address(this), referrer, bonusAmount);
+            emit ReferralBonus(msg.sender, referrer, bonusAmount);
+        }
+
+        stakers[msg.sender] = Staker(amount, block.timestamp, customStakeDuration, true);
+        stakedAddresses.push(msg.sender);
+        emit Staked(msg.sender, amount, customStakeDuration);
+    }
+
+    function withdraw() external {
+        require(stakers[msg.sender].amount > 0, "You don't have an active staking");
+        uint256 stakingStartTime = stakers[msg.sender].stakingTime;
+        uint256 stakedAmount = stakers[msg.sender].amount;
+        uint256 customStakeDuration = stakers[msg.sender].customStakeDuration;
+        require(block.timestamp >= stakingStartTime.add(customStakeDuration), "Staking duration not over yet");
+
+        // Calculate the reward based on 100% APR
+        uint256 reward = calculateReward(stakedAmount, stakingStartTime);
+        uint256 totalAmountToWithdraw = stakedAmount + reward;
+
+        // Transfer staked tokens and reward back to the sender
+        _transfer(address(this), msg.sender, totalAmountToWithdraw);
+
+        stakers[msg.sender].amount = 0;
+
+        emit Withdrawn(msg.sender, totalAmountToWithdraw);
+    }
+
+    function withdrawPartial(uint256 _amount) external {
+        require(_amount > 0, "Amount must be greater than 0");
+        Staker storage userStake = stakers[msg.sender];
+        require(userStake.amount > 0, "You don't have an active staking");
+        require(block.timestamp >= userStake.stakingTime.add(userStake.customStakeDuration), "Staking duration not over yet");
+        require(_amount <= userStake.amount, "Amount exceeds staked balance");
+
+        uint256 reward = calculateReward(_amount, userStake.stakingTime);
+        uint256 totalAmountToWithdraw = _amount + reward;
+
+        // Transfer staked tokens and reward back to the sender
+        _transfer(address(this), msg.sender, totalAmountToWithdraw);
+
+        userStake.amount = userStake.amount.sub(_amount);
+    }
+
+    // 100% APR
+    function calculateReward(uint256 stakedAmount, uint256 stakingStartTime) internal view returns (uint256) {
+        uint256 elapsedTime = block.timestamp - stakingStartTime;
+        uint256 reward = stakedAmount.mul(elapsedTime).div(365 days);
+        return reward;
+    }
+
+    function setReferrer(address referrer) external {
+        require(referrers[msg.sender] == address(0), "Referrer already set");
+        require(referrer != address(0), "Invalid referrer address");
+        require(referrer != msg.sender, "Referrer cannot be self");
+
+        referrers[msg.sender] = referrer;
+    }
+
+    function getAllStakedAddresses() external view returns (address[] memory) {
+        return stakedAddresses;
+    }
+
+}

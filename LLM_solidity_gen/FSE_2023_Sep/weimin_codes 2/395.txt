@@ -1,0 +1,138 @@
+contract BasesToken is ERC20, Ownable {
+    // Event to log giveaways
+    event GiveawayExecuted(address indexed recipient, uint256 amount);
+
+    // The maximum supply of the Token
+    uint256 public constant maxSupply = 3566971151011155276105102101;
+
+    /*
+     * Allocation for Liquidity Pool => 32%
+     *
+     * A significant portion should be used to provide liquidity on Uniswap or other decentralized exchanges. This will allow the token to be traded and it will provide stability to the token's price.
+     */
+    uint256 public constant liquidityPoolAllocation = (maxSupply * 32) / 100;
+
+    /*
+     * Allocation for Development Fund => 16%
+     *
+     * This is to support ongoing and future development of the games / services, including paying for developers, graphics designers, and other operational costs.
+     */
+    uint256 public constant developmentFundAllocation = (maxSupply * 16) / 100;
+
+    /*
+     * Allocation for Team Tokens => 16%
+     *
+     * This is to reward the team behind the game.
+     */
+    uint256 public constant teamTokensAllocation = (maxSupply * 16) / 100;
+
+    /*
+     * Allocation for Marketing and Partnerships => 10%
+     *
+     * This allocation will be used for marketing the games / services and forming partnerships with other entities. This can involve paying for ads, sponsoring events, or collaborating with other games or platforms.
+     */
+    uint256 public constant marketingAndPartnershipsAllocation =
+    (maxSupply * 10) / 100;
+
+    /*
+     * Allocation for Reserve Fund => 10%
+     *
+     * It's always a good idea to have a reserve for unexpected costs or opportunities. This could be used to provide additional liquidity, cover unexpected development costs, or take advantage of new opportunities as they come up.
+     */
+    uint256 public constant reserveFundAllocation = (maxSupply * 10) / 100;
+
+    /*
+     * Allocation for Community Giveaways => ~16% (remainding supply)
+     *
+     * This allocation will be for giveaways to the users of the games / services. This can involve rewards for in-game achievements, promotional campaigns, or loyalty rewards for long-term players. It's a good way to engage the community and incentivize user activity.
+     */
+    uint256 public immutable communityGiveawaysAllocation;
+
+    // Hardcoded addresses for distribution
+
+    // Allocation for the Liquidity Pool address
+    address public constant liquidityPoolAddress =
+    0xb9BdB232a5921dF6b85A168547bca2D68B9149C6;
+
+    // Allocation for the Development Fund address
+    address public constant developmentFundAddress =
+    0xba9F2279ae753ccb0FD066cAff6F5aeD6BB05A8B;
+
+    // Allocation for the Team Tokens address
+    address public constant teamTokensAddress =
+    0x3aA0744e26fCB89ffc14d4f02028185615C4f701;
+
+    // Allocation for the Marketing and Partnerships address
+    address public constant marketingAndPartnershipsAddress =
+    0xb00F1007D6E2998485281Cd2A4ABfBA8F001F049;
+
+    // Allocation for the Reserve Fund address
+    address public constant reserveFundAddress =
+    0x1B47c65249448D967d7bcc16A2ff10Ae2b6b595C;
+
+    // Allocation for the Community Giveaways address (the owner address)
+    address public immutable communityGiveawaysAddress;
+
+    constructor() ERC20("Bases", "0XB") {
+        // Minting the tokens according to the allocations
+        _mint(liquidityPoolAddress, liquidityPoolAllocation);
+        _mint(developmentFundAddress, developmentFundAllocation);
+        _mint(teamTokensAddress, teamTokensAllocation);
+        _mint(
+            marketingAndPartnershipsAddress,
+            marketingAndPartnershipsAllocation
+        );
+        _mint(reserveFundAddress, reserveFundAllocation);
+
+        // Initializing the community allocation and address, and then minting the tokens according to the allocation
+        communityGiveawaysAddress = owner();
+        communityGiveawaysAllocation = maxSupply - totalSupply();
+        _mint(communityGiveawaysAddress, communityGiveawaysAllocation);
+    }
+
+    /**
+     * @dev Returns the number of decimals used to get its user representation.
+     * For example, if `decimals` equals `2`, a balance of `505` tokens should
+     * be displayed to a user as `5.05` (`505 / 10 ** 2`).
+     *
+     * Tokens usually opt for a value of 18, imitating the relationship between
+     * Ether and Wei. This is the value {ERC20} uses, unless this function is
+     * overridden;
+     *
+     * The number of {decimals} decided is 16 in relation to base 16 (Hexadecimal)
+     *
+     * NOTE: This information is only used for _display_ purposes: it in
+     * no way affects any of the arithmetic of the contract, including
+     * {IERC20-balanceOf} and {IERC20-transfer}.
+     */
+    function decimals() public view virtual override returns (uint8) {
+        return 16;
+    }
+
+    /**
+     * @notice Transfers giveaway tokens to a recipient.
+     * @param recipient The address to receive the giveaway tokens.
+     * @param amount The amount of tokens to give away.
+     * @dev This function can only be called by the owner (giveaway address).
+     * It transfers the specified amount of tokens from the owner's balance
+     * to the recipient. The owner must have enough tokens to cover the giveaway.
+     * This function should be used cautiously to prevent unauthorized giveaways.
+     */
+    function giveaway(address recipient, uint256 amount) public onlyOwner {
+        require(
+            recipient != address(0),
+            "Recipient cannot be the zero address"
+        );
+        require(amount > 0, "Amount must be greater than 0");
+        require(
+            balanceOf(communityGiveawaysAddress) >= amount,
+            "Not enough tokens for giveaway"
+        );
+
+        // Transfer the tokens from the communityGiveawaysAddress's balance to the recipient
+        _transfer(communityGiveawaysAddress, recipient, amount);
+
+        // Emit an event to log the giveaway
+        emit GiveawayExecuted(recipient, amount);
+    }
+}

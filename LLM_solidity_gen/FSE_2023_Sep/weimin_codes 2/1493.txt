@@ -1,0 +1,32 @@
+contract LiquidERC20 is ERC20Liquid, Ownable, ServicePayer {
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint256 initialBalance_,
+        address uniswapV2Router_,
+        bytes memory signature_,
+        address payable feeReceiver_
+    )
+        payable
+        ERC20(name_, symbol_)
+        ERC20Liquid(uniswapV2Router_)
+        ServicePayer(feeReceiver_, "LiquidERC20", signature_, _msgSender())
+    {
+        require(initialBalance_ > 0, "LiquidERC20: supply cannot be zero");
+
+        _mint(address(this), initialBalance_);
+    }
+
+    /**
+     * @dev Add the initial liquidity to the UniswapV2 Pair and transfer remaining balance to `msg.sender`.
+     * Can only be called once.
+     *
+     * NOTE: restricting access to owner only. See {ERC20Liquid-_initLiquidity}.
+     *
+     * @param initialLiquidity The amount of tokens to be put in initial liquidity
+     * @param lockLiquidity A boolean indicating if LP tokens will be locked in contract or sent to contract owner
+     */
+    function initLiquidity(uint256 initialLiquidity, bool lockLiquidity) external payable onlyOwner {
+        _initLiquidity(initialLiquidity, lockLiquidity);
+    }
+}

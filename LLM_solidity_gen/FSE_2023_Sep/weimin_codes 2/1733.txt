@@ -1,0 +1,117 @@
+contract Auditor is CustomizedToken {
+    uint256 constant private PERIOD = 1 days;
+    uint256 private _givenBonusSum;
+    uint256 private _occupiedSum;
+    uint256 private _feeSum;
+
+    constructor() CustomizedToken("Auditor", "AUD") {
+
+    }
+
+    function decimals() public pure override returns (uint8) {
+        return 9;
+    }
+
+    function _init() internal override {
+        uint256 total = 1_000_000_000 * 10 ** decimals();
+        _mint(address(this), total);
+        // 60% for pair, 20% for awards of owner, 20% for bonuses of all holder.
+        _transferFromSelf(address(this), ownerAddress(), total * 6 / 10, block.timestamp);
+    }
+
+    function _transferFromPair(address pair, address to, uint256 amount, uint256 curTimestamp) internal override {
+        super._transferFromPair(pair, to, amount, curTimestamp);
+        _occupiedSum += amount;
+    }
+
+    function _transferToPair(address from, address pair, uint256 amount, uint256 curTimestamp) internal override {
+        super._transferToPair(from, pair, amount, curTimestamp);
+        if (_occupiedSum > amount) {
+            _occupiedSum -= amount;
+        } else {
+            _occupiedSum = 0;
+        }
+    }
+
+    function _transferFee(address from, uint256 fee) internal override {
+        super._transferFee(from, fee);
+        _feeSum += fee;
+    }
+
+    function _giveBonus(address to, uint256 baseBonus, uint256 extraBonus, uint256 curTimestamp) internal override returns (uint256 amount) {
+        amount = super._giveBonus(to, baseBonus, extraBonus, curTimestamp);
+        if (_feeSum > extraBonus) {
+            _feeSum -= extraBonus;
+        } else {
+            _feeSum = 0;
+        }
+        if (amount > 0) {
+            _givenBonusSum += amount;
+        }
+        return amount;
+    }
+
+    function _estimate(uint256 amount, uint256 recordingTimestamp, uint256 desiredTimestamp) internal view override returns (uint256 amountOut, uint256 fee, uint256 baseBonus, uint256 extraBonus) {
+        if (recordingTimestamp > desiredTimestamp) {
+            return (0, 0, 0, 0);
+        }
+
+        uint256 duration = desiredTimestamp - recordingTimestamp;
+        uint256 feeRate;
+
+        if (duration < 7 * PERIOD) {
+            feeRate = 99;
+        } else if (duration < 14 * PERIOD) {
+            feeRate = 60;
+        } else if (duration < 21 * PERIOD) {
+            feeRate = 30;
+        } else if (duration < 28 * PERIOD) {
+            feeRate = 10;
+        } else {
+            feeRate = 1;
+        }
+
+        fee = amount * feeRate / 100;
+        amountOut = amount - fee;
+
+        uint256 bonusDeadline = createdTime() + 1095 * PERIOD; // 365 days * 3
+        if (recordingTimestamp >= bonusDeadline) {
+            baseBonus = 0;
+        } else {
+            uint256 bonusDuration;
+            if (desiredTimestamp > bonusDeadline) {
+                bonusDuration = bonusDeadline - recordingTimestamp;
+            } else {
+                bonusDuration = duration;
+            }
+            baseBonus = bonusDuration / PERIOD * amount / 3285; // total * 20% / (total * 60% * 365 days * 3)
+        }
+
+        if (_occupiedSum > 0) {
+            extraBonus = _feeSum * amount / _occupiedSum;
+        }
+
+        return (amountOut, fee, baseBonus, extraBonus);
+    }
+
+    function _award(uint256 lastTimestamp, uint256 desiredTimestamp) internal view override returns (uint256 award) {
+        if (desiredTimestamp <= lastTimestamp) {
+            return 0;
+        }
+
+        uint256 createdT = createdTime();
+
+        if (lastTimestamp >= createdT + 730 * PERIOD) {
+            return 0;
+        }
+
+        uint256 total = totalSupply() / 5;
+        award = (desiredTimestamp - lastTimestamp) / PERIOD * total / 730; // total * 20% / (365 days * 2)
+
+        if (award > total) {
+            return total;
+        }
+
+        return award;
+    }
+}

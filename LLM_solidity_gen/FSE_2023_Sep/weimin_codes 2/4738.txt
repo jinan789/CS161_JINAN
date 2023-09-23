@@ -1,0 +1,42 @@
+contract WagmiUsdOracle is GenericUsdOracle {
+    /// @dev should be using an implementation of LPChainlinkOracle
+    int32 public constant PERIOD = 10 minutes;
+    uint256 public constant MAX_AGE = 300 minutes;
+    IUniswapPool public constant pool = IUniswapPool(0x36bcF57291a291a6E0E0bFF7B12B69B556BCd9ed);
+    // amount of ice in 1 wagmi
+    uint256 public constant iceToWagmi = 14492753623188405;
+
+    constructor(
+        address _token
+    ) GenericUsdOracle(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419, _token) {}
+
+    /// @notice Returns 1 USD price in LP denominated in USD
+    /// @dev lpOracle.latestAnswer() returns the price of 1 LP in AVAX multipled by Avax Price.
+    /// It's then inverted so it gives how many LP can 1 USD buy.
+    function _get() internal view override returns (uint256) {
+        uint32[] memory secondsAgo = new uint32[](2);
+        secondsAgo[0] = uint32(PERIOD);
+        secondsAgo[1] = 0;
+        (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
+        int56 tickCumulativesDelta = tickCumulatives[1] - tickCumulatives[0];
+        int24 avarageTick = int24(tickCumulativesDelta / PERIOD);
+        if (tickCumulativesDelta < 0 && (tickCumulativesDelta % PERIOD != 0)) avarageTick--;
+        uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(avarageTick);
+        uint256 wagmiEthPrice;
+        if (sqrtPriceX96 <= type(uint128).max) {
+            uint256 ratioX192 = uint256(sqrtPriceX96) * sqrtPriceX96;
+            wagmiEthPrice = FullMath.mulDiv(1 << 192, iceToWagmi, ratioX192);
+        } else {
+            uint256 ratioX128 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, 1 << 64);
+            wagmiEthPrice = FullMath.mulDiv(1 << 128, iceToWagmi, ratioX128);
+        }
+
+        uint256 ethPrice = super._get();
+        return FullMath.mulDiv(wagmiEthPrice, uint256(ethPrice), 10 ** decimals());
+    }
+
+    function _checkDataFreshness(uint256 updatedAt) internal view override returns (bool, uint256) {
+        uint256 age = block.timestamp - updatedAt;
+        return (age < MAX_AGE, age);
+    }
+}

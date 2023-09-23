@@ -1,0 +1,48 @@
+## New Gas-Wasting Patterns
+
+1. **Excessive query of balance and reserved tokens**:
+    - How did you find this pattern?
+        - In the provided codes, multiple `balanceOf()` and `tokens_reserved` queries are being done. Each query consumes gas. This is similar to the "Repeated computation of the same expression" pattern but here it's about querying blockchain state.
+    - How to fix this pattern?
+        - You can store the balances and reserved tokens in memory variables at the start of the function and use these variables wherever necessary.
+    - Impact on readability, security, and maintainability?
+        - **Readability: 4; Security: 4; Maintainability: 5**. This change won't affect readability much. As for security, as long as the state doesn't change during the execution of the transaction (which it generally doesn't), this won't affect security. And for maintainability, this could actually make the code easier to maintain since you're reducing the number of direct state queries.
+
+2. **Redundant computation of `total_eth`**:
+    - How did you find this pattern?
+        - In the function `_charge_fee()`, the variable `total_eth` is computed in both the if and else block. This is a case of redundant computation.
+    - How to fix this pattern?
+        - Compute `total_eth = sai_fee + gas_fee_of_prev_tx;` before the if-else block. In the if block, just add the `amount` to `total_eth`.
+    - Impact on readability, security, and maintainability?
+        - **Readability: 5; Security: 5; Maintainability: 5**. It enhances readability by reducing redundancy. It does not compromise security, and it improves maintainability by simplifying the code structure.
+
+## Feedback on Prompt
+
+The prompt was clear and provided a thorough description of the task. The only minor improvement could be to specify the scope of the issue a bit more, for example, by providing the data structures used in the contract, which could lead to more specific and applicable solutions.
+
+## Reflection
+
+In terms of the reasoning process, one approach to improve would be to further break down the code into smaller pieces and analyze their complexity, state changes, and gas cost implications. This would allow a more detailed analysis of potential gas optimization. In terms of the output improvement, adding a specific code snippet for each solution would make the solutions more clear and actionable. 
+
+For example, for "Redundant computation of `total_eth`", the improvement could be:
+
+```solidity
+uint256 total_eth = sai_fee + gas_fee_of_prev_tx;
+if (!is_eth) {
+    // Check if the token address is set otherwise tokens cannot be reserved
+    require(projects[project_id].token != address(0), "Token not set");
+
+    // In case of a token, we have to charge ETH separately
+    // Check for enough tokens
+    uint token_balance = IERC20(projects[project_id].token).balanceOf(address(this));
+    uint tokens_available = token_balance - projects[project_id].tokens_reserved;
+    require(amount <= tokens_available, "TOKEN: not enough available");
+    
+    // Reserve the tokens
+    projects[project_id].tokens_reserved += amount;
+} else {
+    total_eth += amount;
+}
+```
+
+In this way, the solutions provided can be more effective and actionable.

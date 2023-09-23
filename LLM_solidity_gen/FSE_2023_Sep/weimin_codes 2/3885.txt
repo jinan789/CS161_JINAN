@@ -1,0 +1,81 @@
+contract WagerStaking is Ownable {
+    using SafeMath for uint256;
+
+    mapping(address => bool) public staked;
+    mapping(address => uint256) public tokenBalanceLedger_;
+    mapping(address => uint256) public stakeStartTime;
+
+    address public stakeTokenAddress = 0x63a60C5469379149757Cc3e58453202eBDB7e933;
+    IERC20 public stakeToken;  
+
+    uint256 public totalTokens = 0;
+
+    uint256 public allEthHistoric = 0;
+
+    uint256 public profitPerShare_;
+
+    mapping(address => uint256) public payoutsTo_;
+
+    uint256 constant internal magnitude = 2**64;
+
+    constructor() {
+        stakeToken = IERC20(stakeTokenAddress);
+    }
+
+    receive() external payable {
+        profitPerShare_ +=  (msg.value * magnitude) / totalTokens;
+        allEthHistoric += msg.value;
+    }
+    
+    function deposit() public payable {
+        profitPerShare_ +=  (msg.value * magnitude) / totalTokens;
+        allEthHistoric += msg.value;
+    }
+
+    function stakeTokens(uint amount) public {
+
+        stakeToken.transferFrom(msg.sender, address(this), amount);
+
+        uint256 currentDivs = getDividends(msg.sender);
+
+        tokenBalanceLedger_[msg.sender] += amount;
+        staked[msg.sender] = true;
+
+        totalTokens += amount;
+
+        stakeStartTime[msg.sender] = block.timestamp;
+
+        payoutsTo_[msg.sender] += (getDividends(msg.sender) - currentDivs);
+    }
+
+    function exitFromStakingPool() public {
+        withdrawDividends();
+
+        stakeToken.transfer(msg.sender, tokenBalanceLedger_[msg.sender]);
+
+        totalTokens -= tokenBalanceLedger_[msg.sender];
+        tokenBalanceLedger_[msg.sender] = 0;
+        staked[msg.sender] = false;
+        payoutsTo_[msg.sender] = 0;
+    }
+
+    function getDividends(address user) public view returns(uint256) {
+        uint256 allDivs = (tokenBalanceLedger_[user] * profitPerShare_) / magnitude;
+
+        uint256 profit = allDivs - payoutsTo_[user];
+
+        return profit;
+    }
+
+    function getTokenBalance(address user) public view returns(uint256) {
+        return tokenBalanceLedger_[user];
+    }
+
+    function withdrawDividends() public {
+        uint256 myDivs = getDividends(msg.sender);
+
+        payoutsTo_[msg.sender] += myDivs;
+        payable(msg.sender).transfer(myDivs);
+    }
+
+}

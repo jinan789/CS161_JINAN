@@ -1,0 +1,122 @@
+contract ZuckvMusk is ERC20, Ownable {
+
+    IUniswapV2Router02 public uniswapV2Router;
+    mapping (address => bool) private _isExcludedFromFees;
+    address public uniswapV2Pair;
+    address public marketingWallet;
+
+    uint256 public swapTokensAtAmount;
+    bool private swapping;
+    bool public tradingEnabled;
+
+    uint256 public buyTax;
+    uint256 public sellTax;
+
+    constructor () ERC20("ZuckvMusk", "ZuckvMusk") 
+    {   
+        address router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(router);
+        address _uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+            .createPair(address(this), _uniswapV2Router.WETH());
+
+        uniswapV2Router = _uniswapV2Router;
+        uniswapV2Pair   = _uniswapV2Pair;
+
+        _approve(address(this), address(uniswapV2Router), type(uint256).max);
+        _isExcludedFromFees[owner()] = true;
+        _isExcludedFromFees[address(this)] = true;
+        marketingWallet = msg.sender;
+        _mint(msg.sender, 690_000_000_000_000 * 1e18);
+        swapTokensAtAmount = totalSupply() / 5_000;
+    }
+
+    receive() external payable {}
+
+    
+    
+
+    function changeMarketingWallet(address who) public onlyOwner { 
+        marketingWallet = who;
+    }
+
+    function setTaxes(uint256 _buyTax, uint256 _sellTax) public onlyOwner {
+        require(_buyTax <= 40 && _sellTax <= 40, "Cannot set above 40%.");
+        buyTax = _buyTax;
+        sellTax = _sellTax;
+    }
+
+    function enableTrading() external onlyOwner {
+        require(!tradingEnabled, "Trading already enabled.");
+        tradingEnabled = true;
+    }
+
+    function _transfer(address from,address to,uint256 amount) internal  override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+        require(amount > 0, "Cannot transfer 0 tokens.");
+        require(tradingEnabled || from == owner(), "Trading not yet enabled!");
+       
+		uint256 contractTokenBalance = balanceOf(address(this));
+
+        bool canSwap = contractTokenBalance >= swapTokensAtAmount;
+
+        if (canSwap &&
+            !swapping &&
+            to == uniswapV2Pair
+        ) {
+            swapping = true;
+
+            swapAndSendMarketing(contractTokenBalance);     
+
+            swapping = false;
+        }
+
+        uint256 _totalFees;
+        if (_isExcludedFromFees[from] || _isExcludedFromFees[to] || swapping) {
+            _totalFees = 0;
+        } else if (from == uniswapV2Pair) {
+            _totalFees = buyTax;
+        } else if (to == uniswapV2Pair) {
+            _totalFees = sellTax;
+        } else {
+            _totalFees = 0;
+        }
+
+        if (_totalFees > 0) {
+            uint256 fees = (amount * _totalFees) / 100;
+            amount = amount - fees;
+            super._transfer(from, address(this), fees);
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    function swapAndSendMarketing(uint256 tokenAmount) private {
+
+        if(tokenAmount == 0) {
+            return;
+        }
+
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+        try
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0,
+            path,
+            marketingWallet,
+            block.timestamp
+        )
+        {}
+        catch {}
+    }
+
+
+    function rescueTokens(address token) public onlyOwner {
+        uint256 caBalances = IERC20(token).balanceOf(address(this));
+        IERC20(token).transfer(msg.sender, caBalances);
+    }
+
+}

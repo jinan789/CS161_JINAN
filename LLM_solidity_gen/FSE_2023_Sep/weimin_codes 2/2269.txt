@@ -1,0 +1,137 @@
+contract UNREKT is Ownable {
+    IUniswapV2Router02 internal immutable ROUTER;
+    IUniswapV2Factory internal immutable FACTORY;
+    uint256 internal fee;
+    bool internal paused;
+
+    error Paused();
+    error AddressZero();
+    error NotEnoughETH();
+    error PairDoesNotExist();
+
+    constructor(address router) {
+        ROUTER = IUniswapV2Router02(router);
+        FACTORY = IUniswapV2Factory(ROUTER.factory());
+        fee = .05 ether;
+    }
+
+    modifier checkIfPaused() {
+        if (paused) revert Paused();
+        _;
+    }
+
+    // pay this function the amount of ETH you want to add to the pool + fee
+    // (ex. 2 ETH for pool + .05 ETH fee = 2.05 ETH)
+    function transferAndAddLiquidity(
+        address yourToken
+    ) external payable checkIfPaused returns (bool success) {
+        if (yourToken == address(0)) revert AddressZero();
+        if (msg.value < fee) revert NotEnoughETH(); // MAKE SURE you are providing enough ETH. anything over the fee amount and whatever is already on the pair will be added to liquidity.
+
+        address pair = FACTORY.getPair(yourToken, ROUTER.WETH());
+        if (pair == address(0)) revert PairDoesNotExist();
+
+        (uint256 amountToAdd, uint256 wethBalance, ) = checkNeededTokenAmount(
+            pair,
+            msg.value - fee
+        );
+        IERC20 token = IERC20(yourToken);
+
+        // you must approve this contract to transfer your tokens with your contract's 'approve' function
+
+        // sqwuare up the pair balances
+        bool transferSuccess = token.transferFrom(
+            msg.sender,
+            pair,
+            amountToAdd
+        );
+        require(
+            transferSuccess,
+            "You need to approve this contract to transfer your entire balance with your token contract's 'approve' function."
+        );
+
+        IUniswapV2Pair(pair).sync();
+
+        // prepare for liquidity add
+        bool transferSuccess2 = token.transferFrom(
+            msg.sender,
+            address(this),
+            token.balanceOf(msg.sender)
+        );
+        require(
+            transferSuccess2,
+            "You need to approve this contract to transfer your entire balance with your token contract's 'approve' function."
+        );
+
+        token.approve(address(ROUTER), token.balanceOf(address(this)));
+
+        // this will not work if your token has pre-launch transfer restrictions that his contract is not exempt from
+
+        ROUTER.addLiquidityETH{value: (msg.value - fee) - wethBalance}(
+            address(token),
+            token.balanceOf(address(this)),
+            0,
+            0,
+            msg.sender, // you, recipient of the LP tokens
+            block.timestamp
+        );
+
+        // if the earlier logic fails, we never make it this far, so don't worry.
+        if (address(this).balance > 0) {
+            (success, ) = owner().call{value: address(this).balance}("");
+        } else {
+            success = true;
+        }
+    }
+
+    function checkNeededTokenAmount(
+        address pair,
+        uint256 intendedWeth
+    )
+        public
+        returns (uint256 amountToAdd, uint256 wethBalance, address targetToken)
+    {
+        IUniswapV2Pair targetPair = IUniswapV2Pair(pair);
+        // get token addresses
+        address token0 = targetPair.token0();
+        address token1 = targetPair.token1();
+        // assumes token is paired with WETH
+        targetToken = token0 == ROUTER.WETH() ? token1 : token0;
+        // get spoiled WETH balance on pair
+        wethBalance = IWETH(ROUTER.WETH()).balanceOf(address(targetPair));
+        // divide intended WETH amount by existing balance
+        uint256 basis = intendedWeth / wethBalance;
+        // use basis to determine matching amount of tokens to add
+        uint256 totalsupply = IERC20(targetToken).totalSupply();
+        amountToAdd = totalsupply / basis;
+    }
+
+    // external owner functions
+
+    function pauseToggle() external onlyOwner {
+        paused = !paused; // in case i want you to stop using this contract for whatever reason
+    }
+
+    function updateFee(uint256 newFee) external onlyOwner {
+        require(newFee < fee); // can only be decreased
+        fee = newFee;
+    }
+
+    // view
+
+    function isPaused() external view returns (bool) {
+        return paused;
+    }
+
+    function showFeeInWei() external view returns (uint256) {
+        return fee;
+    }
+
+    function getRouter() external view returns (address) {
+        return address(ROUTER);
+    }
+
+    function getFactory() external view returns (address) {
+        return address(FACTORY);
+    }
+}

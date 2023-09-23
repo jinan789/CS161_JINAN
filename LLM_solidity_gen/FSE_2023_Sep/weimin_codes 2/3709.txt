@@ -1,0 +1,146 @@
+contract GenieRevenueStaking is ReentrancyGuard, DividendTracker {
+
+    IERC20 public immutable genieToken;
+    IDexRouter public immutable dexRouter;
+
+    uint64 private numberOfStakers;
+
+    event Deposit(address indexed user, uint256 amount);
+    event Withdraw(address indexed user, uint256 amount);
+
+    constructor(address _genieToken) {
+        require(_genieToken != address(0), "cannot be 0 address");
+        genieToken = IERC20(_genieToken);
+
+        address _v2Router;
+
+        // @dev assumes WETH pair
+        if(block.chainid == 1){
+            _v2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+        } else if(block.chainid == 5){
+            _v2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+        } else if(block.chainid == 97){
+            _v2Router = 0xD99D1c33F9fC3444f8101754aBC46c52416550D1;
+        } else if(block.chainid == 42161){
+            _v2Router = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
+        } else {
+            revert("Chain not configured");
+        }
+
+        dexRouter = IDexRouter(_v2Router);
+    }
+
+    // Stake primary tokens
+    function deposit(uint256 _amount) external nonReentrant {
+        require(_amount > 0, "Zero Amount");
+        uint256 userAmount = holderBalance[msg.sender];
+
+        uint256 amountTransferred = 0;
+
+        if(userAmount == 0){
+            numberOfStakers++;
+        }
+
+        uint256 initialBalance = genieToken.balanceOf(address(this));
+        genieToken.transferFrom(address(msg.sender), address(this), _amount);
+        amountTransferred = genieToken.balanceOf(address(this)) - initialBalance;
+    
+        setBalance(payable(msg.sender), userAmount + amountTransferred);
+
+        emit Deposit(msg.sender, _amount);
+    }
+
+    // Withdraw primary tokens
+
+    function withdraw(uint256 _amount) external nonReentrant {
+        require(_amount > 0, "Zero Amount");
+        uint256 userAmount = holderBalance[msg.sender];
+        require(_amount <= userAmount, "Not enough tokens");
+
+        if(userAmount - _amount == 0 && numberOfStakers > 0){
+            numberOfStakers--;
+        }
+
+        genieToken.transfer(address(msg.sender), _amount);
+
+        setBalance(payable(msg.sender), userAmount - _amount);
+
+        emit Withdraw(msg.sender, _amount);
+    }
+
+    function withdrawAll() public nonReentrant {
+        uint256 userAmount = holderBalance[msg.sender];
+        require(userAmount > 0, "Not a holder");
+
+        numberOfStakers--;
+        genieToken.transfer(address(msg.sender), userAmount);
+
+        setBalance(payable(msg.sender), 0);
+
+        emit Withdraw(msg.sender, userAmount);
+    }
+
+    function claim() external nonReentrant {
+        processAccount(payable(msg.sender), false);
+    }
+
+    function getNumberOfStakers() external view returns(uint256) {
+        return numberOfStakers;
+    }
+
+    function compound(uint256 minOutput) external nonReentrant {
+        uint256 userAmount = holderBalance[msg.sender];
+        uint256 amountEthForCompound = _withdrawDividendOfUserForCompound(payable(msg.sender));
+        if(amountEthForCompound > 0){
+            uint256 initialBalance = genieToken.balanceOf(address(this));
+            buyBackTokens(amountEthForCompound, minOutput);
+            uint256 amountTransferred = genieToken.balanceOf(address(this)) - initialBalance;
+            setBalance(payable(msg.sender), userAmount + amountTransferred);
+        } else {
+            revert("No rewards");
+        }
+    }
+
+    function _withdrawDividendOfUserForCompound(address payable user) internal returns (uint256 _withdrawableDividend) {
+        _withdrawableDividend = withdrawableDividendOf(user);
+        if (_withdrawableDividend > 0) {
+            withdrawnDividends[user] = withdrawnDividends[user] + _withdrawableDividend;
+
+            emit DividendWithdrawn(user, _withdrawableDividend);
+        }
+    }
+
+    function buyBackTokens(uint256 ethAmountInWei, uint256 minOut) internal {
+        // generate the uniswap pair path of weth -> eth
+        address[] memory path = new address[](2);
+        path[0] = dexRouter.WETH();
+        path[1] = address(genieToken);
+
+        // make the swap
+        dexRouter.swapExactETHForTokensSupportingFeeOnTransferTokens{value: ethAmountInWei}(
+            minOut,
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
+    // helper views
+
+    function getExpectedCompoundOutputByEthAmount(uint256 rewardAmount) external view returns(uint256) {
+        address[] memory path = new address[](2);
+        path[0] = dexRouter.WETH();
+        path[1] = address(genieToken);
+        uint256[] memory amounts = dexRouter.getAmountsOut(rewardAmount, path);
+        return amounts[1];
+    }
+
+    function getExpectedCompoundOutputByWallet(address wallet) external view returns(uint256) {
+        uint256 rewardAmount = withdrawableDividendOf(wallet);
+        address[] memory path = new address[](2);
+        path[0] = dexRouter.WETH();
+        path[1] = address(genieToken);
+        uint256[] memory amounts = dexRouter.getAmountsOut(rewardAmount, path);
+        return amounts[1];
+    }
+ }

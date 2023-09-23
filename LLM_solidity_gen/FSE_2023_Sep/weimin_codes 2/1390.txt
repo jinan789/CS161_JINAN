@@ -1,0 +1,195 @@
+contract Test0814v1 is Initializable, ERC721Upgradeable, IERC2981Upgradeable, OwnableUpgradeable, UUPSUpgradeable {
+
+    using StringsUpgradeable for uint256;
+
+    uint256 public numToken;
+    uint256 public constant totalSupply = 7;
+    uint256 public constant wlSupply = 5;
+
+    uint256 private _mintTokenId;
+    mapping(address => bool) private _wlMinted;
+    bool private _treasuryMinted;
+
+    uint256 public status;  // 0 - unavailable, 1 - running
+    event StatusChanged(uint256 prevStatus, uint256 newStatus, address indexed account);
+
+    string private _buri;
+
+    bytes32 public merkleRoot;
+
+    // event => state, state: 0- not open, 1- open
+    mapping(string => uint256) private _lockEventState;
+    //tokenId => lock counts
+    mapping(uint256 => uint256) private _lockCounts;
+    //event => ( tokenId=> lockState), lockState: 0-unlock, 1-lock
+    mapping(string => mapping(uint256 => uint256)) private _eventTokenLock;
+
+    event Lock(string eventId, uint256[] tokenId, address indexed by, uint256 lockAt);
+    event Unlock(string eventId, uint256[] tokenId, address indexed by, uint256 unlockAt);
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize() initializer public {
+        __ERC721_init("TEST-0814-001", "TST");
+        __Ownable_init();
+        __UUPSUpgradeable_init();
+    }
+
+    modifier isSufficient() {
+        require(_mintTokenId < wlSupply, "Test0814v1: Max whitelist supply reached");
+        require(numToken < totalSupply, "Test0814v1: Max total supply reached");
+        _;
+    }
+
+    modifier isRealWallet() {
+        require(msg.sender == tx.origin, "Test0814v1: Must from real wallet address");
+        _;
+    }
+
+    modifier checkStatus(uint256 _status) {
+        require(status == _status, "Test0814v1: Not correct status");
+        _;
+    }
+
+    function _baseURI() internal view override returns (string memory) {
+        return _buri;
+    }
+
+    function setBaseURI(string memory _uri) public onlyOwner {
+        require(bytes(_uri).length > 0, "Test0814v1: wrong base uri");
+        _buri = _uri;
+    }
+
+    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+        _requireMinted(tokenId);
+
+        string memory uri = _baseURI();
+        if (status == 2) {
+            uri = string(abi.encodePacked(uri, tokenId.toString()));
+        }
+        return uri;
+    }
+
+    function setStatus(uint256 _status) public onlyOwner {
+        uint256 prevStatus = status;
+        status = _status;
+        emit StatusChanged(prevStatus, status, _msgSender());
+    }
+
+    function setMerkleRoot(bytes32 _root) public onlyOwner {
+        merkleRoot = _root;
+    }
+
+    function wlMinted(address _address) public view returns(bool) {
+        return _wlMinted[_address];
+    }
+
+    function _verifyProof(address _address, bytes32[] memory _proof) internal view returns(bool) {
+        bytes32 msgHash = keccak256(abi.encodePacked(_address));
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msgHash))));
+        return MerkleProof.verify(_proof, merkleRoot, leaf);
+    }
+
+    function wlMint(bytes32[] memory _proof) public 
+        isSufficient 
+        isRealWallet 
+        checkStatus(1) 
+    {
+        address addr = _msgSender();
+        require(wlMinted(addr) == false, "Test0814v1: Already minted whitelist address");
+        require(_verifyProof(addr, _proof), "Test0814v1: Invalid proof for whitelist");
+
+        uint256 tokenId = _mintTokenId + 1;
+        _wlMinted[addr] = true;
+        _mintTokenId += 1;
+        numToken += 1;
+        _safeMint(addr, tokenId);
+    }
+
+    function treasuryMint(address _treasury) external onlyOwner {
+        require(_treasury != address(0), "Test0814v1: Invalid treasury address");
+        require(_treasuryMinted == false, "Test0814v1: Already airdrop to treasury");
+
+        _treasuryMinted = true;
+        _balances[_treasury] += (totalSupply - wlSupply);
+        numToken += (totalSupply - wlSupply);
+        for (uint256 tokenId = wlSupply+1; tokenId <= totalSupply; tokenId++) {
+            _owners[tokenId] = _treasury;
+            emit Transfer(address(0), _treasury, tokenId);
+        }
+    }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyOwner
+        override
+    {}
+
+    function lockTokenBatch(string calldata _event, uint256[] calldata _tokenIds) external {
+        require(_lockEventState[_event] == 1, "Test0814v1: Event not open");
+        require(_tokenIds.length > 0, "Test0814v1: BatchSize too small");
+        require(_tokenIds.length <= 50, "Test0814v1: BatchSize exceeds");
+        for(uint256 i = 0; i<_tokenIds.length; i++) {
+            uint256 _tokenId = _tokenIds[i];
+            require(_msgSender() == ownerOf(_tokenId), "Test0814v1: Caller must be owner of token");
+            require(_eventTokenLock[_event][_tokenId] == 0, "Test0814v1: Token already locked by current event");
+            _eventTokenLock[_event][_tokenId] = 1;
+            _lockCounts[_tokenId] += 1;
+        }
+        emit Lock(_event, _tokenIds, _msgSender(), block.timestamp);
+    }
+
+    function unlockTokenBatch(string calldata _event, uint256[] calldata _tokenIds) external {
+        require(_tokenIds.length > 0, "Test0814v1: BatchSize too small");
+        require(_tokenIds.length <= 50, "Test0814v1: BatchSize exceeds");
+        for(uint256 i = 0; i<_tokenIds.length; i++) {
+            uint256 _tokenId = _tokenIds[i];
+            require(_msgSender() == ownerOf(_tokenId), "Test0814v1: Caller must be owner of token");
+            require(_eventTokenLock[_event][_tokenId] == 1, "Test0814v1: Token not locked by current event");
+            _eventTokenLock[_event][_tokenId] = 0;
+            require(_lockCounts[_tokenId] >= 1, "Test0814v1: Lock counts error");
+            _lockCounts[_tokenId] -= 1;
+        }
+        emit Unlock(_event, _tokenIds, _msgSender(), block.timestamp);
+    }
+
+    function setLockEventState(string calldata _event, uint256 _state) external onlyOwner {
+        _lockEventState[_event] = _state;
+    }
+
+    function queryTokenBatchLock(string calldata _event, uint256[] calldata _tokenIds) public view returns (uint256[] memory){
+        uint256[] memory _states = new uint256[](_tokenIds.length);
+        for(uint256 i = 0; i<_tokenIds.length; i++) {
+            _states[i] = _eventTokenLock[_event][_tokenIds[i]];
+        }
+        return _states;
+    }
+
+    function queryLockEventState(string calldata _event) public view returns(uint256){
+        return _lockEventState[_event];
+    }
+
+    function queryLockCounts(uint256 _tokenId) public view returns(uint256){
+        return _lockCounts[_tokenId];
+    }
+
+    /**
+     * @inheritdoc IERC2981Upgradeable
+     */
+    function royaltyInfo(uint256 tokenId, uint256 salePrice) public view virtual override returns (address, uint256) {
+        uint256 royaltyAmount = (salePrice / 100) * 5;
+
+        return (owner(), royaltyAmount);
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId, uint256 batchSize)
+        internal
+        override
+    {
+        require (_lockCounts[tokenId] == 0, "Test0814v1: Token locked by event"); // locked
+        super._beforeTokenTransfer(from, to, tokenId, batchSize);
+    }
+}

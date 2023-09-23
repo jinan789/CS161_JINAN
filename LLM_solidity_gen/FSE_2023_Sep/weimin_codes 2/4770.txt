@@ -1,0 +1,264 @@
+contract DexiStake is Ownable, ReentrancyGuard {
+    address public _rewardTokenAddress =
+        0xDF6E5140Cc4d9Cf4F718F314C02fDd90622B31f6;
+    address public _stakingTokenAddress =
+        0xDF6E5140Cc4d9Cf4F718F314C02fDd90622B31f6;
+    address public _dvtTokenAddress =
+        0x4f2f245e66D2768B5eC467DD3129B7a32232017D;
+    // apr = usdcPerSecondPerUsdc * 365 * 24 * 60 * 60 / 1e6 / 1e8 * 100
+    // _usdcPerSecondPerUsdc = (APR)*1e6*1e8/(365*24*60*60*100)
+    uint256 public _usdcPerSecondPerUsdc = 317097919; //8 decimals
+    uint256 public _lockPeriod = 30 days;
+
+    uint256 public totalDexiAwarded = 0;
+    uint256 public totalUsdcAwarded = 0;
+
+    struct UserInfo {
+        address user;
+        uint256 stakedAmount;
+        uint256 rewardAmount;
+        uint256 lastOperation;
+        uint256 unlockTime;
+    }
+
+    mapping(address => UserInfo) public userInfo;
+
+    address[] private users;
+
+    modifier isUnlocked() {
+        require(
+            userInfo[msg.sender].unlockTime <= block.timestamp,
+            "operator: your funds are still locked!"
+        );
+        _;
+    }
+
+    constructor() {}
+
+    function getUnlockingFundsAt(uint256 timestamp)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 result = 0;
+        for (uint256 i = 0; i < users.length; i++) {
+            if (timestamp >= userInfo[users[i]].unlockTime) {
+                result += userInfo[users[i]].stakedAmount;
+            }
+        }
+        return result;
+    }
+
+    function getStakedFundsAt(uint256 timestamp) public view returns (uint256) {
+        uint256 result = 0;
+        for (uint256 i = 0; i < users.length; i++) {
+            result += userInfo[users[i]].stakedAmount;
+        }
+        return result;
+    }
+
+    function getTotalDexiRewardsAt(uint256 timestamp)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 usdcRewards = getTotalUsdcRewardsAt(timestamp);
+
+        uint256 rewardsInDexi = usdcRewards;
+
+        return rewardsInDexi;
+    }
+
+    function getTotalUsdcRewardsAt(uint256 timestamp)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 result = 0;
+        for (uint256 i = 0; i < users.length; i++) {
+            result += getRewardsAt(users[i], timestamp);
+        }
+        return result;
+    }
+
+    function getAllRewardsAt(uint256 timestamp) public view returns (uint256) {
+        uint256 result = 0;
+        for (uint256 i = 0; i < users.length; i++) {
+            if (timestamp >= userInfo[users[i]].unlockTime) {
+                result += getRewardsAt(users[i], timestamp);
+            }
+        }
+        return result;
+    }
+
+    function getNeededDepositForUnlockingFunds(uint256 timestamp)
+        public
+        view
+        returns (uint256, uint256)
+    {
+        uint256 unlockingFunds = getUnlockingFundsAt(timestamp);
+        uint256 stakingTokenBalance = IERC20(_stakingTokenAddress).balanceOf(
+            address(this)
+        );
+
+        uint256 unlockingRewards = getAllRewardsAt(timestamp);
+        uint256 rewardTokenBalance = IERC20(_rewardTokenAddress).balanceOf(
+            address(this)
+        );
+
+        uint256 rewardsInDexi = unlockingRewards;
+
+        return (
+            stakingTokenBalance > unlockingFunds
+                ? 0
+                : unlockingFunds - stakingTokenBalance,
+            rewardTokenBalance > rewardsInDexi
+                ? 0
+                : rewardsInDexi - rewardTokenBalance
+        );
+    }
+
+    function getPendingRewards(address user) public view returns (uint256) {
+        uint256 pendingRewards = ((block.timestamp -
+            userInfo[user].lastOperation) *
+            (userInfo[user].stakedAmount) *
+            _usdcPerSecondPerUsdc) /
+            100000000 /
+            1e9;
+        return pendingRewards;
+    }
+
+    function getRewardsAt(address user, uint256 timestamp)
+        public
+        view
+        returns (uint256)
+    {
+        if (timestamp <= block.timestamp) {
+            return getTotalRewards(user);
+        } else {
+            uint256 futureRewards = ((((timestamp - block.timestamp) *
+                userInfo[user].stakedAmount) / 1e9) * _usdcPerSecondPerUsdc) /
+                100000000;
+            return getTotalRewards(user) + (futureRewards);
+        }
+    }
+
+    function getTotalRewards(address user) public view returns (uint256) {
+        return userInfo[user].rewardAmount + getPendingRewards(user);
+    }
+
+    function getTotalUsers() public view returns (uint256) {
+        return users.length;
+    }
+
+    function deposit(uint256 amount) public nonReentrant {
+        uint256 amountStaked = amount;
+        uint256 rewardAmount = 0;
+        if (userInfo[msg.sender].user == address(0)) {
+            users.push(msg.sender);
+        } else {
+            amountStaked += userInfo[msg.sender].stakedAmount;
+            rewardAmount =
+                userInfo[msg.sender].rewardAmount +
+                getPendingRewards(msg.sender);
+        }
+        userInfo[msg.sender] = UserInfo({
+            user: msg.sender,
+            stakedAmount: amountStaked,
+            rewardAmount: rewardAmount,
+            lastOperation: block.timestamp,
+            unlockTime: block.timestamp + _lockPeriod
+        });
+        uint256 dexiPerAmount = amount;
+
+        IERC20(_stakingTokenAddress).transferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
+
+        IERC20(_dvtTokenAddress).transfer(msg.sender, amount);
+    }
+
+    function withdraw() public isUnlocked nonReentrant {
+        userInfo[msg.sender].rewardAmount += getPendingRewards(msg.sender);
+        userInfo[msg.sender].lastOperation = block.timestamp;
+        userInfo[msg.sender].unlockTime = block.timestamp + _lockPeriod;
+        IERC20(_dvtTokenAddress).transferFrom(
+            msg.sender,
+            address(this),
+            userInfo[msg.sender].stakedAmount
+        );
+        IERC20(_stakingTokenAddress).transfer(
+            msg.sender,
+            userInfo[msg.sender].stakedAmount
+        );
+
+        uint256 rewardsInDexi = userInfo[msg.sender].rewardAmount;
+
+        if (rewardsInDexi > 0) {
+            IERC20(_rewardTokenAddress).transfer(msg.sender, rewardsInDexi);
+            totalDexiAwarded += rewardsInDexi;
+            totalUsdcAwarded += userInfo[msg.sender].rewardAmount;
+        }
+        userInfo[msg.sender].rewardAmount = 0;
+        userInfo[msg.sender].stakedAmount = 0;
+    }
+
+    function claim() public isUnlocked nonReentrant {
+        userInfo[msg.sender].rewardAmount += getPendingRewards(msg.sender);
+        userInfo[msg.sender].lastOperation = block.timestamp;
+        userInfo[msg.sender].unlockTime = block.timestamp + _lockPeriod;
+
+        uint256 rewardsInDexi = userInfo[msg.sender].rewardAmount;
+
+        totalDexiAwarded += rewardsInDexi;
+        totalUsdcAwarded += userInfo[msg.sender].rewardAmount;
+        IERC20(_rewardTokenAddress).transfer(msg.sender, rewardsInDexi);
+        userInfo[msg.sender].rewardAmount = 0;
+    }
+
+    function getCurrentDexiRewards(address user) public view returns (uint256) {
+        uint256 rewardsInDexi = getTotalRewards(user);
+
+        return rewardsInDexi;
+    }
+
+    function withdraw(address[] calldata tokenAddresses) public onlyOwner {
+        for (uint256 i = 0; i < tokenAddresses.length; i++) {
+            IERC20(tokenAddresses[i]).transfer(
+                msg.sender,
+                IERC20(tokenAddresses[i]).balanceOf(address(this))
+            );
+        }
+    }
+
+    function setRewardTokenAddress(address rewardTokenAddress)
+        public
+        onlyOwner
+    {
+        _rewardTokenAddress = rewardTokenAddress;
+    }
+
+    function setStakingTokenAddress(address stakingTokenAddress)
+        public
+        onlyOwner
+    {
+        _stakingTokenAddress = stakingTokenAddress;
+    }
+
+    function setUsdcPerSecondPerUsdc(uint256 usdcPerSecondPerUsdc)
+        public
+        onlyOwner
+    {
+        _usdcPerSecondPerUsdc = usdcPerSecondPerUsdc;
+    }
+
+    function setLockPeriod(uint256 lockPeriod) public onlyOwner {
+        _lockPeriod = lockPeriod;
+    }
+
+    function setDVTToken(address tokenAddress) public onlyOwner {
+        _dvtTokenAddress = tokenAddress;
+    }
+}

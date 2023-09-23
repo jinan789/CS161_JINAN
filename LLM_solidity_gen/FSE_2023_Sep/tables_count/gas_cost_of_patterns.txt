@@ -1,0 +1,496 @@
+Tu, To, 
+Eu, Eo, 
+
+Du, Do, Ru, Ro, 
+
+*******************************************************
+Deployment Transaction:  , ,
+Deployment Execution:  ,  ,
+Message Call Transaction:  ,  ,
+Message Call Execution:  ,  ,
+*******************************************************
+Deployment Input: 
+Message Call Input:
+Notes:
+Address:
+Contract:
+Function:
+*******************************************************
+
+
+
+notes:
+1. we could bold the diff numbers that are positive
+2. If needed, change contract implementations to different versions
+3. Point out the trade-off contracts. (i.e. trade deployment cost for running cost, or vice versa.)
+4. WE SHOULD make sure the updated pattern names are reflected everywhere else.
+5. WE SHOULD only talk about execution cost: more relevant to the execution of opcodes, and also because we couldn't figure out why deployment cost that much...
+6. From pattern 3, we turned on the optimizer at 200 runs. "By default, the optimizer will optimize the contract assuming it is called 200 times across its lifetime (more specifically, it assumes each opcode is executed around 200 times). ", https://docs.soliditylang.org/en/v0.8.4/using-the-compiler.html#optimizer-options
+7. Since the relative scales are some what large, we should use the absolute amount of gas saved, instead of the relative percentage. (Motivation: base gas costs of different contracts vary largely, so this contributes to unfair comparison). (Instead, only talk about percentage when it's good for us, in demo examples.)
+8. Add a note saying that "test inputs are just for testing purposes, and may not actually make much real sense"
+9. On the first page of the grand report, make a huge table of all the addresses, contracts, etc, that we used.
+10. Make sure to discuss that negation might have been conducted on the example codes.
+11. To save our time, we could also consider dropping the plan of making detailed explanation for each. Instead, we could just present brief ones.
+12. Make sure to record, for those contracts that we took from existing papers, where each one came from.
+13. Change the wording to "we make detailed explanations of each pattern at the byte code level, if possible.
+14. Another change we made to the codes: changed visibility to public for better testing behaviors
+15. Make it clear that we did not make up any codes. They are either real or examples from existing papers (in the "codes" ablation case)) \todo{note that we might need to check this.}
+
+
+
+1. Repeated computation of the same expression 
+*******************************************************
+Deployment Transaction: 231938, 220290,
+Deployment Execution: 166408, 155602,
+Message Call Transaction: 27154, 26391,
+Message Call Execution: 6090, 5327,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: N/A
+Notes:
+Address: 0x0586638503CCaA365cD8a1338f3b84C54BAe65B3
+Contract: OperaBaseTokenTaxed
+Function: tokenSwap
+*******************************************************
+
+
+2. Extractable code chunks
+*******************************************************
+Deployment Transaction:  590280, 518438,
+Deployment Execution:  500672,  433810,
+Message Call Transaction: 30306 ,  30369,
+Message Call Execution:  7958,  8021,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: (0x257dab74AB23BBF2018C088A29991714ee124F97, 0x257dab74AB23BBF2018C088A29991714ee124F97, 0, 0x0001)
+Notes:
+Address: 0x257dab74AB23BBF2018C088A29991714ee124F97
+Contract:IOperatorFilterRegistry
+Function: beforeSafeTransfer
+*******************************************************
+
+
+
+
+3. State Variable Refactoring
+*******************************************************
+Deployment Transaction:  207710, 197484,
+Deployment Execution: 146106 ,  130506,
+Message Call Transaction:  34046,  24173,
+Message Call Execution:  12982,  3109,
+*******************************************************
+Deployment Input:  (0, 999999999, 0, 999999999, 0)
+Message Call Input: N/A
+Notes: assuming that the numbers are no longer than uint32. Optimizer turned on
+Address: 0xE3C7b06e06EAc93C9E3B11ea315C838A90CFB4ab
+Contract: PumpNft
+Function: currentStage
+*******************************************************
+
+
+4. Conditionally execute unnecessarily universal operations (Redundant operations with same effects)
+*******************************************************
+Deployment Transaction: 275399 , 275399,
+Deployment Execution:  206851,  206851,
+Message Call Transaction:  23647,  23631,
+Message Call Execution:  1847,  1831,
+*******************************************************
+Deployment Input: N/A
+Message Call Input:(0x62700eA68B3DF1Bff05c596734f976f0AD901A4E, 0x62700eA68B3DF1Bff05c596734f976f0AD901A4E)
+Notes: NO OPTIMIZATION from here.
+Address: 0x62700eA68B3DF1Bff05c596734f976f0AD901A4E
+Contract: InitialFairOffering
+Function:  _initializePool
+*******************************************************
+
+
+5. Pre-computable operations on constants
+*******************************************************
+Deployment Transaction: 305335 , 293031,
+Deployment Execution: 234675 , 223263 ,
+Message Call Transaction:  23584, 23288 ,
+Message Call Execution: 2028 , 1732 ,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: ("DEFAULT")
+Notes:STILL NO OPTIMIZATION
+Address:0x7f5C649856F900d15C83741f45AE46f5C6858234
+Contract:UNCX_ProofOfReservesV2_UniV3
+Function: removeFee
+*******************************************************
+
+
+6. Deterministic conditional checks
+*******************************************************
+Deployment Transaction:  243762, 240078,
+Deployment Execution: 177820 , 174420 ,
+Message Call Transaction:  23691,  23651,
+Message Call Execution: 2487 , 2447 ,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: (1)
+Notes:
+Address:0x62700eA68B3DF1Bff05c596734f976f0AD901A4E
+Contract:InitialFairOffering
+Function: addLiquidity
+*******************************************************
+
+7. Conditional statements with simpler equivalents{Nguyen2022gassaver} <>
+*******************************************************
+Deployment Transaction: 232355 , 228254,
+Deployment Execution: 166957 ,  163150,
+Message Call Transaction: 24142 , 24094 ,
+Message Call Execution: 2798 , 2750 ,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: (1,2)
+Notes:
+Address:0x846bB98EA9BD5e766d5FDB1a415E0cf0202D3801
+Contract:presale
+Function: owner
+*******************************************************
+
+
+8. DELETED (Refactorable function){} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+9. Replacing item-by-item iterated arrays by a map{Lodovica2020design, sorbo2022profiling} <>
+*******************************************************
+Deployment Transaction:  , ,
+Deployment Execution:  ,  ,
+Message Call Transaction:  ,  ,
+Message Call Execution:  ,  ,
+*******************************************************
+Deployment Input: 
+Message Call Input: 
+Notes:
+Address:
+Contract:
+Function: 
+*******************************************************
+
+
+10. UMBRELLA TERM UNDER 4{} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+
+
+
+
+
+11. Repeated security checks across function calls{} <zhao2023gassaver>
+*******************************************************
+Deployment Transaction: 428902 , 381781,
+Deployment Execution:  350386,  306143,
+Message Call Transaction: 26312 ,  26242,
+Message Call Execution: 4384 , 4314 ,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: (0x0586638503CCaA365cD8a1338f3b84C54BAe65B3, 0x0586638503CCaA365cD8a1338f3b84C54BAe65B3, 0)
+Notes: much less byte codes, so much lower deployment cost.
+Address: 0x0586638503CCaA365cD8a1338f3b84C54BAe65B3
+Contract:OperaBaseTokenTaxed
+Function: transferFrom
+*******************************************************
+
+12. Unnecessarily introducing variables{} <>
+*******************************************************
+Deployment Transaction: 287979 , 276947,
+Deployment Execution:  218263,  208051,
+Message Call Transaction: 24966 ,  24852,
+Message Call Execution: 1790 ,  1676,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: (0x3a42ddc676f6854730151750f3dbd0ebfe3c6cd3, "s", 0, 0x3a42ddc676f6854730151750f3dbd0ebfe3c6cd3, 0x00, 0x00)
+Notes:
+Address:0x3a42ddc676f6854730151750f3dbd0ebfe3c6cd3
+Contract:Donate3
+Function: donateERC20
+*******************************************************
+
+
+13. UMBRELLA TERM UNDER 1{} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+14. DELETED (Excessive usage of try-catches){} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+15. Unnecessary overflow/underflow validation since Solidity 0.8.0{} <>
+*******************************************************
+Deployment Transaction: 273423 , 246758,
+Deployment Execution: 204845 , 179826 ,
+Message Call Transaction:  37597,  36997,
+Message Call Execution:13553  , 12953 ,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: ([0x3D6AfE2fB73fFEd2E3dD00c501A174554e147a43, 0x3D6AfE2fB73fFEd2E3dD00c501A174554e147a43, 0x3D6AfE2fB73fFEd2E3dD00c501A174554e147a43, 0x3D6AfE2fB73fFEd2E3dD00c501A174554e147a43, 0x3D6AfE2fB73fFEd2E3dD00c501A174554e147a43], [0,0,0,0,0])
+Notes: This example is the result of a negation. Due to unuqdated knowledge of GPT-4. We should make it clear in the selection of contracts: i.e. we selected real world contracts that reflect these patterns.
+Address:0x3D6AfE2fB73fFEd2E3dD00c501A174554e147a43
+Contract:KSElasticLMV2
+Function: withdrawUnusedRewards
+*******************************************************
+
+16. UMBRELLA TERM UNDER 11{} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+17. Redundant memory array initialization{} <>
+*******************************************************
+Deployment Transaction:  153465, 100093,
+Deployment Execution:  93541, 43293 ,
+Message Call Transaction: 21755 ,  21463,
+Message Call Execution:  691, 399 ,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: N/A
+Notes:
+Address:0x331c27d9daf6d8f6a2dbf3c16b5c5733da1b4431
+Contract:AaveV2Strategy
+Function: assetRatio
+*******************************************************
+
+18. Placement of require statements{} <>
+*******************************************************
+Deployment Transaction:  , ,
+Deployment Execution:  ,  ,
+Message Call Transaction:  ,  ,
+Message Call Execution:  ,  ,
+*******************************************************
+Deployment Input: 
+Message Call Input: 
+Notes:
+Address:
+Contract:
+Function: 
+*******************************************************
+
+
+19. Avoid no-op writes to state variables{} <Lodovica2020design>
+*******************************************************
+Deployment Transaction: 152253 , 153969,
+Deployment Execution: 92541 , 94141 ,
+Message Call Transaction:  24065, 23974 ,
+Message Call Execution:  3001, 2910 ,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: N/A
+Notes: 
+Address:0x1892038be4bd3968f4a8574593032d61c88dcacb
+Contract:IdleStrategy
+Function: _getYieldPercentage
+*******************************************************
+
+
+20. Reordering conditional checks for short-circuiting{Lodovica2020design} <Kong2022characterizing, zhao2023gassaver>
+*******************************************************
+Deployment Transaction: 353980 , 353980,
+Deployment Execution:  280518,  280518,
+Message Call Transaction:  23078,  22947,
+Message Call Execution:1150  ,  1019,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: (0x3D6AfE2fB73fFEd2E3dD00c501A174554e147a43, 0x2f8fD77D037C0778E98fF160168995CD14634eaE, 10)
+Notes: The inputs are specially tuned to trigger the short-circuiting case. There is a tradeoff if it is hard to determine such. We assume in this case that it is very likely for the "to" address to be the address of the contract (i.e. very likely for the recipient address of a transfer command to be the contract address). Then for the optimized case, we test the input for such scenario.
+Address:0x2f8fD77D037C0778E98fF160168995CD14634eaE
+Contract:DEVGPT
+Function: _transfer
+*******************************************************
+
+21. Combinable events{} <>
+*******************************************************
+Deployment Transaction: 206618 , 178025,
+Deployment Execution: 142990 ,  116565,
+Message Call Transaction: 26732 , 25092 ,
+Message Call Execution:  5668,  4028,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: N/A
+Notes: assuming that the 3 events could be combined by string. Put 3 separate strings into one.
+Address:0x111ACf72AA4A1fdA8500ED9f1Ba3F2374c02a21e
+Contract:LEGO
+Function: loggingOnChain
+*******************************************************
+
+22. UMBRELLA TERM UNDER 15{} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+23. add constant modifier for non-changing variables{park2017saving, Nguyen2022gassaver} <>
+*******************************************************
+Deployment Transaction:  823085, 867805,
+Deployment Execution:  724419,  768627,
+Message Call Transaction:  56032,  50528,
+Message Call Execution:  34092,  28588,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: (0x340de5cb9b177ff1e3d00e6aa3082f979fca621e, 0x340de5cb9b177ff1e3d00e6aa3082f979fca621e,10)
+Notes:here we make the assumption, for the purpose of demonstration, even though they are actually not, that (_maxTxAmount, _maxWalletSize, _taxSwapThreshold, _maxTaxSwap) could be declared as constants. In addition, it seems like declaring constants somewhat increases the deployment cost.
+Address:0x340de5cb9b177ff1e3d00e6aa3082f979fca621e
+Contract:BBB
+Function: _transfer
+*******************************************************
+
+
+24. UMBRELLA TERM UNDER 32{} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+25. Function visibility{Lodovica2020design, Kong2022characterizing, Nguyen2022gassaver} <park2017saving, sorbo2022profiling>
+
+*******************************************************
+Deployment Transaction:  418790, 418790,
+Deployment Execution: 339980 ,  339980,
+Message Call Transaction: 47316 , 27416 ,
+Message Call Execution:  25712,  5812,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: ("test string")
+Notes:418790
+Address:0x7e9F2D2583FEF83aF0dDA74E457B6320228B20dE
+Contract:AkshunSeasonPassNft
+Function: updateContractURI
+*******************************************************
+
+
+26. Dead codes{Chen2017underoptimized, zhao2023gassaver} <>
+*******************************************************
+Deployment Transaction: 158393 , 149733,
+Deployment Execution: 97947 ,  89941,
+Message Call Transaction: 22351 ,  22073,
+Message Call Execution:1147  ,869  ,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: (10)
+Notes: We made up the codes here, for the purpose of demonstration. Codes taken from Chen2017underoptimized
+Address: N/A
+Contract:N/A
+Function: N/A
+*******************************************************
+
+27. UMBRELLA TERM UNDER 28{} <>
+GAS: NA, NA, NA, NA,
+STEP: NA, NA, NA, NA,
+
+
+28. Using revert instead of require for error handling{} <>
+*******************************************************
+Deployment Transaction:261062  ,210431 ,
+Deployment Execution: 197220 , 150171 ,
+Message Call Transaction:  22312,  22024,
+Message Call Execution:  980,  692,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: (0,200)
+Notes: https://medium.com/coinmonks/how-custom-errors-in-solidity-save-gas-3c499aa22745
+Address:0xfC31f0457DaB6A52432a033f13111981f464b74a
+Contract:DOLLARAI
+Function: setFee
+*******************************************************
+
+29. Minimization of event message string{} <>
+*******************************************************
+Deployment Transaction: 178025 , 137837,
+Deployment Execution: 116565 ,  78529,
+Message Call Transaction: 25092 , 23152 ,
+Message Call Execution:  4028, 2088 ,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: N/A
+Notes:This is a continuation of 21. Note that we used a separator that does not lose any information.
+Address: 0x111ACf72AA4A1fdA8500ED9f1Ba3F2374c02a21e
+Contract:LEGO
+Function: loggingOnChain
+*******************************************************
+
+
+30. Replacing MUL/DIV of powers of 2 by SHL/SHR{} <>
+*******************************************************
+Deployment Transaction:  , ,
+Deployment Execution:  ,  ,
+Message Call Transaction:  ,  ,
+Message Call Execution:  ,  ,
+*******************************************************
+Deployment Input: 
+Message Call Input: 
+Notes:
+Address:
+Contract:
+Function: 
+*******************************************************
+
+31. Struct variable reordering{Nguyen2022gassaver} <Lodovica2020design, Kong2022characterizing, park2017saving>
+*******************************************************
+Deployment Transaction: 276923 , 276959,
+Deployment Execution: 207451 , 207451 ,
+Message Call Transaction: 91601 ,  89701,
+Message Call Execution: 70537 , 68637 ,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: N/A
+Notes: codes taken (and modified) from Nguyen2022gassaver.
+Address:N/A
+Contract:N/A
+Function: N/A
+*******************************************************
+
+32. Loop invariant codes{Keerthi2021smart, Chen2017underoptimized, Nguyen2022gassaver, zhao2023gassaver} <>
+*******************************************************
+Deployment Transaction: 215033 , 216353,
+Deployment Execution:  153571, 154771 ,
+Message Call Transaction: 101534 ,  63135,
+Message Call Execution:  80330,  41931,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: (100)
+Notes: codes taken from Chen2017underoptimized
+Address:N/A
+Contract:N/A
+Function: N/A
+*******************************************************
+
+
+33. Avoid expensive operations inside loops{Chen2017underoptimized} <Keerthi2021smart, sorbo2022profiling, zhao2023gassaver>
+*******************************************************
+Deployment Transaction: 170799 , 171435,
+Deployment Execution:109559  ,  110159,
+Message Call Transaction: 102621 ,  80848,
+Message Call Execution:  81417, 59644 ,
+*******************************************************
+Deployment Input: N/A
+Message Call Input: (100)
+Notes: codes taken from Chen2017underoptimized. Mention that this, together with pattern 32, are small tradeoffs in the sense that if the loop only gets executed very few times (e.g. 1), then we might lose gas. But that's an extreme case. Also make sure to mention that we took 100 loops.
+Address:N/A
+Contract:N/A
+Function: N/A
+*******************************************************
+
+
+
+34. Struct refactoring by usage frequency{chen2022synthesispowered} <>
+
+*******************************************************
+Deployment Transaction:  , ,
+Deployment Execution:  ,  ,
+Message Call Transaction:  ,  ,
+Message Call Execution:  ,  ,
+*******************************************************
+Deployment Input: 
+Message Call Input: 
+Notes: codes taken from chen2022synthesispowered. Note that this contract is based on a real one (i.e. CreditDAO). Need to assume/test on how many times each struct gets used.
+Address:
+Contract:
+Function: 
+*******************************************************
+
+

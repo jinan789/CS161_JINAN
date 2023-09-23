@@ -1,0 +1,152 @@
+contract SggcdNFT is ISggcdNFT, ERC1155Supply, ERC2981, Ownable {
+
+    using Strings for uint256;
+
+    /// @notice 首发NFT的合约
+    ISggcNFT immutable public override SGGC_NFT;
+
+    /// @notice 每个首创NFT可以最多铸造的数量
+    uint256 constant public override MAX_MINTABLE = 10000;
+
+    /// @notice 版税
+    uint96 constant public override FEE_NUMBERATOR = 500;
+    uint96 constant public override FEE_DENOMINATOR = 10000;
+
+    string public override name;
+    string public override symbol;
+
+    string private contract_URI;
+    string private token_base_URI;
+
+    /// @notice baseURI的修改历史
+    string[] private history_base_URIs;
+
+    modifier onlySggcNFT() {
+        require(msg.sender == address(SGGC_NFT), "SggcdNFT: Only SggcNFT can call this function");
+        _;
+    }
+
+    /// @notice 构造函数
+    /// @param _name NFT名称
+    /// @param _symbol NFT符号
+    /// @param _sggc_nft_address 首发NFT的地址
+    constructor(string memory _name, string memory _symbol, address _sggc_nft_address, address _safe_multisig_address) ERC1155('') {
+        name = _name;
+        symbol = _symbol;
+
+        require(Address.isContract(_sggc_nft_address), "SggcdNFT: SggcNFT address is not a contract");
+        SGGC_NFT = ISggcNFT(_sggc_nft_address);
+
+        require(Address.isContract(_safe_multisig_address), "SggcdNFT: SafeMulti must be a contract");
+        transferOwnership(_safe_multisig_address);
+    }
+
+    /// @notice 铸造
+    /// @param _sggc_tokenId 首发NFT的tokenId
+    /// @param _to 接收地址
+    /// @param _quantity 铸造数量
+    function mintSGGCD(uint256 _sggc_tokenId, address _to, uint256 _quantity) external override {
+        require(_to != address(0), "SggcdNFT: To address must not be zero address");
+
+        address _sggc_owner_address = IERC721(address(SGGC_NFT)).ownerOf(_sggc_tokenId);
+        require(_sggc_owner_address == msg.sender || owner() == msg.sender, "SggcdNFT: You must be the owner of the Sggc token id or the owner of the contract");
+
+        uint256 _current_minted_amount = totalSupply(_sggc_tokenId);
+        require(_current_minted_amount + _quantity <= MAX_MINTABLE, "SggcdNFT: Quantity must be less than or equal to MAX_MINTABLE");
+
+        _mint(_to, _sggc_tokenId, _quantity, '');
+
+        // 如果没有baseURI，需要导入SggcNFT的baseURI
+        if (bytes(token_base_URI).length == 0) {
+            token_base_URI = SGGC_NFT.baseURI();
+        }
+
+        emit Minted(_to, _sggc_tokenId, _quantity);
+    }
+
+    /**
+     * @notice 设定contractURI
+    * @dev 该方法只能由owner调用
+    * @param _new_contractURI The new contract URI.
+     */
+    function setContractURI(string calldata _new_contractURI) external override onlyOwner {
+        // Set the new contract URI.
+        contract_URI = _new_contractURI;
+
+        // Emit an event with the update.
+        emit ContractURIUpdated(_new_contractURI);
+    }
+
+    /**
+     * @notice 设定baseURI，每次更新都会记录到history_base_URIs中
+     * @dev 该方法只能由owner调用
+     * @param _new_base_URI The new base URI.
+     */
+    function setBaseURI(string calldata _new_base_URI) external override onlyOwner {
+        require(bytes(_new_base_URI).length > 0, "SggcdNFT: Base URI must not be empty");
+        require(keccak256(abi.encodePacked(_new_base_URI)) != keccak256(abi.encodePacked(token_base_URI)),
+            'SggcdNFT: The new base URI is the same as the current one');
+
+        // Set the new base URI.
+        token_base_URI = _new_base_URI;
+
+        history_base_URIs.push(_new_base_URI);
+    }
+
+    function transferFrom(address _from, address _to, uint256 _id, uint256 _amount) external override {
+        safeTransferFrom(_from, _to, _id, _amount, '');
+    }
+
+    /**
+     * @notice 返回baseURI
+     */
+    function baseURI() external view override returns (string memory) {
+        return token_base_URI;
+    }
+
+
+    /**
+     * @notice 返回合约的URI
+     * @return string contract_URI 合约的URI
+     */
+    function contractURI() external view override returns (string memory) {
+        return contract_URI;
+    }
+
+    function uri(uint256 id) public view virtual override returns (string memory) {
+        require(this.exists(id), "SggcdNFT: URI query for nonexistent token");
+        return bytes(token_base_URI).length > 0 ? string(abi.encodePacked(token_base_URI, id.toString())) : "";
+    }
+
+    /// @notice 获取baseURI
+    /// @return string[] BaseHistoryURIs baseURI的历史记录
+    function getHistoryBaseURIs() external view override returns (string[] memory) {
+        return history_base_URIs;
+    }
+
+    /// @notice 获取版税信息
+    /// @dev 通过tokenId获取首发NFT的持有人地址，然后获取首发NFT的版税信息，每个副本NFT的版税信息都是一样的
+    /// @param _tokenId tokenId
+    /// @param _salePrice 销售价格
+    /// @return address, uint256
+    function royaltyInfo(uint256 _tokenId, uint256 _salePrice) public view virtual override returns (address, uint256) {
+        require(this.exists(_tokenId), "SggcdNFT: Royalty info for nonexistent token");
+        require(_salePrice > 0, "SggcdNFT: Sale price must be greater than zero");
+
+        //        uint256 _sggc_tokenId = this.getSourceFromTokenId(_tokenId);
+        //        require(_sggc_tokenId > 0, "SggcdNFT: SGGC NFT is not exist");
+
+        address _sggc_nft_owner_address = IERC721(address(SGGC_NFT)).ownerOf(_tokenId);
+        uint256 _royalty_amount = (_salePrice * FEE_NUMBERATOR) / FEE_DENOMINATOR;
+
+        return (_sggc_nft_owner_address, _royalty_amount);
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC2981, ERC1155) returns (bool) {
+        return interfaceId == type(IERC2981).interfaceId
+        || interfaceId == type(IERC1155).interfaceId
+        || interfaceId == type(IERC1155MetadataURI).interfaceId
+        || super.supportsInterface(interfaceId);
+    }
+
+}

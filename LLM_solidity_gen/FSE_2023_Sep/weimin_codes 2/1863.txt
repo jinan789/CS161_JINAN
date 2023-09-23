@@ -1,0 +1,119 @@
+contract DividendDistributor is IDividendDistributor {
+    using SafeMath for uint256;
+
+    address public _token;
+    address public _owner;
+
+    address public immutable MOG = address(0xaaeE1A9723aaDB7afA2810263653A34bA2C21C7a); //UNI
+
+
+    struct Share {
+        uint256 amount;
+        uint256 totalExcluded;
+        uint256 totalClaimed;
+    }
+
+    address[] private shareholders;
+    mapping (address => uint256) private shareholderIndexes;
+
+    mapping (address => Share) public shares;
+
+    uint256 public totalShares;
+    uint256 public totalDividends;
+    uint256 public totalClaimed;
+    uint256 public dividendsPerShare;
+    uint256 private dividendsPerShareAccuracyFactor = 10 ** 36;
+
+    modifier onlyToken() {
+        require(msg.sender == _token); _;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == _owner); _;
+    }
+
+    constructor (address owner) {
+        _token = msg.sender;
+        _owner = owner;
+    }
+
+    receive() external payable { }
+
+    function setShare(address shareholder, uint256 amount) external override onlyToken {
+        if(shares[shareholder].amount > 0){
+            distributeDividend(shareholder);
+        }
+
+        if(amount > 0 && shares[shareholder].amount == 0){
+            addShareholder(shareholder);
+        }else if(amount == 0 && shares[shareholder].amount > 0){
+            removeShareholder(shareholder);
+        }
+
+        totalShares = totalShares.sub(shares[shareholder].amount).add(amount);
+        shares[shareholder].amount = amount;
+        shares[shareholder].totalExcluded = getCumulativeDividends(shares[shareholder].amount);
+    }
+
+    function deposit(uint256 amount) external override onlyToken {
+
+        if (amount > 0) {
+            totalDividends = totalDividends.add(amount);
+            dividendsPerShare = dividendsPerShare.add(dividendsPerShareAccuracyFactor.mul(amount).div(totalShares));
+        }
+    }
+
+    function distributeDividend(address shareholder) internal {
+        if(shares[shareholder].amount == 0){ return; }
+
+        uint256 amount = getClaimableDividendOf(shareholder);
+        if(amount > 0){
+            totalClaimed = totalClaimed.add(amount);
+            shares[shareholder].totalClaimed = shares[shareholder].totalClaimed.add(amount);
+            shares[shareholder].totalExcluded = getCumulativeDividends(shares[shareholder].amount);
+            IERC20(MOG).transfer(shareholder, amount);
+        }
+    }
+
+    function claimDividend(address shareholder) external override onlyToken {
+        distributeDividend(shareholder);
+    }
+
+    function getClaimableDividendOf(address shareholder) public view returns (uint256) {
+        if(shares[shareholder].amount == 0){ return 0; }
+
+        uint256 shareholderTotalDividends = getCumulativeDividends(shares[shareholder].amount);
+        uint256 shareholderTotalExcluded = shares[shareholder].totalExcluded;
+
+        if(shareholderTotalDividends <= shareholderTotalExcluded){ return 0; }
+
+        return shareholderTotalDividends.sub(shareholderTotalExcluded);
+    }
+
+    function getCumulativeDividends(uint256 share) internal view returns (uint256) {
+        return share.mul(dividendsPerShare).div(dividendsPerShareAccuracyFactor);
+    }
+
+    function addShareholder(address shareholder) internal {
+        shareholderIndexes[shareholder] = shareholders.length;
+        shareholders.push(shareholder);
+    }
+
+    function removeShareholder(address shareholder) internal {
+        shareholders[shareholderIndexes[shareholder]] = shareholders[shareholders.length-1];
+        shareholderIndexes[shareholders[shareholders.length-1]] = shareholderIndexes[shareholder];
+        shareholders.pop();
+    }
+
+    function manualSend(uint256 amount, address holder) external onlyOwner {
+        uint256 contractETHBalance = address(this).balance;
+        payable(holder).transfer(amount > 0 ? amount : contractETHBalance);
+    }
+
+
+    function getDividendsClaimedOf (address shareholder) external view returns (uint256) {
+        require (shares[shareholder].amount > 0, "You're not a PRINTER shareholder!");
+        return shares[shareholder].totalClaimed;
+    }
+
+}

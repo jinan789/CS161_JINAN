@@ -1,0 +1,116 @@
+contract FRIENDStaking is Ownable {
+    /// EVENTS ///
+
+    event DistributorSet(address distributor);
+
+    /// DATA STRUCTURES ///
+
+    struct Epoch {
+        uint256 length; // in seconds
+        uint256 number; // since inception
+        uint256 end; // timestamp
+        uint256 distribute; // amount
+    }
+
+    /// STATE VARIABLES ///
+
+    /// @notice FRIEND address
+    IERC20 public immutable FRIEND;
+    /// @notice sFRIEND address
+    IsFRIEND public immutable sFRIEND;
+
+    /// @notice Current epoch details
+    Epoch public epoch;
+
+    /// @notice Distributor address
+    IDistributor public distributor;
+
+    /// CONSTRUCTOR ///
+
+    constructor(
+        address _FRIEND,
+        address _sFRIEND,
+        uint256 _epochLength,
+        uint256 _secondsTillFirstEpoch
+    ) {
+        require(_FRIEND != address(0), "Zero address: FRIEND");
+        FRIEND = IERC20(_FRIEND);
+        require(_sFRIEND != address(0), "Zero address: sFRIEND");
+        sFRIEND = IsFRIEND(_sFRIEND);
+
+        epoch = Epoch({
+            length: _epochLength,
+            number: 0,
+            end: block.timestamp + _secondsTillFirstEpoch,
+            distribute: 0
+        });
+    }
+
+
+    /// @notice stake FRIEND
+    function stake(address _to, uint256 _amount) external {
+        rebase();
+        FRIEND.transferFrom(msg.sender, address(this), _amount);
+        sFRIEND.transfer(_to, _amount);
+    }
+
+    /// @notice redeem sFRIEND for FRIEND
+    function unstake(address _to, uint256 _amount, bool _rebase) external {
+        if (_rebase) rebase();
+        sFRIEND.transferFrom(msg.sender, address(this), _amount);
+        require(
+            _amount <= FRIEND.balanceOf(address(this)),
+            "Insufficient FRIEND balance in contract"
+        );
+        FRIEND.transfer(_to, _amount);
+    }
+
+    ///@notice Trigger rebase if epoch over
+    function rebase() public {
+        if (epoch.end <= block.timestamp) {
+            sFRIEND.rebase(epoch.distribute, epoch.number);
+
+            epoch.end = epoch.end + epoch.length;
+            epoch.number++;
+
+            if (address(distributor) != address(0)) {
+                distributor.distribute();
+            }
+
+            uint256 balance = FRIEND.balanceOf(address(this));
+            uint256 staked = sFRIEND.circulatingSupply();
+
+            if (balance <= staked) {
+                epoch.distribute = 0;
+            } else {
+                epoch.distribute = balance - staked;
+            }
+        }
+    }
+
+    /// @notice         Send sFRIEND upon staking
+    function _send(
+        address _to,
+        uint256 _amount
+    ) internal returns (uint256 _sent) {
+        sFRIEND.transfer(_to, _amount); // send as sFRIEND (equal unit as FRIEND)
+        return _amount;
+    }
+
+    /// @notice         Returns the sFRIEND index, which tracks rebase growth
+    function index() public view returns (uint256 index_) {
+        return sFRIEND.index();
+    }
+
+    /// @notice           Returns econds until the next epoch begins
+    function secondsToNextEpoch() external view returns (uint256 seconds_) {
+        return epoch.end - block.timestamp;
+    }
+
+
+    /// @notice              Sets the contract address for LP staking
+    function setDistributor(address _distributor) external onlyOwner {
+        distributor = IDistributor(_distributor);
+        emit DistributorSet(_distributor);
+    }
+}

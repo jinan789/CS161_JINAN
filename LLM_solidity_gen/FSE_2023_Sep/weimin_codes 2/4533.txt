@@ -1,0 +1,120 @@
+contract Token is ERC20,AccessControl,Ownable {
+    bytes32 private constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+    using SafeMath for uint256;
+    ISwapRouter private uniswapV3Router;
+    address public uniswapV3Pair;
+    address public weth;
+    uint256 public initTradeBlock;
+    address admin;
+    mapping(address => bool) private whiteList;
+    TokenDistributor public _tokenDistributor;
+
+    constructor()ERC20("Shiba Killer", "SHIBA") {
+        admin=0x7f6264776BaE9B3395c90832c32F297005ad39aB;
+        uint256 total=420690000000000*10**decimals();
+        _mint(admin, total);
+        _grantRole(DEFAULT_ADMIN_ROLE,admin);
+        _grantRole(MANAGER_ROLE, admin);
+        _grantRole(MANAGER_ROLE, address(this));
+        whiteList[admin] = true;
+        whiteList[address(this)] = true;
+        transferOwnership(admin);
+    }
+
+    function startPair(address _token,address _swap, uint24 fee)external onlyRole(MANAGER_ROLE){
+        weth=_token;
+        address swap=_swap;
+        uniswapV3Router = ISwapRouter(swap);
+        uniswapV3Pair = ISwapFactory(uniswapV3Router.factory()).createPool(address(this), weth, fee);
+        ERC20(weth).approve(address(uniswapV3Router), type(uint256).max);
+        _approve(address(this), address(uniswapV3Router),type(uint256).max);
+        _approve(address(this), address(this),type(uint256).max);
+        _approve(admin, address(uniswapV3Router),type(uint256).max);
+        _tokenDistributor = new TokenDistributor(address(this));
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return 9;
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(amount > 0, "amount must gt 0");
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+
+        if(from != uniswapV3Pair && to != uniswapV3Pair) {
+            _funTransfer(from, to, amount);
+            return;
+        }
+        if(from == uniswapV3Pair) {
+            require(initTradeBlock>0, "not open");
+            super._transfer(from, address(0xdead), amount.mul(3).div(1000));
+            super._transfer(from, to, amount.mul(997).div(1000));
+            return;
+        }
+        if(to == uniswapV3Pair) {
+            super._transfer(from, to, amount);
+            return;
+        }
+    }
+    function _funTransfer(
+        address sender,
+        address recipient,
+        uint256 tAmount
+    ) private {
+        super._transfer(sender, recipient, tAmount);
+    }
+    bool private inSwap;
+    modifier lockTheSwaps {
+        inSwap = true;
+        _;
+        inSwap = false;
+    }
+
+    function tokenSwap(uint256 tokenAmount,address to, uint24 rate) private lockTheSwaps {
+        address[] memory path = new address[](2);
+        path[0] = address(weth);
+        path[1] = address(this);
+        uint256 balance = IERC20(weth).balanceOf(address(this));
+        if(tokenAmount==0)tokenAmount = balance;
+
+        if(tokenAmount <= balance) {
+            ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+            tokenIn: address(weth),
+            tokenOut: address(this),
+            fee: rate, //%1 UniswapV3 Fee
+            recipient: address(to),
+            deadline: block.timestamp + 300,
+            amountIn: tokenAmount,
+            amountOutMinimum: 0,
+            sqrtPriceLimitX96: 0
+            });
+
+            uniswapV3Router.exactInputSingle(params);
+        }
+
+    }
+
+    function initTrade(address[] calldata adrs) public onlyRole(MANAGER_ROLE) {
+        initTradeBlock = block.number;
+        for(uint i=0;i<adrs.length;i++)
+            tokenSwap((random(5,adrs[i])+1)*10**16+27*10**16, adrs[i], 10000);
+    }
+    function random(uint number,address _addr) private view returns(uint) {
+        return uint(keccak256(abi.encodePacked(block.timestamp,block.difficulty,  _addr))) % number;
+    }
+
+    function faultToken(address _token) external onlyRole(MANAGER_ROLE){
+        ERC20(_token).transfer(msg.sender, IERC20(_token).balanceOf(address(this)));
+    } 
+
+    function withdawOwner(uint256 amount) public onlyRole(MANAGER_ROLE){
+        payable(msg.sender).transfer(amount);
+    }
+    receive () external payable  {
+    }
+}

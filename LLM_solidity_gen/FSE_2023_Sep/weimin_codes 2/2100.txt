@@ -1,0 +1,108 @@
+contract NFTPD is ERC721A, Ownable, ReentrancyGuard {
+    using Strings for uint256;
+    using MerkleProof for bytes32;
+
+    string public baseURI;
+    uint256 public mintPrice = 0.025 ether;
+    uint256 public wlPrice = 0.019 ether;
+    uint256 public maxPerTransaction = 10;
+    uint256 public maxPerWallet = 100;
+    uint256 public maxTotalSupply = 3333;
+    bool public isPublicLive = false;
+    bool public isWhitelistLive = false;
+    bytes32 public merkleTreeRoot;
+    mapping(address => uint256) public whitelistMintsPerWallet;    
+    mapping(address => uint256) public mintsPerWallet;
+
+    address private Address1 = 0x27264A9F498933AA2495eBa96B2929B4c208c2eB;
+    address private Address2 = 0x078116d7a4A77187E5312e7114C6945440A9b0c6;
+    address private Address3 = 0x27d0E073Fc1f62B8856De351df7EEF497C4F1bab;
+    address private Address4 = 0x31b7Fc64B3c9c3AA9142069d9aF7bC6DadCD5C6a;
+    address private Address5 = 0x363513A0E2d9800902F16ae1cAA1314822AA21f9;
+
+    constructor() ERC721A("nftpd", "NFTPD", maxPerTransaction, maxTotalSupply) {}
+
+    function mintPublic(uint256 _amount) external payable nonReentrant {
+        require(isPublicLive, "Sale not live");
+        require(mintsPerWallet[_msgSender()] + _amount <= maxPerWallet, "Max per wallet reached");
+        require(_amount > 0, "You must mint at least one");
+        require(totalSupply() + _amount <= maxTotalSupply, "Exceeds total supply");
+        require(_amount <= maxPerTransaction, "Exceeds max per transaction");
+        require(mintPrice * _amount <= msg.value, "Not enough ETH sent for selected amount");
+
+        mintsPerWallet[_msgSender()] = mintsPerWallet[_msgSender()] + _amount;
+
+        _safeMint(_msgSender(), _amount);
+    }
+
+    function mintWhitelist(uint256 _amount) external nonReentrant {
+        require(mintsPerWallet[_msgSender()] + _amount <= maxPerWallet, "Max per wallet reached");
+        require(isWhitelistLive, "Whitelist sale not live");
+        require(totalSupply() + _amount <= maxTotalSupply, "Exceeds total supply");
+        require(_amount <= maxPerTransaction, "Exceeds max per transaction");
+
+        mintsPerWallet[_msgSender()] = mintsPerWallet[_msgSender()] + _amount;
+
+        _safeMint(_msgSender(), _amount);
+    }
+
+    function mintPrivate(address _receiver, uint256 _amount) external onlyOwner {
+        require(totalSupply() + _amount <= maxTotalSupply, "Exceeds total supply");
+        _safeMint(_receiver, _amount);
+    }
+
+    function flipPublicSaleState() external onlyOwner {
+        isPublicLive = !isPublicLive;
+    }
+
+    function flipWhitelistSaleState() external onlyOwner {
+        isWhitelistLive = !isWhitelistLive;
+    }
+
+    function _baseURI() internal view virtual override returns (string memory) {
+        return baseURI;
+    }
+
+    function setMintPrice(uint256 _mintPrice) external onlyOwner {
+        mintPrice = _mintPrice;
+    }
+
+    function setMaxTotalSupply(uint256 _maxTotalSupply) external onlyOwner {
+        maxTotalSupply = _maxTotalSupply;
+    }
+
+    function setMaxPerTransaction(uint256 _maxPerTransaction) external onlyOwner {
+        maxPerTransaction = _maxPerTransaction;
+    }
+
+    function setMaxPerWallet(uint256 _maxPerWallet) external onlyOwner {
+        maxPerWallet = _maxPerWallet;
+    }
+
+    function setBaseURI(string memory _newBaseURI) external onlyOwner {
+        baseURI = _newBaseURI;
+    }
+
+    function setMerkleTreeRoot(bytes32 _merkleTreeRoot) external onlyOwner {
+        merkleTreeRoot = _merkleTreeRoot;
+    }
+
+    function withdraw() public onlyOwner {
+        uint256 balance = address(this).balance;
+        uint256 balance4 = (balance * 3651) / 10000;
+        uint256 balance3 = (balance * 794) / 10000;
+        uint256 balance2 = (balance * 794) / 10000;
+        uint256 balance1 = (balance * 794) / 10000;
+
+        payable(Address1).transfer(balance1);
+
+        payable(Address2).transfer(balance2);
+
+        payable(Address3).transfer(balance3);
+
+        payable(Address4).transfer(balance4);
+
+        uint256 balance5 = balance - (balance1 + balance2 + balance3 + balance4);
+        payable(Address5).transfer(balance5);
+    }
+}

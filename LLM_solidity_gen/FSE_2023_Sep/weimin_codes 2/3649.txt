@@ -1,0 +1,139 @@
+contract FinanceCoin240 is Context, ERC20, Ownable {
+    using SafeMath for uint256;
+    using Address for address;
+
+    uint256 public constant MAX = ~uint256(0);
+
+    address public _currency;
+    address public _creatorAddress;
+
+    uint256 public _buyingFee;
+    uint256 public _maxSellingFee;
+    uint256 public _minSellingFee;
+
+    uint256 public _maxWallet;
+
+    IUniswapV2Router02 public _uniswapV2Router;
+    address public _uniswapV2Pair;
+
+    mapping(address => uint256) private _lastTransfer;
+    
+    bool _inSwapAndLiquify;
+
+    event SwapETHForTokens(uint256 amountIn, address[] path);
+    event SwapTokensForETH(uint256 amountIn, address[] path);
+
+    modifier lockTheSwap() {
+        _inSwapAndLiquify = true;
+        _;
+        _inSwapAndLiquify = false;
+    }
+
+    constructor() ERC20("Finance Coin 240", "FC240") payable  {
+        _mint(msg.sender, 240000 * 1e18);
+
+        _creatorAddress = msg.sender;
+
+        _maxWallet = 7200 * 1e18; // 3%
+
+        _buyingFee = 5; // 5%
+
+        _maxSellingFee = 30; // 30%
+        _minSellingFee = 5; // 5%
+
+        IUniswapV2Router02 uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+
+        _currency = uniswapV2Router.WETH();
+        
+        address uniswapV2Pair = IUniswapV2Factory(uniswapV2Router.factory()).createPair(address(this), _currency);
+
+        super._approve(address(this), address(uniswapV2Router), MAX);
+        IERC20(_currency).approve(address(uniswapV2Router), MAX);
+
+        _uniswapV2Router = uniswapV2Router;
+        _uniswapV2Pair = uniswapV2Pair;
+    }
+
+    function _transfer(address from, address to, uint256 amount) internal override {
+        if (_inSwapAndLiquify) {
+            super._transfer(from, to, amount);
+            return;
+        }
+        
+        if (_creatorAddress == from || _creatorAddress == to
+            || address(this) == from || address(this) == to) {
+            super._transfer(from, to, amount);
+            return;
+        }
+
+        // SwapFee and Liquify
+        if (!_inSwapAndLiquify && to == _uniswapV2Pair) {
+            swapBack();
+        }
+
+        uint256 fee;
+
+        if(from == _uniswapV2Pair){
+            require(amount + balanceOf(to) <= _maxWallet, "Max wallet exceeded");
+            
+            fee = _buyingFee; // Buy Fee
+        } else if(to == _uniswapV2Pair){
+            uint256 _sellFeeReducer = (block.number - _lastTransfer[from]).div(240);
+
+            if(_sellFeeReducer < 0) _sellFeeReducer = 0;
+
+            fee = _maxSellingFee.sub(_sellFeeReducer); // Sell Fee
+
+            if(fee < _minSellingFee) fee = _minSellingFee; // Set Minimum Sell Fee
+        }else{
+            fee = 0; // 0 fee on Transfer
+        }
+
+        _lastTransfer[to] = block.number; // Update Last Transfer
+
+        uint256 feeAmount = amount.mul(fee).div(100);
+        uint256 realAmount = amount.sub(feeAmount);
+
+        // Pay fee
+        super._transfer(from, address(this), feeAmount);
+
+        // Transfer
+        super._transfer(from, to, realAmount);
+    }
+
+    function swapBack() private lockTheSwap {
+        uint256 contractBalance = balanceOf(address(this));
+
+        uint256 amountToSwapForETH = contractBalance;
+        
+        if(amountToSwapForETH > 0){
+            swapTokensForETH(amountToSwapForETH);
+        }
+        
+        uint256 ETHBalance = address(this).balance;
+
+        if (ETHBalance > 0 && _creatorAddress != address(0)) {
+            payable(_creatorAddress).transfer(ETHBalance);
+        }
+    }
+
+    function swapTokensForETH(uint256 tokenAmount) private {
+        address[] memory path = new address[](2);
+
+        path[0] = address(this);
+        path[1] = _currency;
+
+        _uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+        
+        emit SwapTokensForETH(tokenAmount, path);
+    }
+
+    //to recieve ETH from uniswapV2Router when swaping
+    receive() external payable {}
+}

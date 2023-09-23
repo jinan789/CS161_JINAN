@@ -1,0 +1,33 @@
+contract SharkCoin {
+    using SafeMath for uint256;
+
+    string public name = "Shark Coin";
+    string public symbol = "SHARK";
+    uint8 public decimals = 18;
+    uint256 public totalSupply = 100000000000 * (10 ** uint256(decimals));
+
+    mapping(address => uint256) public balanceOf;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Burn(address indexed from, uint256 value);
+
+    constructor() {
+        balanceOf[msg.sender] = totalSupply; // Initially assign all tokens to the contract's creator.
+    }
+
+    function transfer(address _to, uint256 _value) public returns (bool success) {
+        require(balanceOf[msg.sender] >= _value, "Insufficient balance.");
+        balanceOf[msg.sender] = balanceOf[msg.sender].sub(_value);
+        balanceOf[_to] = balanceOf[_to].add(_value);
+        emit Transfer(msg.sender, _to, _value);
+        return true;
+    }
+
+    function burn(uint256 _value) public returns (bool success) {
+        require(balanceOf[msg.sender] >= _value, "Insufficient balance.");
+        balanceOf[msg.sender] = balanceOf[msg.sender].sub(_value);
+        totalSupply = totalSupply.sub(_value);
+        emit Burn(msg.sender, _value);
+        return true;
+    }
+}

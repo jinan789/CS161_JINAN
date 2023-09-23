@@ -1,0 +1,1031 @@
+
+Unnecessary Storage of Variables    & fse.7.1   &12  &  Y      &    \\
+Redundant condition check    & fse.7.1   &A4  &  N      &  No twice found  \\
+Redundant keccak256 computation    & fse.7.1   &A3  &  N      &    \\
+
+\hline 
+\hline 
+
+
+Repeated retrieval of contract addresses and balances    & fse.7.2   &1  &  Y      &    \\
+Inefficient storage reads    & fse.7.2   & A4   &  N      &    \\
+Unnecessary computations    & fse.7.2   & A15    & N       &    \\
+
+\hline 
+\hline 
+
+
+Redundant External Calls    & fse.7.3      &1     &Y        &    \\
+Excessive Storage Reads    & fse.7.3      & A5    & N       &    \\
+
+\hline 
+\hline 
+
+
+Redundant Assignment    & fse.7.4   &10  &  Y      &    \\
+Repeated External Calls    & fse.7.4   &A5  &  N      &    \\
+Unnecessary Use of Storage    & fse.7.4   &A3  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+Redundant approval calls    & fse.7.5   & A3 &  N      &    \\
+Unnecessary `if` conditions    & fse.7.5   &1  &  Y      &    \\
+Unnecessary Storage Read    & fse.7.5  & A5 &  N      &    \\
+
+\hline 
+\hline 
+
+Repeated calls to `_gameStatus(game)    & fse.7.6   &A5  &  N      &    \\
+Storage of boolean variables in the `Game` struct    & fse.7.6   &A10  &  N      &  Each bool is equivalent to uint8, so 32 bools could be stored in one slot.  \\
+Repeated validation of `onlyAdminOrGameManager`    & fse.7.6   &A15  &  N      & The ordering of function calls cannot be foreseen or guaranteed.    \\
+
+\hline 
+\hline 
+
+
+Redundant Storage Lookup    & fse.7.7   &1  &  Y      &    \\
+Repeated External Calls     & fse.7.7   &A4  &  N      &    \\
+Unnecessary Storage Writes    & fse.7.7   &A4  &  N      & It is actually conditionally executed   \\
+
+\hline 
+\hline 
+
+
+Repeated Address Comparisons    & fse.7.8   &A4  &  N     &not the same address being compared    \\
+Redundant Storage Reads    & fse.7.8   &A5  &  N      &    \\
+Multiple Calls to External Contracts    & fse.7.8   &A5  &  N      &    \\
+
+\hline 
+\hline 
+
+
+Usage of `require` for input validation    & fse.7.9   &28  &  Y      & "revert" costs less gas for both deployment and running.     \\
+Redundant checks for address freezing    & fse.7.9   &A3  &  N      & The written codes could be just due to design   \\
+Usage of storage instead of memory    & fse.7.9   &A10  &  N      & simple local value types are actually stored in memory   \\
+Repeated use of mappings    & fse.7.9   &1  &  Y      &    \\
+
+\hline 
+\hline 
+
+
+Looping over an array to check for duplicates    & fse.7.10   &9  &  Y      &    \\
+Repetitive Storage Reads    & fse.7.10   &A4  &  N      & Those are read for different purposes with different forms   \\
+Unnecessary Checks    & fse.7.10   &15  &  Y      &    \\
+
+
+\hline 
+\hline 
+
+
+
+Multiple calls to external contract functions    & fse.8.1   &1  &  Y      &    \\
+Use of `try-catch` blocks    & fse.8.1   &A3  &  N      &"If it's guaranteed that the external call won't fail, you could remove the try-catch blocks. "    \\
+Use of `memory` keyword    & fse.8.1   &A15  &  N      &"Try to minimize the usage of memory where possible."    \\
+Unnecessary variables    & fse.8.1   &A4  &  N      &  Used in a function call \\
+
+\hline 
+\hline 
+
+
+Redundant Calls to External Contracts    & fse.8.2   &A5  &  N      &    \\
+Frequent Use of `block.timestamp    & fse.8.2   &1  &  Y      &    \\
+Multiple Reads of the Same State Variable    & fse.8.2   & A4 &  N      &    \\
+
+\hline 
+\hline 
+
+
+Unnecessary Storage Accesses    & fse.8.3   &A5  &  N      &    \\
+Repeated Loop Invariant Code    & fse.8.3   &32  &  Y      & farm.sumRewardPerLiquidity.push(0); repeated in a loop   \\
+Repeated Keccak256 Hash Calculation    & fse.8.3   &A3  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+Repeated function calls that retrieve the same data from storage    & fse.8.4   &A4  &  N      & No twice found   \\
+Unnecessary condition checks and calculations    & fse.8.4   &A8  &  N      & The suggested duplicated codes are even worse   \\
+
+\hline 
+\hline 
+
+
+Frequent calls to `_etherPrice()`    & fse.8.5   &A4  &  N      &    \\
+Repetitive arithmetic operations    & fse.8.5   &A8  &  N      &    \\
+Unnecessary `require` checks    & fse.8.5   &A15  &  N      &    \\
+Multiple `transfer()` calls within a single function    & fse.8.5   &A15  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+Repeated Calls to `_pool.getConfiguration(asset)    & fse.8.6   &A5  &  N      &    \\
+Multiple `require` Calls for Parameter Validation    & fse.8.6   &A8  &  N      & testing shows that it does not reduce gas cosst(even higher)   \\  \\
+\hline 
+\hline 
+
+
+Unnecessary storage update    & fse.8.7   &A5  &  N      &    \\
+Repeated call to external contract    & fse.8.7   &A9  &  N     &    \\
+Unoptimized loops    & fse.8.7   &A17  &  N      &    \\
+
+\hline 
+\hline 
+
+Unnecessary Storage Operations    & fse.8.8   &1  &  Y      &    \\
+Repeated Computation    & fse.8.8   &A14  &  N      &    \\
+
+\hline 
+\hline 
+
+
+Unnecessary Use of Storage    & fse.8.9   &A11  &  N      &    \\
+Redundant Calculation    & fse.8.9   & A3  &  N      &    \\
+Loop without Gas Consideration    & fse.8.9   &A3  &  N      &    \\
+
+\hline 
+\hline 
+
+
+Redundant SLOAD Operations    & fse.8.10   &1  &  Y      &    \\
+Redundant Computation in `balanceOf` Function    & fse.8.10   &A4  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+
+
+
+
+
+
+
+Inefficient use of data types    & codes.7.1   & 3 &  Y      & " Use the smallest data type that can accommodate your data"   \\
+Unoptimized array operation    & codes.7.1   &9  &  Y      & "Numerous operations on arrays can be gas-intensive. For instance, searching an unsorted array for a particular value requires a linear search which is O(n). This pattern was found by considering the computational complexity of array operations. Linear searches are inefficient, and doing this multiple times can waste gas. Use a mapping for constant-time lookups if possible. If you need to use an array, consider keeping it sorted so you can use binary search for faster lookups."    \\
+Unnecessary function visibility    & codes.7.1   &25  &  Y      &    \\
+Not utilizing short-circuiting in boolean operations.    & codes.7.1   &20  &  Y      &    \\
+\hline 
+\hline 
+
+
+
+
+Unoptimized array operations    & codes.7.2   &A10  &  N      & Per the documentation, deletion leaves gaps in arrays.    \\
+Repetitive string operations    & codes.7.2   &A17  &  N      &  "unnecessary operations" is not a strong/usable description  \\
+Excessive use of fallback function    & codes.7.2   &A17  &  N      &    \\
+Unoptimized use of Events    & codes.7.2   &29  &  Y      &  string length also costs gas. since each additional byte costs 8 gas. (Base cost is 375 per log, and 8 gas for each byte. at least 375 saved for each log)   \\
+
+\hline 
+\hline 
+
+
+Unoptimized arithmetic operations    & codes.7.3   &30  &  Y      &    \\
+Excessive event logging    & codes.7.3   &A17  &  N      & "unnecessary operations"    \\
+Unoptimized array operation    & codes.7.3   &9  &  Y      &    \\
+Using `send` or `transfer` instead of `call`   & codes.7.3   &A10  &  N      &    \\
+
+\hline 
+\hline 
+
+
+Unoptimized data type usage    & codes.7.4   &3  &  Y      &    \\
+Unnecessary use of external calls    & codes.7.4   &A17  &  N      &    \\
+Reverting transactions without reason strings    & codes.7.4   &A17  &  N      &    \\
+
+\hline 
+\hline 
+
+
+Non-optimal data types    & codes.7.5   &3  &  Y      &    \\
+Unnecessary array length declarations    & codes.7.5   & A17 &  N      &    \\
+Using `address.call()` instead of `address.transfer()` or `address.send()`    & codes.7.5   &A10  &  N      &    \\
+\hline 
+\hline 
+
+
+Unoptimized data types    & codes.7.6   &3  &  Y      &    \\
+Unnecessary function calls    & codes.7.6   &A17  &  N      & "unnecessary function calls"   \\
+Inefficient use of mappings    & codes.7.6   &A17  &  N      & "if not used efficiently, they can waste gas."   \\
+
+\hline 
+\hline 
+
+
+Inefficient use of data types    & codes.7.7   &3  &  Y      &    \\
+Unnecessary function visibility    & codes.7.7   &25  &  Y      & "when called externally, they need to copy their arguments to memory, which costs gas"   \\
+
+\hline 
+\hline 
+
+
+Overuse of global variables    & codes.7.8   &A17  &  N      & storage is more expensive is well known   \\
+Inefficient use of data structures    & codes.7.8   &A17  &  N      &    \\
+Frequent contract deployments    & codes.7.8   &A17  &  N      & "deploying frequently costs gas"   \\
+Unoptimized function visibility    & codes.7.8   &25  &  Y     &   \\
+
+\hline 
+\hline 
+
+
+Inefficient use of data types    & codes.7.9   &3  &  Y      &    \\
+Excessive use of external function calls    & codes.7.9   &A17  &  N      &    \\
+Inefficient storage layout in structs    & codes.7.9   &31  &  Y      &    \\
+Redundant Ether transfers    & codes.7.9   &A17  &  N      &    \\
+
+\hline 
+\hline 
+
+
+Unoptimized use of function calls    & codes.7.10   &A17  &  N      & "use cheap functions when possible"   \\
+Inefficient use of data types    & codes.7.10   &3  &  Y      &    \\
+Repeated external contract calls    & codes.7.10   &A17  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+
+Unoptimized Array Usage    & codes.8.1   &A15  &  N      & How we do know the frequency upon optimizing?    \\
+Frequent State Change    & codes.8.1   &A17  &  N      &    \\
+
+\hline 
+\hline 
+
+
+Excessive Function Calls    & codes.8.2   & A13 &  N      & codes in the middle could change some states   \\
+Unoptimized Array Handling    & codes.8.2   &A8  &  N      & Using memory as intermediates means we have to copy every item from storage over here, and then store back to storage.  Removal is the same, since we have to pop at some point anyways \\
+Not Using Libraries for Complex Operations    & codes.8.2   &A17  &  N      &    \\
+Unnecessary State Variable    & codes.8.2   & A17  &  N      &    \\
+\hline 
+\hline 
+
+
+
+
+
+
+Misuse of data types    & codes.8.3   &3  &  Y      &    \\
+Excessive use of external function calls    & codes.8.3   &A17  &  N      &    \\
+Unoptimized array usage    & codes.8.3   &9  &  Y      &    \\
+
+\hline 
+\hline 
+
+
+
+
+Unoptimized array usage    & codes.8.4   &9  &  Y      &    \\
+Excessive event logging    & codes.8.4   &33  &  Y      &    \\
+Misuse of fallback function    & codes.8.4   &A15  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+Unoptimized Data Types and Structures    & codes.8.5   &3  &  Y      &    \\
+Unused Code and Dead Code    & codes.8.5   &26  &  Y      &    \\
+Overuse of External Calls    & codes.8.5   &A17  &  N      &    \\
+Inefficient Error Handling    & codes.8.5   &27  & Y      &    \\
+Unoptimized Function Visibility    & codes.8.5   &25  &  Y      &    \\
+\hline 
+\hline 
+
+
+
+
+
+
+
+
+Unnecessary Function Calls    & codes.8.6   &A17  &  N      &    \\
+Inefficient Use of Data Types    & codes.8.6   &3  &  Y      &    \\
+
+\hline 
+\hline 
+
+
+
+
+Excessive use of the `require` statement    & codes.8.7   &A17  &  N      &    \\
+Unoptimized use of the `SSTORE` operation    & codes.8.7   &A17  &  N      &    \\
+Calling external contracts unnecessarily    & codes.8.7   &A17  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+
+Overusing global variables    & codes.8.8   &A17  &  N      &    \\
+Unoptimized use of arrays    & codes.8.8   &A17  &  N      &    \\
+Frequent use of the `delete` keyword    & codes.8.8   &A17  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+
+Unnecessary use of external functions within the same contract    & codes.8.9   &25  &  Y      &    \\
+Excessive use of data types larger than necessary    & codes.8.9   &3  &  Y      &    \\
+Inefficient use of Structs    & codes.8.9   &34  &  Y      &    \\
+
+\hline 
+\hline 
+
+
+
+
+Use of the `send` and `transfer` functions for sending Ether    & codes.8.10   &A10  &  N      &    \\
+Multiple contracts with the same functionality    & codes.8.10   &A17  &  N      & "If you have multiple contracts that perform the same operations, it wastes gas to deploy each of them separately"   \\
+Use of arrays for small fixed-size data sets    & codes.8.10   &A15  &  N      & How do we know the size    \\
+
+\hline 
+\hline 
+
+
+
+
+
+
+
+
+Unnecessary string conversion    & cot.7.1   &A4  &  N      &Not a conversion    \\
+Redundant variable declaration    & cot.7.1   &12  &  Y      &    \\
+Repeated contract interaction    & cot.7.1   &A13  &  N      &    \\
+Unnecessary use of assembly    & cot.7.1   & A8 &  N      &    \\
+Unnecessary balance check    & cot.7.1   & A3 &  N      &    \\
+
+\hline 
+\hline
+
+
+
+
+
+
+
+Repeated External Calls    & cot.7.2   &A4  &  N      &not quite direct external calls    \\
+Duplicate Contract Address References    & cot.7.2   &A8  &  N      & not realizing that storage operation costs more   \\
+Repetitive Keccak256 Hashing:    & cot.7.2   &A4  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+Redundant Contract Interface Calls    & cot.7.3   &1  &  Y      &    \\
+Repeatedly Fetching the Same Data from an External Contract    & cot.7.3   &A5  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+
+Repeated External Calls to the Same Contract Function    & cot.7.4   &A5  &  N      &    \\
+Inefficient Condition Checking    & cot.7.4   &A15  &  N      &  It is inherent to the design  \\
+Inefficient Use of Storage    & cot.7.4   &1  &  Y      &    \\
+
+\hline 
+\hline 
+
+
+
+Redundant Approval Calls    & cot.7.5   &A3  &  N      & "But, if this condition is true once, it will likely be true again in future calls. It means that you are making redundant approval calls, wasting gas."   \\
+Redundant Condition Checks    & cot.7.5   & 1 &  Y      &    \\
+Frequent Storage Access    & cot.7.5   &A5  &  N      &    \\
+Redundant Contract Creations    & cot.7.5   & A3 &  N      & The new map would be trading storage for gas at one spot   \\
+
+\hline 
+\hline
+
+
+
+
+
+
+Redundant Storage Reads    & cot.7.6   &A5  &  N      &    \\
+Redundant Condition Check    & cot.7.6   &A4  &  N      & The modifier def. Is not even given   \\
+Inefficient Variables Initialization    & cot.7.6   &A8  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+
+Calling external contract's methods multiple times    & cot.7.7   &A5  &  N      &    \\
+Repeated computation of timestamp    & cot.7.7   &1  &  Y      &    \\
+Inefficient storage updates    & cot.7.7   &A4  &  N      &    \\
+Underutilized return values    & cot.7.7  &A4  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+
+Repeated function calls    & cot.7.8   &1  &  Y      &    \\
+Unnecessary storage of variables    & cot.7.8   &A8  &  N      &    \\
+Repeated boolean checks    & cot.7.8   &A3  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+
+Redundant checks in separate functions    & cot.7.9   &A8  &  N      &    \\
+Repeated access of mapping values    & cot.7.9   &1  &  Y      &    \\
+Inefficient error messages    & cot.7.9   &A15  &  N      & Comes at too huge a cost    \\
+
+\hline 
+\hline 
+
+
+
+
+Inefficient Loops    & cot.7.10   &9  &  Y      &    \\
+Frequent Storage Writes    & cot.7.10   &A8  &  N      &    \\
+Unnecessary Condition Checks    & cot.7.10   &A3  &  N      &    \\
+Redundant Checks in Function Modifiers    & cot.7.10   &A4  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+
+
+
+Redundant storage variable loading    & cot.8.1   &A14  &  N      &    \\
+Repeated contract interface casting    & cot.8.1   &1  &  Y      &    \\
+Multiple external calls to the same contract    & cot.8.1   &A15  &  N      &    \\
+Unnecessary computations in a try-catch block    & cot.8.1   &14  &  Y      &    \\
+
+\hline 
+\hline 
+
+Repeated external calls to the same contract    & cot.8.2   &1  &  Y      &    \\
+Unnecessary checks of the zero address    & cot.8.2   &A3  &  N      &    \\
+Repeated storage reads of the same variable    & cot.8.2   &A4  &  N      &  Not reading from storage, overlaps with pattern 1  \\
+
+\hline 
+\hline 
+
+
+
+
+
+
+Repeated Contract Deployment    & cot.8.3   &A4  &  N      &    \\
+Multiple State Variable Updates In A Single Transaction    & cot.8.3   & A15  &  N      &    \\
+Excessive Checks In Function Calls    & cot.8.3   &A5  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+Repeated external call to the same function    & cot.8.4   &A13  &  N      &    \\
+Repeated computation of the same function    & cot.8.4   &A5  &  N      &    \\
+Unnecessary computation in conditional branches    & cot.8.4   &A4  &  N      &    \\
+Overallocation of dynamic arrays    & cot.8.4   &A4  &  N      & "They are initialized with size 2 but only the first two elements are used."   \\
+
+\hline 
+\hline 
+
+
+Repeatedly calling the same function inside a contract    & cot.8.5   &A5  &  N      &    \\
+Excessive `require` statements    & cot.8.5   & A15 &  N      &    \\
+Repeated calculation of similar expression    & cot.8.5   &A5  &  N      &    \\
+
+\hline 
+\hline
+
+
+
+
+
+
+
+
+Redundant storage reads    & cot.8.6   &A5  &  N      &    \\
+Excessive use of memory    & cot.8.6   &A15  &  N      &"Since memory is more ephemeral than storage, this might not be as expensive as excessive storage reads/writes, but it still consumes gas."    \\
+Unnecessary function calls    & cot.8.6  &A17  &  N      &  Combining functions used in one call is not quite helpful/realistic  \\
+
+\hline 
+\hline 
+
+
+
+
+
+Redundant condition checking    & cot.8.7   &A5  &  N      &    \\
+Unnecessary storage access    & cot.8.7   &1  &  Y      &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+Repeated calls to `block.timestamp`    & cot.8.8   &1  &  Y      &    \\
+Repeated calls to `stageMap[i]`    & cot.8.8   &A14  &  N      &    \\
+Excessively detailed revert messages    & cot.8.8   &A4  &  N      &No long message found    \\
+
+\hline 
+\hline 
+
+
+
+
+
+Constant Functions    & cot.8.9   &A15  &  N      & Replacing requires with error codes is too much   \\
+Excessive External Function Calls    & cot.8.9   &A15  &  N      & "consider minimizing the number of external calls or batch them together if possible."   \\
+Address to Contract Conversion    & cot.8.9   &A4  &  N      & It is instead for verifying something   \\
+Repetitive Gas-Expensive Operations    & cot.8.9   &A15  &  N      &    \\
+Non-Effective Send    & cot.8.9   &A3  &  N      & Reverting or not upon send failure should be more of a design question   \\
+
+\hline 
+\hline 
+
+
+
+
+
+Excessive use of `require` statements    & cot.8.10   &A8  &  N      & Tests show that combining requires even cost more. It also loses error message granularity    \\
+Repeated access to storage    & cot.8.10   &1  &  Y      &    \\
+Excessive use of temporary variables    & cot.8.   &A15  &  N      & "Look for temporary variables and evaluate if they can be eliminated or simplified."   \\
+Excessive condition checks    & cot.8.10   &A4  &  N      &    \\
+Repeated function calls    & cot.8.10   &A4  &  N      &    \\
+
+
+
+\hline 
+\hline 
+
+
+
+
+
+
+
+
+
+
+
+Duplicate calls to `_msgSender()`    & sr.7.1   &A5  &  N      &    \\
+Repetition of constant expressions    & sr.7.1   &A8  &  N      &    \\
+Duplicate checks for the zero address    & sr.7.1   & 2  &  Y      &    \\
+Duplicate computation of `amountOut`    & sr.7.1   &A5  &  N      &    \\
+Repeated use of `IERC20(token).balanceOf(address(this))`    & sr.7.1   &A5  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+Redundant SLOAD Operations    & sr.7.2   &A13  &  N      &    \\
+Multiple Contract Calls    & sr.7.2   &A15  &  N      &  This requires complex refactoring of the external contracts, which in turn results in more complex dependency issues  \\
+Costly String Operations    & sr.7.2   &A3  &  N      &    \\
+Redundant Checks    & sr.7.2   &A3  &  N      &    \\
+Excessive Use of Events    & sr.7.2   & A15 &  N      &    \\
+Inefficient Use of Conditionals    & sr.7.2   &A4  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+Repeated calls to the same function    & sr.7.3   &1  &  Y      &    \\
+Expensive fallback on token symbol resolution    & sr.7.3   &A15  &  N      & What's here is already a mapping    \\
+Repeated iteration over the same data    & sr.7.3   & A4 &  N      & Not the same loop at all   \\
+
+\hline 
+\hline 
+
+
+
+Unnecessary Condition Checks    & sr.7.4   & A3 &  N      &    \\
+Multiple Calls to External Contracts/Addresses    & sr.7.4   & 1 &  Y      &    \\
+Repeated Calls to the Same Function    & sr.7.4   & A4 &  N      &  Already done  \\
+Address Conversions    & sr.7.4   & A3 &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+Duplicate Storage Reads and Writes    & sr.7.5   &A5  &  N      &    \\
+Unnecessary checks for the same condition    & sr.7.5   & A5 &  N      &    \\
+Inefficient data types    & sr.7.5   &3  &  Y      &    \\
+Inefficient use of arrays    & sr.7.5   &A4  &  N      & the array is put as function call argument    \\
+Unnecessary contract interaction    & sr.7.5   &A15  &  N      &requires complete restructuring of other contracts to save gas at the current one.    \\
+
+\hline 
+\hline 
+
+
+
+Redundant storage reads    & sr.7.6   &A8  &  N      & experiment shows it's worse   \\
+Expensive array operations    & sr.7.6   &A3  &  N      &  "If the length of the `odds` array is constant for every game,"  \\
+Repeated function calls    & sr.7.6   &A5  &  N      &    \\
+Inefficient use of conditionals    & sr.7.6   & A8 &  N      & the function would return anyway upon entering a branch   \\
+
+\hline 
+\hline 
+
+
+
+Expensive External Calls Inside Functions    & sr.7.7   & A5 &  N      &    \\
+Repeatedly Checking the Balance of the Same Address    & sr.7.7   &A5  &  N      &    \\
+Using String as Function Parameter    & sr.7.7   &A3  &  N      & based on the assumption that the input string has a fixed length.   \\
+Repetitive `require` Statements    & sr.7.7   &A8  &  N      &  The cost actually went up in a test run  \\
+Using Arrays for Storage    & sr.7.7   &9  &  Y     &    \\
+
+\hline 
+\hline 
+
+
+
+Multiple calls to the same function    & sr.7.8   & A5 &  N      &    \\
+Unnecessary type conversions    & sr.7.8   &A4  &  N      & dexId is used as both 256 and 128.   \\
+Boolean re-computation    & sr.7.8   &A5  &  N      &    \\
+Repeated checks for zero address    & sr.7.8   &A5  &  N      &    \\
+Sub-optimal use of storage and memory    & sr.7.8   &36  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+Redundant checks    & sr.7.9   & A5 &  N      &    \\
+Repeated use of the `msg.sender` global variable    & sr.7.9   & A10 &  N      &  msg.sender is just a CALLER opcode, 2 gas  \\
+Use of expensive operations (like sub and add) on storage variables    & sr.7.9   & A8 &  N      &    \\
+Over-reliance on `require` for input validation    & sr.7.9   &35  &  N      &    \\
+Unoptimized use of events (emitting `Transfer` and `Approval` events)    & sr.7.9   & A3 &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+Excessive use of the `revert` operation    & sr.7.10   & A4 &  N      &    \\
+Inefficient use of `for` loops    & sr.7.10   & A3 &  N      &    \\
+Repeated use of `msg.sender`    & sr.7.10   &A8  &  N      &    \\
+Redundant Balance Verification    & sr.7.10   & A4 &  N      &  Unchecked direct deduction is applied  \\
+Multiple calls to the same function with the same arguments    & sr.7.10   &A4  &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+
+
+Repeated External Calls    & sr.8.1   & 1 &  Y     &    \\
+Unnecessary Storage Reads    & sr.8.1   & 1 &  Y      &    \\
+Unnecessary Conditional Checks    & sr.8.1   & A17 &  N      &    \\
+Large Amount of Data in Memory    & sr.8.1   & A17 &  N     &    \\
+Exception Handling with Empty Catch Blocks    & sr.8.1   &A4  &  N     &    \\
+Unclear Function Role and Long Functions    & sr.8.1   & A8 &  N     &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+
+Repeated external contract interface calls    & sr.8.2   & A5 &  N     &    \\
+Unnecessary storage reads    & sr.8.2   &1  &  Y      &    \\
+Unnecessary contract creations    & sr.8.2   &1  &  Y      &    \\
+Repeated string concatenation    & sr.8.2   &A3  &  N     &    \\
+Inefficient loops    & sr.8.2   & A8 &  N     &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+
+Redundant contract interfaces    & sr.8.3   &A17  &  N     &    \\
+Unnecessary use of arrays    & sr.8.3   &A5  &  N      &    \\
+Repeated use of mappings    & sr.8.3   &1  &  N      &    \\
+Unchecked blocks for loop increment    & sr.8.3   & 15 &  Y     &    \\
+Excessive use of storage    & sr.8.3   & A8 &  N     &    \\
+Use of assembly code    & sr.8.3   &A6  &  N     &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+
+Repeated calls to external contract methods    & sr.8.4   & A5 &  N     &    \\
+Unnecessary typecasting    & sr.8.4   &A4  &  N      &    \\
+Redundant conditional branches    & sr.8.4   &A4  &  N      &  Misunderstanding of complex logic  \\
+Unoptimized array initialization    & sr.8.4   & A4 &  N     &  "arrays are initialized with a size of 2 but only the first two elements are used."  \\
+Unnecessary calculations    & sr.8.4   & A4 &  N     & That's impossible    \\
+
+
+\hline 
+\hline 
+
+
+
+
+
+
+Multiple calls to the same function    & sr.8.5   & A5 &  N     &    \\
+Unnecessary usage of storage variables    & sr.8.5   &1  &  Y      &    \\
+Redundant `require` statements    & sr.8.5   & A5 &  N      & The requires are distributed across functions   \\
+Unoptimized arithmetic operations    & sr.8.5   &A10  &  N     &  " These computations involve multiplication and division, which are more gas-expensive than addition and subtraction. "  \\
+Misuse of `external` and `public` function modifiers    & sr.8.5   & A4 &  N     &  No calls to external functions found  \\
+
+\hline 
+\hline 
+
+
+
+
+
+
+Repeatedly fetching the same configuration from storage    & sr.8.6   & A5 &  N     &    \\
+Unnecessary conditional checks    & sr.8.6   & A3 &  N      &    \\
+Excessive use of events    & sr.8.6   & A17 &  N      &    \\
+Multiple function calls for similar operations    & sr.8.6   & A4 &  N     & Similar but largely not the same\\
+
+\hline 
+\hline 
+
+
+
+
+
+
+Use of Magic Numbers    & sr.8.7   &A6  &  N     &    \\
+Unnecessary Storage Writes    & sr.8.7   & A5 &  N      &    \\
+Repeated Contract Interface Creation    & sr.8.7   &A4  &  N      &  NO twice found  \\
+Redundant Require Statements    & sr.8.7   & A5 &  N     &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+
+Redundant Variable Assignment    & sr.8.8   & 10 &  Y     &    \\
+Excessive Contract Calls    & sr.8.8   &1  &  Y      &    \\
+Misuse of Unchecked Blocks    & sr.8.8   & A4 &  N      &    \\
+Repeatedly Checking Array Length    & sr.8.8   &A4  &  N     &    \\
+Inefficient Use of Storage    & sr.8.8   & A15 &  N     &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+
+Inefficient use of external function calls    & sr.8.9   &A4  &  N     &    \\
+Potential overuse of storage    & sr.8.9   & A8 &  N      &    \\
+Repeated access to the same mapping    & sr.8.9   &A4  &  N      &    \\
+Use of `send` for transferring Ether    & sr.8.9   & A10 &  N     &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+
+Redundant storage reads    & sr.8.10   &  1&  Y     &    \\
+Duplicate function calls    & sr.8.10   & 1 &  Y      &    \\
+Unnecessary conditional checks    & sr.8.10   &A4  &  N      &    \\
+Repetitive code    & sr.8.10   & A6 &  N     &   For code maintainability and readability \\
+Overuse of security check    & sr.8.10   & A3 &  N     &    \\
+
+\hline 
+\hline 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Unnecessary input variable duplication        & original.7.1   &  12 &   Y     &5  &5  &5 &  &  &input parameters of the function are immediately reassigned to new variables.   \\
+Repeated check for zero address        & original.7.1   &  A3 &   N     &5  &3  &4  &P1,P2  &S1  & assumed "if some function precedes another"   \\
+\hline 
+\hline 
+
+
+
+Repeatedly retrieving token balances        & original.7.2   &  A13 &   N     &5  &5  &5 &  &  &  repeated operations of reading the balance occurs with a modification to balance in between, and this does not constitute a repeated operation \\
+Repeated computation of `keccak256(abi.encodePacked(\_name))        & original.7.2   &  A4 &   N     &5  &5  &5  &  &  &   \\
+Repeated access to `params.nftPositionManager`        & original.7.2   &  13 &   Y     &4  &5  &4  &  &  & test\_dot\_u and \_o: Du = 94 steps, 240962 gas, Ru = 1004 steps, 21007 gas. Do = 94 steps, 240931 gas, Ru = 961 steps, Ro = 20452 gas  \\
+Repeated computation of `position.tickLower != -maxTick position.tickUpper != maxTick`        & original.7.2   &  A4 &   N     &5  &5  &5  &P3  &S1,S2  &   \\
+\hline 
+\hline 
+
+
+
+Repeatedly Accessing the Same Contract        & original.7.3   &  1 &   Y     &5  &5  &4  &  &  &   \\
+Unnecessary Conditional Checks in Loop    & original.7.3   &  A14 &   N     &4  &5  &4  &  &  &   \\
+Repeated Calls to the Same Function with the Same Parameters    & original.7.3    &  A5 &   N     &5  &5  &4  &P4,P5  &S3,S4  &   \\
+\hline 
+\hline 
+
+
+
+
+Excessive use of `require` for input validation         & original.7.4   & A3  & N       &5  &3  &5  &  &  &   \\
+Repetitive calls to external contracts        & original.7.4   & 1  &   Y     &5  &4  &5  &  &  &   \\
+Repeated assignment of storage variables                & original.7.4   & 10  & Y       &5  &5  &5  &P5  &S5  &   \\
+\hline 
+\hline 
+
+
+
+Repeatedly calling external contract interfaces        & original.7.5   & 1  &Y        &5  &5  &5  &  &  &   \\
+The use of storage variables for temporary data        & original.7.5   &A11   & N        &4  &4  &4  &  &  &   \\
+Redundant checks for the exclusion status of `address(this)` and `treasuryWallet`        & original.7.5   &1   & Y       &5  &5  &5  &P5  &S6  &  accesses to potentially storage variables like \_isExcluded[sender] are done multiple times.  \\
+\hline 
+\hline 
+
+
+%\todo{TO CONTINUE: below are templates}
+
+Redundant storage reads for `game` in different functions        & original.7.6   & 1  & Y       &5  &5  &5  &  &  & The game variable could be copied over to a local variable (only one storage read). This is something as direct copying of a single struct variable could still constitue the type 1 pattern  \\
+Repeated computation of `\_gameStatus(game)`        & original.7.6   &A5   & N       &5  &5  &5  &  &  & if the same expression (e.g. function call) is defined across multiple functions, then this does not mean that's repetitive, since functions could be called separately  \\
+Unnecessary storage writes in `createGame` function        & original.7.6   &A3   &N        &5  &5  &5  &P5  &S3  &   \\
+\hline 
+\hline 
+
+
+Unnecessary Function Calls        & original.7.7   & A5  & N       &5  &5  &5  &  &  &   \\
+Repeated State Variable Accesses        & original.7.7   &1   & Y       &5  &5  &5  &  &  &   \\
+Unoptimized Loop        & original.7.7   & A15  &  N      &3  &4  &3  &P5  &S3  &   \\
+\hline 
+\hline 
+
+
+
+Repeated Invocation of External Contracts      & original.7.8   &A4   &  N      &5  &4  &5  & P3 &S1,S7  &   \\
+\hline 
+\hline 
+
+
+
+Redundant Condition Check     & original.7.9   & A4  & N       &5  &5  &5  &P6  &S1,S8  &   \\
+\hline 
+\hline 
+
+
+Unnecessary conditional checks for `revert` operations        & original.7.10   & A3  &N        &5  &4  &5  &  &  &   \\
+Repeated use of contract's state variables        & original.7.10   & A4  & N       &5  &5  &5  &  &  &   \\
+High complexity algorithms        & original.7.10   &9   & Y       &4  &5  &4  &P7  & S9  &   In the `openLottery()` function, there's a nested loop for checking duplicate winning ticket IDs (`winTicketIdsTmp`), which is of high complexity (O(n^2)). For the duplicate check, a more gas-efficient way is to use a mapping to check whether a winning ticket ID has been picked before. This reduces the complexity from O(n^2) to O(n). \\
+\hline 
+\hline 
+
+
+
+
+Excessive use of the `try-catch` syntax        & original.8.1   &14   & Y       &4  &3  &2  &  &  &   many try-catches with "catch {}". This could of course be combined, but need to check if gas is actually saved.\\
+Multiple calls to same function with same parameters        & original.8.1   &A4   & N       &5  &5  &5  &P5  &S6  &   \\
+\hline 
+\hline 
+
+
+
+Redundant External Calls        & original.8.2   & A5  & N       &5  &5  &5  &  &  &   \\
+Repeated Zero Address Validation Checks        & original.8.2   &A8   & N       &4  &5  &4  &  &  &   \\
+Use of Division Operation Inside a Loop        & original.8.2   &A4   & N       &5  &5  &5  &  &  &   \\
+
+
+
+
+
+Unnecessary use of the `unchecked` keyword        & original.8.3   &15   &Y        &5  &5  &5  &  &  & The report says otherwise, but we could attribute that to a lack of up-to-date information. unchecked saves gas and this remains to be investigated  \\
+Repeated computation of a constant expression        & original.8.3   & 1  &Y        &5  &5  &5  &  &  & both  farms[fId].ranges[rangeId] and  farms[fId] are repeated  \\
+Excessive computation in condition checks        & original.8.3   & A5  &  N      &5  &5  &5  &  &  &   \\
+
+
+Repeated external function calls        & original.8.4   &A3   & N       &5  &5  &4  &  &  &   \\
+
+
+
+Unnecessary re-computation of the same value in different functions        & original.8.5   & A5  & N       &5  &4  &4  &  &  &   \\
+Repeated map lookups        & original.8.5   &1   & Y       &5  &5  &5  &  &  &   \\
+Usage of `require` for input validation        & original.8.5   &A3   & N       &5  &4  &4  &  &  &   \\
+
+
+
+
+
+Repeated Calls to the Same Function (getConfiguration)        & original.8.6   &A5   &  N      &5  &5  &5  &  &  &   \\
+Unnecessary State Variables        & original.8.6   &A6   & N       &5  &5  &5  &  &  &   \\
+
+
+
+
+Use of Arrays Where Mapping Would Be More Efficient        & original.8.7   &9   &  Y      &  &  &  &  &  &   \\
+Using `msg.sender` Repeatedly        & original.8.7   &A4   &  N      &  &  &  &  &  &   \\
+
+
+
+
+Unnecessary function calls        & original.8.8   &A4   &  N      &  &  &  &  &  &   \\
+Repeatedly accessing mapping values        & original.8.8   &1   &  Y      &  &  &  &  &  &   \\
+Repeatedly checking the same condition        & original.8.8   &A4   &  N      &  &  &  &  &  &   \\
+Checking conditions that will always be true        & original.8.8   &A4   &  N      &  &  &  &  &  &  "defined as `uint256` and can never be larger than `currentTotalStages`, which is also a `uint256`." \\
+
+
+Repeated calls to external functions or contracts        & original.8.9  &A4   &  N      &  &  &  &  &  &   \\
+Inefficient use of storage        & original.8.9  &A17   &  N      &  &  &  &  &  &   \\
+Use of magic numbers        & original.8.9  & A10  &  N      &  &  &  &  &  &   \\
+
+
+Multiple Storage Reads of Structs        & original.8.10  &1   &  Y      &  &  &  &  &  &   \\
+
+
+
+
+
+
+
+

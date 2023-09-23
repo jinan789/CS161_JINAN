@@ -1,0 +1,98 @@
+contract Forwarder is Ownable {
+    address transactionWallet;
+    mapping(address => bool) public whitelist;
+
+    constructor(address walletaddess) {
+        require(walletaddess != address(0), "Invalid address");
+        transactionWallet = walletaddess;
+    }
+    modifier OnlyWhitelist{
+        require(whitelist[msg.sender] || owner() == msg.sender, "Only whitelist user can call");
+        _;
+    }
+
+    
+    event ChangeWalletAddress(address indexed newAddress);
+    event AddToWhitelist(address indexed userAddress);
+    event RemoveToWhitelist(address indexed userAddress);
+    event BalanceTransfer(address indexed fromAddress, address indexed recipients, uint256 amount);
+    event TokenTransfer(address indexed recipients,address indexed depositAddress, uint256 amount);
+    event WithdrawRequestApproved(address indexed fromAddress, address indexed recipients, uint256 amount);
+
+
+    /// @dev change transaction wallet address by owner of the contract
+    function changeWalletAddress(address _walletaddress) public onlyOwner {
+        require(_walletaddress != address(0), "Invalid address");
+        transactionWallet = _walletaddress;
+        emit ChangeWalletAddress(_walletaddress);
+    }
+
+    /// @dev view transaction wallet address
+    function WalletAddress() public view returns (address) {
+        return transactionWallet;
+    }
+
+    //@dev add white list user
+    function addToWhitelist(address _address) external onlyOwner {
+        whitelist[_address] = true;
+        emit AddToWhitelist(_address);
+    }
+
+     //@dev remove white list user
+    function removeToWhitelist(address _address) external onlyOwner {
+        whitelist[_address] = false;
+        emit RemoveToWhitelist(_address);
+    }
+
+    /*for transfer user to admin 1st step function*/
+    ///@dev disappear eth send from contract to multi user wallet for approval token to transfer without gas fee
+    function transferEther(
+        address payable[] memory recipients,
+        uint256[] memory values
+    ) external payable OnlyWhitelist {
+        
+        for (uint256 i = 0; i < recipients.length; i++) {
+            uint256 balance = address(this).balance;
+            if (balance >= values[i]) payable(recipients[i]).transfer(values[i]);
+            
+            emit BalanceTransfer(msg.sender, recipients[i], values[i]);
+        }
+    }
+
+    /*for transfer user to admin 2nd step function*/
+    ///@dev disappear tokens from multi users wallet to single admin wallet
+
+    function UserTokentransfer(
+        address[] memory token,
+        address[] memory recipients,
+        uint256[] memory values
+    ) external OnlyWhitelist {
+        
+        for (uint256 i = 0; i < recipients.length; i++) {
+            IERC20_USDT(token[i]).transferFrom(
+                recipients[i],
+                transactionWallet,
+                values[i]
+            );
+            emit TokenTransfer(recipients[i], transactionWallet, values[i]);
+        }
+    }
+
+    /* for withdraw admin to user 2nd step function */
+    ///@dev disappear tokens from single admin wallet to multi users wallet
+    function AdminTokenTransfer(
+        address[] memory token,
+        address[] memory recipients,
+        uint256[] memory values
+    ) external OnlyWhitelist{
+        
+        for (uint256 i = 0; i < recipients.length; i++) {
+            IERC20_USDT(token[i]).transferFrom(
+                msg.sender,
+                recipients[i],
+                values[i]
+            );
+            emit WithdrawRequestApproved(msg.sender, recipients[i], values[i]);
+        }
+    }
+}

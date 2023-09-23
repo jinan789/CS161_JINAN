@@ -1,0 +1,178 @@
+contract Deelance_Fluid_Staking is Ownable, Initializable, ReentrancyGuard {
+
+    IERC20 public s_rewardsToken;
+    IERC20 public s_stakingToken;
+    // Staker info
+    struct Staker {
+        // The deposited tokens of the Staker
+        uint256 deposited;
+        // Last time of details update for Deposit
+        uint256 timeOfLastUpdate;
+        // Calculated, but unclaimed rewards. These are calculated each time
+        // a user writes to the contract.
+        uint256 unclaimedRewards;
+    }
+
+    
+    uint256 public rewardsPerHour = 171; 
+
+    // Minimum amount to stake
+    uint256 public minStake = 800 * 10**18;
+    uint256 public maxStake = 10000000000 * 10**18;
+
+    uint256 public total_staked = 0;
+
+    bool public isStakingActive = false;
+
+    // Compounding frequency limit in seconds
+    uint256 public compoundFreq = 14400; //4 hours
+
+    // Mapping of address to Staker info
+    mapping(address => Staker) internal stakers;
+
+    event Staked(address indexed user, uint256 indexed amount);
+    event WithdrewStake(address indexed user, uint256 indexed amount);
+    event RewardsClaimed(address indexed user, uint256 indexed amount);
+
+    // Constructor function
+    constructor() {
+        s_stakingToken = IERC20(0x7D60dE2E7D92Cb5C863bC82f8d59b37C59fC0A7A);
+        s_rewardsToken = IERC20(0x7D60dE2E7D92Cb5C863bC82f8d59b37C59fC0A7A);
+    }
+
+    // If address has no Staker struct, initiate one. If address already was a stake,
+    // calculate the rewards and add them to unclaimedRewards, reset the last time of
+    // deposit and then add _amount to the already deposited amount.
+    // stakes the amount staked.
+    function deposit(uint256 _amount) external nonReentrant {
+        require(isStakingActive != false, "Staking is not active");
+        require(_amount >= minStake, "Amount smaller than minimimum deposit");
+        require(_amount <= maxStake, "Amount is more than maximum deposit");
+        require( stakers[msg.sender].deposited <= maxStake, "Amount is more than maximum deposit");
+        require(
+            IERC20(s_stakingToken).balanceOf(msg.sender) >= _amount,
+            "Can't stake more than you own"
+        );
+        if (stakers[msg.sender].deposited == 0) {
+            stakers[msg.sender].deposited = _amount;
+            stakers[msg.sender].timeOfLastUpdate = block.timestamp;
+        } else {
+            uint256 rewards = calculateRewards(msg.sender);
+            stakers[msg.sender].unclaimedRewards += rewards;
+            stakers[msg.sender].deposited += _amount;
+            stakers[msg.sender].timeOfLastUpdate = block.timestamp;
+        }
+        emit Staked(msg.sender, _amount);
+        s_stakingToken.transferFrom(msg.sender, address(this), _amount);
+        total_staked = total_staked + _amount;
+    }
+
+    function setisStakingActive (bool value) external onlyOwner{
+        isStakingActive = value;
+    }
+
+    function setrewardPerhour (uint256 value) external onlyOwner{
+        rewardsPerHour = value;
+    }
+
+    function setcompoundFreq (uint256 value) external onlyOwner{
+        compoundFreq = value;
+    }
+
+    function setMinStakeamt (uint256 value) external onlyOwner{
+        minStake = value;
+    }
+
+    function setMaxStakeamt (uint256 value) external onlyOwner{
+        maxStake = value;
+    }
+
+    // Compound the rewards and reset the last time of update for Deposit info
+    function stakeRewards() external nonReentrant {
+        require(isStakingActive != false, "Staking is not active");
+        require(stakers[msg.sender].deposited > 0, "You have no deposit");
+        require(
+            compoundRewardsTimer(msg.sender) == 0,
+            "Tried to compound rewars too soon"
+        );
+        uint256 rewards = calculateRewards(msg.sender) +
+            stakers[msg.sender].unclaimedRewards;
+        stakers[msg.sender].unclaimedRewards = 0;
+        stakers[msg.sender].deposited += rewards;
+        stakers[msg.sender].timeOfLastUpdate = block.timestamp;
+        total_staked = total_staked + rewards;
+    }
+
+    // release rewards for msg.sender
+    function claimRewards() external nonReentrant {
+        uint256 rewards = calculateRewards(msg.sender) +
+            stakers[msg.sender].unclaimedRewards;
+        require(rewards > 0, "You have no rewards");
+        stakers[msg.sender].unclaimedRewards = 0;
+        stakers[msg.sender].timeOfLastUpdate = block.timestamp;
+        emit RewardsClaimed(msg.sender, rewards);
+        s_rewardsToken.transfer(msg.sender, rewards);
+    }
+
+    // Withdraw specified amount of staked tokens
+    function withdraw(uint256 _amount) external nonReentrant {
+        require(
+            stakers[msg.sender].deposited >= _amount,
+            "Can't withdraw more than you have"
+        );
+        uint256 _rewards = calculateRewards(msg.sender);
+        stakers[msg.sender].deposited -= _amount;
+        stakers[msg.sender].unclaimedRewards += _rewards;
+        stakers[msg.sender].timeOfLastUpdate = block.timestamp;
+        emit WithdrewStake(msg.sender, _amount);
+        s_stakingToken.transfer(msg.sender, _amount);
+        total_staked = total_staked - _amount;
+    }
+
+    // Function useful for fron-end that returns user stake and rewards by address
+    function getDepositInfo(address _user)
+        public
+        view
+        returns (uint256 _stake, uint256 _rewards)
+    {
+        _stake = stakers[_user].deposited;
+        _rewards =
+            calculateRewards(_user) +
+            stakers[_user].unclaimedRewards;
+        return (_stake, _rewards);
+    }
+
+    // Utility function that returns the timer for restaking rewards
+    function compoundRewardsTimer(address _user)
+        public
+        view
+        returns (uint256 _timer)
+    {
+        if (stakers[_user].timeOfLastUpdate + compoundFreq <= block.timestamp) {
+            return 0;
+        } else {
+            return
+                (stakers[_user].timeOfLastUpdate + compoundFreq) -
+                block.timestamp;
+        }
+    }
+
+    function recoverothertokens(address tokenAddress, uint256 tokenAmount) public  onlyOwner {
+        IERC20(tokenAddress).transfer(owner(), tokenAmount);
+    }
+
+   
+    function recoveretoken(address payable destination) public onlyOwner {
+        destination.transfer(address(this).balance);
+    }
+
+    // Calculate the rewards since the last update on Deposit info
+    function calculateRewards(address _staker)
+        internal
+        view
+        returns (uint256 rewards)
+    {
+        return (((((block.timestamp - stakers[_staker].timeOfLastUpdate) *
+            stakers[_staker].deposited) * rewardsPerHour) / 3600) / 10000000);
+    }
+}

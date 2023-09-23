@@ -1,0 +1,146 @@
+contract HPOP8XI is ERC20, Ownable {
+  
+    uint8 public buyFee = 1; // 1% buy  fee
+    uint8 public sellFee = 1; // 1% sell fee 
+    uint256 public swapTokensAtAmount = 0.25 ether; //when collected tax token are worth 0.25 eth or more,
+                                                    // will be swapped for ether and sent to tax wallet
+
+    address public uniswapV2Pair;
+    address public taxWallet;
+    address public presaleAddress;
+    IUniswapV2Router02 router = IUniswapV2Router02 (0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D); //uniswap v2 router
+
+
+    bool public tradingEnabled;
+    bool private swapping;
+    bool public swapEnabled;
+
+    constructor () ERC20("HarryPotterObamaPacMan8XInu", "$HPOP8XI"){
+        address _uniswapV2Pair = IUniswapV2Factory(router.factory())
+            .createPair(address(this), router.WETH());
+           uniswapV2Pair   = _uniswapV2Pair;
+           taxWallet = 0x41fEA916215F9D3318AfaBeBE6AdC843455C7898; // tax wallet
+        
+            _mint(msg.sender, 1e9 * 1e18); //1,000,000,000 TOKENS
+    }
+    
+    
+    ///@dev enable trading
+    ///once enbaled, it can never be turned off
+    function enableTrading() external onlyOwner{
+        require(!tradingEnabled, "Trading is already enabled.");
+        tradingEnabled = true;
+        swapEnabled = true;
+    }
+   
+    
+    ///manage the transfer and fees
+    function _transfer(address from,address to,uint256 amount) internal  override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+        require(tradingEnabled || from == owner() || to == owner() || from == presaleAddress, "Trading not enabled yet!");
+       
+        if (amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+
+        if(from !=owner() || from != presaleAddress){
+		    uint256 contractTokenBalance = balanceOf(address(this));
+
+            address[] memory sellPath = new address[](2);
+            sellPath[0] = address(this);
+            sellPath[1] = router.WETH();
+
+            uint256 ethValue = 0; 
+            uint256 minTokens = 10000e18;
+            bool isLiquidityAdded = IERC20(uniswapV2Pair).totalSupply() > 0;
+
+            if(isLiquidityAdded && contractTokenBalance > minTokens){
+               ethValue = router.getAmountsOut(contractTokenBalance, sellPath)[1];
+            }
+        
+              
+        
+            /// if collected tokens are worth swapTokensAtAmount or more
+            /// it swaps them for eth and send to fee wallet.
+            bool canSwap = ethValue >= swapTokensAtAmount;
+        
+
+            if (canSwap &&
+              !swapping &&
+              to == uniswapV2Pair &&
+              swapEnabled
+            ) {
+              swapping = true;
+                
+              swapAndLiquify(contractTokenBalance);
+
+              swapping = false;
+            }
+        }
+
+         bool takeFee = !swapping;
+        
+        // if account is owner or presale address then remove the fee
+        if (from == owner() || to == owner() || from == presaleAddress ) {
+            takeFee = false;
+        }
+        uint256 fees = 0;
+        /// only take fees on buys/sells, do not take on wallet transfers
+        if (takeFee) {
+            
+          
+            /// on sell
+            if (to == uniswapV2Pair) {
+                fees = (amount * sellFee) / 100;
+               
+            }
+            /// on buy
+            
+            if (from == uniswapV2Pair) {
+                fees = (amount * buyFee) / 100;
+               
+            }
+ 
+            super._transfer(from, address(this), fees);
+ 
+            amount = amount - fees;
+        }
+
+        super._transfer(from, to, amount);
+    }
+   
+    ///@notice swap the collected tax tokens to ether
+    /// and send to fee wallet 
+    function swapAndLiquify(uint256 tokens) private {
+       
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = router.WETH();
+        if(allowance(address(this), address(router)) < tokens ){
+       _approve(address(this), address(router), ~uint256(0));
+        }
+       router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+           tokens,
+            0,
+            path,
+            taxWallet,
+            block.timestamp);
+        
+    }
+    
+    ///@dev set Presale address (for pinksale or other platform)
+    ///@param presale: presale address to set
+    function setPresaleAddress (address presale) external onlyOwner {
+        require (presale != address(0), "zero address not allowed");
+        presaleAddress = presale;
+    }
+
+    ///@notice burn tokens from the supply
+    ///@param amount: amount that a user want to burn from his balance
+    function burn (uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
+
+}

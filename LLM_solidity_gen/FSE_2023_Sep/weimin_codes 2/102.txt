@@ -1,0 +1,227 @@
+contract MemeStation is ERC20, Ownable {
+    IUniswapV2Router02 public immutable uniswapV2Router;
+    address public immutable uniswapV2Pair;
+    mapping(address => bool) public automatedMarketMakerPairs;
+
+    uint256 private buyFee;
+    uint256 private sellFee;
+
+    address public marketingWallet;
+    uint256 public swapTokensAtAmount;
+    bool public swapEnabled = true;
+    bool private swapping;
+
+    mapping(address => bool) private _isExcludedFromFees;
+    mapping(address => bool) public _isExcludedMaxTransactionAmount;
+    mapping(address => bool) public _isExcludedFromMaxWallet;
+
+    uint256 public maxBuyTransactionAmount;
+    uint256 public maxSellTransactionAmount;
+    uint256 public maxWalletAmount;
+
+    constructor() ERC20("MemeStation", "Memes") {
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
+            0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+        );
+        uniswapV2Router = _uniswapV2Router;
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+            .createPair(uniswapV2Router.WETH(), address(this));
+        _setAutomatedMarketMakerPair(address(uniswapV2Pair), true);
+
+        buyFee = 4;
+        sellFee = 4;
+
+        uint256 totalSupply = 10000000 * 10 ** decimals();
+
+        marketingWallet = address(owner()); // set as marketing wallet
+
+        swapTokensAtAmount = (totalSupply * 25) / 100000;
+
+        maxBuyTransactionAmount = (totalSupply * 2) / 100;
+        maxSellTransactionAmount = (totalSupply * 2) / 100;
+        maxWalletAmount = (totalSupply * 2) / 100;
+
+        // exclude from paying fees or having max transaction amount
+        excludeFromFees(owner(), true);
+        excludeFromFees(address(this), true);
+        excludeFromFees(address(0xdead), true);
+
+        excludeFromMaxWallet(owner(), true);
+        excludeFromMaxWallet(address(this), true);
+        excludeFromMaxWallet(address(0xdead), true);
+        excludeFromMaxWallet(address(uniswapV2Pair), true);
+
+        excludeFromMaxTransaction(address(_uniswapV2Router), true);
+        excludeFromMaxTransaction(address(uniswapV2Pair), true);
+
+        _mint(msg.sender, totalSupply);
+    }
+
+    function setAutomatedMarketMakerPair(
+        address pair,
+        bool value
+    ) external onlyOwner {
+        require(
+            pair != uniswapV2Pair,
+            "The pair cannot be removed from automatedMarketMakerPairs"
+        );
+
+        _setAutomatedMarketMakerPair(pair, value);
+    }
+
+    function updateBuyFees(uint256 _buyFee) external onlyOwner {
+        buyFee = _buyFee;
+    }
+
+    function updateSellFees(uint256 _sellFee) external onlyOwner {
+        sellFee = _sellFee;
+    }
+
+    function updateMarketingWallet(address newWallet) external onlyOwner {
+        require(newWallet != address(0), "cannot set to 0 address");
+        marketingWallet = newWallet;
+    }
+
+    receive() external payable {}
+
+    function _setAutomatedMarketMakerPair(address pair, bool value) private {
+        automatedMarketMakerPairs[pair] = value;
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+
+        if (amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+
+        if (to != uniswapV2Pair && !_isExcludedFromMaxWallet[to]) {
+            require(
+                balanceOf(to) + amount <= maxWalletAmount,
+                "Balance exceeds limit"
+            );
+        }
+
+        if (
+            automatedMarketMakerPairs[from] &&
+            !_isExcludedMaxTransactionAmount[to]
+        ) {
+            require(
+                amount <= maxBuyTransactionAmount,
+                "Buy transfer amount exceeds the maxTransactionAmount."
+            );
+        }
+        //when sell
+        else if (
+            automatedMarketMakerPairs[to] &&
+            !_isExcludedMaxTransactionAmount[from]
+        ) {
+            require(
+                amount <= maxSellTransactionAmount,
+                "Sell transfer amount exceeds the maxTransactionAmount."
+            );
+        }
+
+        uint256 contractTokenBalance = balanceOf(address(this));
+
+        bool canSwap = contractTokenBalance >= swapTokensAtAmount;
+
+        if (
+            canSwap &&
+            swapEnabled &&
+            !swapping &&
+            !automatedMarketMakerPairs[from]
+        ) {
+            swapping = true;
+
+            swapBack();
+
+            swapping = false;
+        }
+
+        bool takeFee = !swapping;
+
+        if (_isExcludedFromFees[from] || _isExcludedFromFees[to]) {
+            takeFee = false;
+        }
+
+        uint256 fees = 0;
+
+        // only take fees on buys/sells, do not take on wallet transfers
+        if (takeFee) {
+            // 99% fee for 1 blocks.  All tokens go to marketing.
+            if (automatedMarketMakerPairs[to] && sellFee > 0) {
+                fees = (amount * sellFee) / 100;
+            }
+            // on buy or transfer
+            else if (automatedMarketMakerPairs[from] && buyFee > 0) {
+                fees = (amount * buyFee) / 100;
+            }
+
+            if (fees > 0) {
+                super._transfer(from, address(this), fees);
+            }
+
+            amount -= fees;
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    function swapBack() private {
+        uint256 _tokenAmount = balanceOf(address(this));
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            _tokenAmount,
+            0,
+            path,
+            marketingWallet,
+            block.timestamp
+        );
+    }
+
+    function updateSwapTokensAtAmount(
+        uint256 newAmount
+    ) external onlyOwner returns (bool) {
+        swapTokensAtAmount = newAmount;
+        return true;
+    }
+
+    function excludeFromFees(address account, bool excluded) public onlyOwner {
+        _isExcludedFromFees[account] = excluded;
+    }
+
+    function excludeFromMaxWallet(
+        address account,
+        bool excluded
+    ) public onlyOwner {
+        _isExcludedFromMaxWallet[account] = excluded;
+    }
+
+    function excludeFromMaxTransaction(
+        address updAds,
+        bool isEx
+    ) public onlyOwner {
+        _isExcludedMaxTransactionAmount[updAds] = isEx;
+    }
+
+    function updateMaxBuyAmount(uint256 newNum) external onlyOwner {
+        maxBuyTransactionAmount = newNum * (10 ** 18);
+    }
+
+    function updateMaxSellAmount(uint256 newNum) external onlyOwner {
+        maxSellTransactionAmount = newNum * (10 ** 18);
+    }
+
+    function setMaxWallet(uint256 value) external onlyOwner {
+        maxWalletAmount = value;
+    }
+}

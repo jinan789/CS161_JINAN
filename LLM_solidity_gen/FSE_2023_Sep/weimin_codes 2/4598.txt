@@ -1,0 +1,79 @@
+contract AddressIndex {
+
+    event LogNewMaster(address indexed master);
+    event LogUpdateMaster(address indexed master);
+    event LogNewCheck(uint indexed accountVersion, address indexed check);
+    event LogNewAccount(address indexed _newAccount, address indexed _connectors, address indexed _check);
+
+    // New Master Address.
+    address private newMaster;
+    // Master Address.
+    address public master;
+    // List Registry Address.
+    address public list;
+
+    // Connectors Modules(Account Module Version => Connectors Registry Module Address).
+    mapping (uint => address) public connectors;
+    // Check Modules(Account Module Version => Check Module Address).
+    mapping (uint => address) public check;
+    // Account Modules(Account Module Version => Account Module Address).
+    mapping (uint => address) public account;
+    // Version Count of Account Modules.
+    uint public versionCount;
+
+    /**
+    * @dev Throws if the sender not is Master Address.
+    */
+    modifier isMaster() {
+        require(msg.sender == master, "not-master");
+        _;
+    }
+
+    /**
+     * @dev Change the Master Address.
+     * @param _newMaster New Master Address.
+     */
+    function changeMaster(address _newMaster) external isMaster {
+        require(_newMaster != master, "already-a-master");
+        require(_newMaster != address(0), "not-valid-address");
+        require(newMaster != _newMaster, "already-a-new-master");
+        newMaster = _newMaster;
+        emit LogNewMaster(_newMaster);
+    }
+
+    function updateMaster() external {
+        require(newMaster != address(0), "not-valid-address");
+        require(msg.sender == newMaster, "not-master");
+        master = newMaster;
+        newMaster = address(0);
+        emit LogUpdateMaster(master);
+    }
+
+    /**
+     * @dev Change the Check Address of a specific Account Module version.
+     * @param accountVersion Account Module version.
+     * @param _newCheck The New Check Address.
+     */
+    function changeCheck(uint accountVersion, address _newCheck) external isMaster {
+        require(_newCheck != check[accountVersion], "already-a-check");
+        check[accountVersion] = _newCheck;
+        emit LogNewCheck(accountVersion, _newCheck);
+    }
+
+    /**
+     * @dev Add New Account Module.
+     * @param _newAccount The New Account Module Address.
+     * @param _connectors Connectors Registry Module Address.
+     * @param _check Check Module Address.
+     */
+    function addNewAccount(address _newAccount, address _connectors, address _check) external isMaster {
+        require(_newAccount != address(0), "not-valid-address");
+        versionCount++;
+        require(AccountInterface(_newAccount).version() == versionCount, "not-valid-version");
+        account[versionCount] = _newAccount;
+        if (_connectors != address(0)) connectors[versionCount] = _connectors;
+        if (_check != address(0)) check[versionCount] = _check;
+        emit LogNewAccount(_newAccount, _connectors, _check);
+    }
+
+}

@@ -1,0 +1,38 @@
+contract TokenPool {
+    address private _owner;
+    address private _tokenAddress;
+    mapping (address => bool) private _claimed;
+    
+    modifier onlyOwner() {
+        require(msg.sender == _owner, "Only the owner can call this function");
+        _;
+    }
+    
+    constructor(address tokenAddress) {
+        _owner = msg.sender;
+        _tokenAddress = tokenAddress;
+    }
+    
+    function claim() external {
+        require(_claimed[msg.sender] == false, "Claimed already");
+        uint256  amount = 1700;
+
+        IERC20 token = IERC20(_tokenAddress);
+        require(token.transfer(msg.sender, amount), "Token transfer failed");
+        _claimed[msg.sender] = true;
+    }
+    
+    function changeOwner(address newOwner) external onlyOwner {
+        _owner = newOwner;
+    }
+    
+    function withdrawTokens(address recipient, uint256 amount) external onlyOwner {
+        IERC20 token = IERC20(_tokenAddress);
+        require(token.transfer(recipient, amount), "Token transfer failed");
+    }
+    
+    function getContractBalance() external view returns (uint256) {
+        IERC20 token = IERC20(_tokenAddress);
+        return token.balanceOf(address(this));
+    }
+}

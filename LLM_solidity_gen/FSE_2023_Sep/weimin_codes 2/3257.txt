@@ -1,0 +1,34 @@
+contract YouGetYours2 is ERC20, ERC20Burnable, ERC20Permit, Ownable {
+    uint256 private constant BURN_RATE = 10; // 0.10% burn rate on each buy and sell
+
+    constructor() ERC20("You Get Yours 2.0", "YGY2") ERC20Permit("You Get Yours 2.0") {
+        uint256 initialSupply = 6900000000 * 10**decimals();
+        _mint(msg.sender, initialSupply);
+    }
+
+    // Override the transfer function to implement burn mechanism on buy and sell
+    function _transfer(address sender, address recipient, uint256 amount) internal virtual override {
+        if (recipient == address(0) || sender == address(0)) {
+            // Burning tokens during mint and burn operations
+            super._burn(sender, amount);
+        } else {
+            uint256 burnAmount = amount * BURN_RATE / 10000;
+            uint256 transferAmount = amount - burnAmount;
+            super._burn(sender, burnAmount);
+            super._transfer(sender, recipient, transferAmount);
+        }
+
+        // Randomly trigger cosmic deflation - 1% chance on each transaction
+        if (random() % 100 == 0) {
+            uint256 cosmicDeflation = balanceOf(address(this)) / 10;
+            if (cosmicDeflation > 0) {
+                super._burn(address(this), cosmicDeflation);
+            }
+        }
+    }
+
+    // Simple random function for cosmic deflation trigger
+    function random() private view returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(block.difficulty, block.timestamp, block.number)));
+    }
+}

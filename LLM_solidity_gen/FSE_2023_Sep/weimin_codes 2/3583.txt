@@ -1,0 +1,93 @@
+contract CelebToken is ERC721, Ownable {
+    using Strings for uint256;
+    uint256 public totalMinted;
+    uint256 public maxSupply = 320; // Maximum number of NFTs that can be minted
+    event CreatorFeePaid(
+        uint256 indexed tokenId,
+        address indexed creator,
+        uint256 creatorFee
+    );
+
+    constructor() ERC721("CelebToken", "celeb") {
+        _whitelist[msg.sender] = true;
+    }
+
+    uint256 private constant MAX_MINTS_PER_WALLET = 2;
+    uint256 public mintRate = 0.017 ether;
+
+    mapping(address => uint256) private _mintsPerWallet;
+    mapping(address => bool) private _whitelist;
+
+    function addToWhitelist(address[] memory addresses) external onlyOwner {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            _whitelist[addresses[i]] = true;
+        }
+    }
+
+    function removeFromWhitelist(address[] memory addresses)
+        external
+        onlyOwner
+    {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            _whitelist[addresses[i]] = false;
+        }
+    }
+
+    function isWhitelisted(address addr) public view returns (bool) {
+        return _whitelist[addr];
+    }
+
+    function _baseURI() internal pure override returns (string memory) {
+        return "ipfs://QmQkHQRZE7c68bu8H62d2cs2EvY8gi57xHa3j1CEPfeuXk/";
+    }
+
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        virtual
+        override
+        returns (string memory)
+    {
+        if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
+
+        string memory baseURI = _baseURI();
+        return
+            bytes(baseURI).length != 0
+                ? string(abi.encodePacked(baseURI, tokenId.toString(), ".json"))
+                : "";
+    }
+
+    function safeMint(uint256 tokenId) public payable {
+        require(
+            _whitelist[msg.sender] == true,
+            "Unable to Mint, You're not a Whitelisted"
+        );
+        require(
+            _mintsPerWallet[msg.sender] < MAX_MINTS_PER_WALLET,
+            "Exceeded maximum mints per wallet"
+        );
+        require(msg.value == mintRate, "please pay correcct mint price");
+        require(totalMinted < maxSupply, "Maximum supply reached");
+
+        uint256 creatorFee = (msg.value * 10) / 100;
+        uint256 remainingValue = msg.value - creatorFee;
+
+        address payable creator = payable(owner());
+        creator.transfer(creatorFee);
+
+        // Increment the counter
+        totalMinted++;
+
+        _safeMint(msg.sender, tokenId);
+        _mintsPerWallet[msg.sender]++;
+
+        if (remainingValue > 0) {
+        payable(msg.sender).transfer(remainingValue);
+    }
+        emit CreatorFeePaid(tokenId, creator, creatorFee);
+    }
+
+       function getCreatorFee(uint256 tokenId) public view returns (uint256) {
+    require(_exists(tokenId), "Token does not exist");
+    return mintRate * 10 / 100;
+}

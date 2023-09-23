@@ -1,0 +1,429 @@
+contract QuantumWealthAcceleratorToken is ERC20, Ownable {
+    /// STATE VARIABLES ///
+
+    /// @notice Address of UniswapV2Router
+    IUniswapV2Router02 private immutable uniswapV2Router;
+    /// @notice Address of UniswapV3Router
+    address private immutable uniswapV3Router;
+
+    /// @notice Address of QWN/ETH LP
+    address public immutable uniswapV2Pair;
+    /// @notice WETH address
+    address private immutable WETH;
+    /// @notice Backing token addresses
+    address[] public backingTokens;
+    /// @notice Backing token V3 pool fee to swap (if 0 - v2)
+    uint24[] private backingTokensV3Fee;
+    /// @notice QWN treasury
+    address public treasury;
+    /// @notice Address QWA Factory address
+    address private QWAFactory;
+
+    bool private swapping;
+
+    uint256 private backingSwapping;
+
+    /// @notice Current percent of supply to swap tokens at (i.e. 5 = 0.05%)
+    uint256 private swapPercent;
+
+    /// @notice Current total fees
+    uint256 public totalFees;
+    /// @notice Current backing fee
+    uint256 public backingFee;
+    /// @notice Current liquidity fee
+    uint256 public liquidityFee;
+    /// @notice 1% QWA fee
+    uint256 public constant QWA_FEE = 100;
+    /// @notice Current team fee
+    uint256 public teamFee;
+
+    /// @notice Current tokens going for backing
+    uint256 public tokensForBacking;
+    /// @notice Current tokens going for liquidity
+    uint256 public tokensForLiquidity;
+    /// @notice Current tokens going for tean
+    uint256 public tokensForTeam;
+    /// @notice Current tokens going towards fee
+    uint256 public tokensForFee;
+
+    /// MAPPINGS ///
+
+    /// @dev Bool if address is excluded from fees
+    mapping(address => bool) private _isExcludedFromFees;
+
+    /// @notice Bool if address is AMM pair
+    mapping(address => bool) public automatedMarketMakerPairs;
+
+    /// EVENTS ///
+
+    event ExcludeFromFees(address indexed account, bool isExcluded);
+
+    event SetAutomatedMarketMakerPair(address indexed pair, bool indexed value);
+
+    event SwapAndLiquify(
+        uint256 tokensSwapped,
+        uint256 ethReceived,
+        uint256 tokensIntoLiquidity
+    );
+
+    /// CONSTRUCTOR ///
+
+    /// @param _weth  Address of WETH
+    constructor(
+        address _qwaFactory,
+        address _weth,
+        address[] memory _backingTokens,
+        uint24[] memory _backingTokensV3Fee,
+        string memory _name,
+        string memory _symbol
+    ) ERC20(_name, _symbol) {
+        QWAFactory = _qwaFactory;
+        WETH = _weth;
+        backingTokens = _backingTokens;
+        backingTokensV3Fee = _backingTokensV3Fee;
+
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
+            0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+        );
+
+        uniswapV2Router = _uniswapV2Router;
+
+        uniswapV3Router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+            .createPair(address(this), _weth);
+        _setAutomatedMarketMakerPair(address(uniswapV2Pair), true);
+
+        swapPercent = 25; // 0.25%
+
+        backingFee = 200;
+        liquidityFee = 100;
+        teamFee = 100;
+        totalFees = 500;
+
+        // exclude from paying fees
+        _isExcludedFromFees[_qwaFactory] = true;
+        _isExcludedFromFees[address(this)] = true;
+
+        /// Starting supply of 25,000
+        _mint(_qwaFactory, 25000000000000);
+    }
+
+    /// RECEIVE ///
+
+    receive() external payable {}
+
+    /// AMM PAIR ///
+
+    /// @notice       Sets if address is AMM pair
+    /// @param pair   Address of pair
+    /// @param value  Bool if AMM pair
+    function setAutomatedMarketMakerPair(
+        address pair,
+        bool value
+    ) public onlyOwner {
+        require(pair != uniswapV2Pair);
+
+        _setAutomatedMarketMakerPair(pair, value);
+    }
+
+    /// @dev Internal function to set `vlaue` of `pair`
+    function _setAutomatedMarketMakerPair(address pair, bool value) private {
+        automatedMarketMakerPairs[pair] = value;
+
+        emit SetAutomatedMarketMakerPair(pair, value);
+    }
+
+    /// INTERNAL TRANSFER ///
+
+    /// @dev Internal function to burn `amount` from `account`
+    function _burnFrom(address account, uint256 amount) internal {
+        uint256 decreasedAllowance_ = allowance(account, msg.sender) - amount;
+
+        _approve(account, msg.sender, decreasedAllowance_);
+        _burn(account, amount);
+    }
+
+    /// @dev Internal function to transfer - handles fee logic
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+
+        if (amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+
+        uint256 contractTokenBalance = balanceOf(address(this));
+
+        bool canSwap = contractTokenBalance >= swapTokensAtAmount();
+
+        if (
+            canSwap &&
+            !swapping &&
+            !automatedMarketMakerPairs[from] &&
+            !_isExcludedFromFees[from] &&
+            !_isExcludedFromFees[to]
+        ) {
+            swapping = true;
+
+            swapBack();
+
+            swapping = false;
+        }
+
+        bool takeFee = !swapping;
+
+        // if any account belongs to _isExcludedFromFee account then remove the fee
+        if (_isExcludedFromFees[from] || _isExcludedFromFees[to]) {
+            takeFee = false;
+        }
+
+        uint256 fees;
+        // only take fees on buys/sells, do not take on wallet transfers
+        if (takeFee) {
+            // on buy or sell
+            if (
+                (automatedMarketMakerPairs[from] ||
+                    automatedMarketMakerPairs[to]) && totalFees > 0
+            ) {
+                fees = (amount * totalFees) / 10000;
+                if (IQWAFactory(QWAFactory).feeDiscount(tx.origin))
+                    fees = (fees * 3) / 4;
+                tokensForLiquidity += (fees * liquidityFee) / totalFees;
+                tokensForTeam += (fees * teamFee) / totalFees;
+                tokensForBacking += (fees * backingFee) / totalFees;
+                tokensForFee += (fees * QWA_FEE) / totalFees;
+            }
+
+            if (fees > 0) {
+                super._transfer(from, address(this), fees);
+            }
+
+            amount -= fees;
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    /// PRIVATE FUNCTIONS ///
+
+    /// @dev PRIVATE function to swap `ethTokenAmount` for ETH
+    /// @dev Invoked in `swapBack()`
+    function swapTokens(
+        uint256 ethTokenAmount,
+        uint256 totalTokensToSwap
+    ) private returns (uint256 ethBalance_, uint256 ethForBacking_) {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = WETH;
+
+        _approve(address(this), address(uniswapV2Router), ethTokenAmount + 1);
+
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            ethTokenAmount,
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+
+        ethBalance_ = address(this).balance;
+
+        ethForBacking_ =
+            (ethBalance_ * tokensForBacking) /
+            (totalTokensToSwap - tokensForLiquidity / 2);
+
+        address backingToken = backingTokens[backingSwapping];
+
+        if (backingToken == WETH) {
+            IWETH(WETH).deposit{value: ethForBacking_}();
+            IERC20(WETH).transfer(treasury, ethForBacking_);
+        } else {
+            if (backingTokensV3Fee[backingSwapping] == 0) {
+                path[0] = WETH;
+                path[1] = backingToken;
+
+                uniswapV2Router
+                    .swapExactETHForTokensSupportingFeeOnTransferTokens{
+                    value: ethForBacking_
+                }(0, path, treasury, block.timestamp);
+            } else {
+                IUniswapV3Router.ExactInputSingleParams
+                    memory params = IUniswapV3Router.ExactInputSingleParams({
+                        tokenIn: WETH,
+                        tokenOut: backingToken,
+                        fee: backingTokensV3Fee[backingSwapping],
+                        recipient: treasury,
+                        deadline: block.timestamp,
+                        amountIn: ethForBacking_,
+                        amountOutMinimum: 0,
+                        sqrtPriceLimitX96: 0
+                    });
+
+                IUniswapV3Router(uniswapV3Router).exactInputSingle{
+                    value: ethForBacking_
+                }(params);
+            }
+        }
+
+        if (backingSwapping == backingTokens.length - 1) backingSwapping = 0;
+        else ++backingSwapping;
+    }
+
+    /// @dev PRIVATE function to add `tokenAmount` and `ethAmount` to LP
+    /// @dev Invoked in `swapBack()`
+    function addLiquidity(uint256 tokenAmount, uint256 ethAmount) private {
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        uniswapV2Router.addLiquidityETH{value: ethAmount}(
+            address(this),
+            tokenAmount,
+            0,
+            0,
+            treasury,
+            block.timestamp
+        );
+    }
+
+    /// @dev PRIVATE function to transfer fees properly
+    /// @dev Invoked in `_transfer()`
+    function swapBack() private {
+        uint256 contractBalance = balanceOf(address(this));
+        uint256 totalTokensToSwap = tokensForLiquidity +
+            tokensForBacking +
+            tokensForTeam +
+            tokensForFee;
+        bool success;
+
+        if (contractBalance == 0 || totalTokensToSwap == 0) {
+            return;
+        }
+
+        uint256 liquidityTokens = (contractBalance * tokensForLiquidity) /
+            totalTokensToSwap /
+            2;
+
+        uint256 amountToSwapForETH = contractBalance - liquidityTokens;
+
+        (uint256 ethBalance, uint256 ethForBacking) = swapTokens(
+            amountToSwapForETH,
+            totalTokensToSwap
+        );
+
+        uint256 ethForTeam = (ethBalance * tokensForTeam) /
+            (totalTokensToSwap - tokensForLiquidity / 2);
+
+        uint256 ethForFee = (ethBalance * tokensForFee) /
+            (totalTokensToSwap - tokensForLiquidity / 2);
+
+        uint256 ethForLiquidity = ethBalance -
+            ethForTeam -
+            ethForFee -
+            ethForBacking;
+
+        tokensForLiquidity = 0;
+        tokensForBacking = 0;
+        tokensForTeam = 0;
+        tokensForFee = 0;
+
+        (success, ) = address(owner()).call{value: ethForTeam}("");
+
+        if (liquidityTokens > 0 && ethForLiquidity > 0) {
+            addLiquidity(liquidityTokens, ethForLiquidity);
+            emit SwapAndLiquify(
+                amountToSwapForETH,
+                ethForLiquidity,
+                tokensForLiquidity
+            );
+        }
+
+        address feeAddress = IQWAFactory(QWAFactory).feeAddress();
+        (success, ) = address(feeAddress).call{value: address(this).balance}(
+            ""
+        );
+        IQWAFee(feeAddress).convertFees();
+    }
+
+    /// VIEW FUNCTION ///
+
+    /// @notice Returns decimals for QWA (9)
+    function decimals() public view virtual override returns (uint8) {
+        return 9;
+    }
+
+    /// @notice Returns if address is excluded from fees
+    function isExcludedFromFees(address account) external view returns (bool) {
+        return _isExcludedFromFees[account];
+    }
+
+    /// @notice Returns at what percent of supply to swap tokens at
+    function swapTokensAtAmount() public view returns (uint256 amount_) {
+        amount_ = (totalSupply() * swapPercent) / 10000;
+    }
+
+    /// TREASURY FUNCTION ///
+
+    /// @notice         Mint QWA (Only by treasury)
+    /// @param account  Address to mint QWA to
+    /// @param amount   Amount to mint
+    function mint(address account, uint256 amount) external {
+        require(msg.sender == treasury);
+        _mint(account, amount);
+    }
+
+    /// USER FUNCTIONS ///
+
+    /// @notice         Burn QWA
+    /// @param account  Address to burn QWA from
+    /// @param amount   Amount to QWA to burn
+    function burnFrom(address account, uint256 amount) external {
+        _burnFrom(account, amount);
+    }
+
+    /// @notice         Burn QWA
+    /// @param amount   Amount to QWA to burn
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
+
+    /// OWNER FUNCTIONS ///
+
+    /// @notice Set address of treasury
+    function setTreasury(address _treasury) external onlyOwner {
+        require(treasury == address(0));
+        treasury = _treasury;
+        excludeFromFees(_treasury, true);
+    }
+
+    /// @notice Update percent of supply to swap tokens at
+    function updateSwapTokensAtPercent(uint256 newPercent) external onlyOwner {
+        require(newPercent >= 1);
+        require(newPercent <= 50);
+        swapPercent = newPercent;
+    }
+
+    /// @notice Update fees
+    function updateFees(
+        uint256 _backingFee,
+        uint256 _liquidityFee,
+        uint256 _teamFee
+    ) external onlyOwner {
+        backingFee = _backingFee;
+        liquidityFee = _liquidityFee;
+        teamFee = _teamFee;
+        totalFees = backingFee + liquidityFee + teamFee + QWA_FEE;
+        require(teamFee <= 100, "Team fee <= 1%");
+        require(totalFees <= 500);
+    }
+
+    /// @notice Set if an address is excluded from fees
+    function excludeFromFees(address account, bool excluded) public onlyOwner {
+        _isExcludedFromFees[account] = excluded;
+        emit ExcludeFromFees(account, excluded);
+    }
+}

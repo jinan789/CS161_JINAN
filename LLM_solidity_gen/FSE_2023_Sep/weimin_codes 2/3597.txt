@@ -1,0 +1,72 @@
+contract POLRON is ERC20, ERC20Burnable, Pausable, Ownable {
+    mapping(address => bool) public _freezeAddress;
+    mapping(address => bool) public _blacklistAddress;
+    mapping(address => uint) public _timeForUnfreeze;
+    function decimals() override public view returns (uint8) {
+        return 8;
+    }
+    constructor() ERC20("Polron", "POL") {
+        _mint(msg.sender, 50000000 * 10 ** decimals());
+    }
+     function BlackList(address UserAddress) public onlyOwner returns(bool){ //** this function will blacklist the address and User Can't be able to use transfer and transferFrom Function **
+         _blacklistAddress[UserAddress] = true;
+         return true;
+     } 
+     function WhiteList(address UserAddress) public onlyOwner returns(bool){ //** this function will blacklist the address and User Can't be able to use transfer and transferFrom Function **
+         _blacklistAddress[UserAddress] = false;
+         return true;
+     } 
+function _freeze( address Address ) public  onlyOwner returns (bool) { // ** This function will freeze the account for 2 days after that admin can unfreeze the address
+          _timeForUnfreeze[Address] = block.timestamp + 2 days;
+         _freezeAddress[Address]= true;
+         return true;
+     } 
+     function _unfreeze( address Address ) public  onlyOwner returns (bool) { // This function will unfreeze the address after 2 days by the admin
+         require(_timeForUnfreeze[Address] <= block.timestamp , "The time for unfreeeze is not ended yet!");
+         _freezeAddress[Address]= false;
+         return true;
+     } 
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function transfer(
+        address to,
+        uint256 amount
+    ) public  override returns (bool){
+         require(_freezeAddress[msg.sender] != true , "You are account is freezed by the devs"); 
+         require(_blacklistAddress[msg.sender] != true , "You are account is blacklisted by the devs");
+        address owner = msg.sender;
+        _transfer(owner, to, amount);
+        return true;
+
+    }
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) public virtual override returns (bool) {
+        require(_blacklistAddress[msg.sender] != true , "You are account is blacklisted by the devs");
+        require(_freezeAddress[msg.sender] != true , "You are account is freezed by the devs"); 
+        address spender = _msgSender();
+        _spendAllowance(from, spender, amount);
+        _transfer(from, to, amount);
+        return true;
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
+    }
+
+    function mint(address to, uint256 amount) public onlyOwner {
+        _mint(to, amount);
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 amount)
+        internal
+        whenNotPaused
+        override
+    {
+        super._beforeTokenTransfer(from, to, amount);
+    }
+}

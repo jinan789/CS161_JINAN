@@ -1,0 +1,110 @@
+contract CryptopolySale is Ownable {
+    constructor(IERC20USDT _USDT, IERC20 _BUSD, IERC20 _USDC, IERC20 _CRP) {
+        USDT = _USDT;
+        BUSD = _BUSD;
+        USDC = _USDC;
+        CRP = _CRP;
+    }
+
+    IERC20 public CRP;
+    IERC20USDT public USDT;
+    IERC20 public BUSD;
+    IERC20 public USDC;
+
+    uint public price;
+    uint public currentStage;
+    uint public sold;
+    uint public min = 1000000000000000000;
+
+    mapping(address => uint) public soldAddress;
+
+    struct Stage {
+        uint sold;
+        uint price;
+        uint priceSixDec;
+        uint endTime;
+    }
+    mapping (uint => Stage) public stages;
+
+    // Currency 1 - USDT
+    // Currency 2 - BUSD
+    // Currency 3 - USDC
+    function buy(uint _amount, uint _currency) public {
+        require(_amount >= min && currentStage != 0);
+        require(_currency == 1 || _currency == 2 || _currency == 3);
+
+        uint _amountStable;
+
+        if (_currency == 1) {
+            IERC20USDT _stable = USDT;
+            _amountStable = _amount / (1 * 10 ** CRP.decimals()) * stages[currentStage].priceSixDec;
+            require(sold + _amountStable <= stages[5].sold); 
+            sold += _amountStable;
+            _stable.transferFrom(msg.sender, owner(), _amountStable); 
+        } else if(_currency == 2) {
+            IERC20 _stable = BUSD;
+            _amountStable = _amount / (1 * 10 ** CRP.decimals()) * stages[currentStage].price;
+            require(sold + _amountStable/1000000000000 <= stages[5].sold); 
+            sold += _amountStable/1000000000000;
+            _stable.transferFrom(msg.sender, owner(), _amountStable); 
+        } else if(_currency == 3) {
+            IERC20 _stable = USDC;
+            _amountStable = _amount / (1 * 10 ** CRP.decimals()) * stages[currentStage].priceSixDec;
+            require(sold + _amountStable <= stages[5].sold); 
+            sold += _amountStable;
+            _stable.transferFrom(msg.sender, owner(), _amountStable); 
+        }
+        
+        CRP.mint(msg.sender, _amount); 
+        soldAddress[msg.sender] += _amount;
+        checkStage();
+    }
+
+    function checkStage() private {
+        if(block.timestamp > stages[currentStage].endTime ) {
+            currentStage++;
+        } else if (sold > stages[currentStage].sold) {
+            currentStage++;
+        }
+    }
+
+    //Admin Functions
+    function setMinOrder(uint _min) public onlyOwner {
+        min = _min;
+    }
+
+    function startSale() public onlyOwner {
+        //Stage #1
+        stages[1].sold = 200000000000;
+        stages[1].price = 600000000000000;
+        stages[1].priceSixDec = 600;
+        stages[1].endTime = block.timestamp + 1814400;
+
+        //Stage #2
+        stages[2].sold = 300000000000;
+        stages[2].price = 700000000000000;
+        stages[2].priceSixDec = 700;
+        stages[2].endTime = block.timestamp + 3628800;
+
+        //Stage #3
+        stages[3].sold = 400000000000;
+        stages[3].price = 800000000000000;
+        stages[3].priceSixDec = 800;
+        stages[3].endTime = block.timestamp + 5443200;
+
+        //Stage #4
+        stages[4].sold = 500000000000;
+        stages[4].price = 900000000000000;
+        stages[4].priceSixDec = 900;
+        stages[4].endTime = block.timestamp + 7257600;
+
+        //Stage #5
+        stages[5].sold = 600000000000;
+        stages[5].price = 1000000000000000;
+        stages[5].priceSixDec = 1000;
+        stages[5].endTime = block.timestamp + 9072000;
+
+        currentStage = 1;
+        sold = 0;
+    }
+}

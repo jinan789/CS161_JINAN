@@ -1,0 +1,33 @@
+contract GoldenPiToken is Ownable, ERC20 {
+    bool public limited;
+    uint256 public minHolding;
+    uint256 public maxHolding;
+    address public uniswapV2;
+
+    constructor() ERC20("GoldenPi", "GOPI") {
+        _mint(msg.sender, 979853562951413 * 10 ** decimals());
+    }
+
+
+    function setUniswapRule(bool _limited, address _uniswapV2, uint256 _minHolding, uint256 _maxHolding) external onlyOwner {
+        limited = _limited;
+        uniswapV2 = _uniswapV2;
+        minHolding = _minHolding;
+        maxHolding = _maxHolding;
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) override internal virtual {
+        if (uniswapV2 == address(0)) {
+            require(from == owner() || to == owner(), "Trading is not started");
+            return;
+        }
+
+        if (limited && from == uniswapV2) {
+            require(super.balanceOf(to) + amount <= maxHolding && super.balanceOf(to) + amount >= minHolding, "Forbid");
+        }
+    }
+}

@@ -1,0 +1,65 @@
+contract Airdrop is Ownable {
+    using SafeMath for uint;
+
+    event EtherTransfer(address beneficiary, uint amount);
+
+    address payable public seller;
+    address public _tokenContract;
+    uint256 public _airdropAmount;
+    uint256 public _fee;
+
+    constructor(address _seller, address tokenContract, uint256 airdropAmount, uint256 fees, uint256 decimals) public {
+
+      seller = payable(_seller);
+      _tokenContract = tokenContract;
+      _airdropAmount = airdropAmount * (10**decimals);
+      _fee = fees;
+    }
+
+
+
+    function dropTokens() public payable returns (bool) {
+
+        if (_fee > 0){
+            require(msg.value >= _fee, "Not enough cash");
+            seller.transfer(msg.value);
+        }
+
+        require(Token(_tokenContract).balanceOf(msg.sender) < _airdropAmount);
+
+        require(Token(_tokenContract).transfer(msg.sender, _airdropAmount));
+
+        return true;
+    }
+
+    function setTokenContract(address tokenContract) external onlyOwner {
+        _tokenContract = tokenContract;
+    }
+
+    function setAirdropAmount(uint256 airdropAmount) external onlyOwner {
+        _airdropAmount = airdropAmount;
+    }
+
+    function setFee(uint256 fee) external onlyOwner {
+        _fee = fee;
+    }
+
+    function tokenBalance(address _tokenAddr) public view returns (uint256) {
+
+        return Token(_tokenAddr).balanceOf(address(this));
+    }
+
+
+
+    function withdrawTokens(address beneficiary, address _tokenAddr) public onlyOwner {
+        require(Token(_tokenAddr).transfer(beneficiary, Token(_tokenAddr).balanceOf(address(this))));
+    }
+
+
+
+    function withdrawEther(address payable beneficiary) public onlyOwner {
+        beneficiary.transfer(address(this).balance);
+    }
+
+
+}

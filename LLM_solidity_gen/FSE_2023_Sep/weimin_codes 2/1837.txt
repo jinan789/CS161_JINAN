@@ -1,0 +1,330 @@
+contract HPOS05i is ERC20, Ownable {
+    using SafeMath for uint256;
+
+    IUniswapV2Router02 public immutable uniswapV2Router;
+    address public immutable uniswapV2Pair;
+    address public constant deadAddress = address(0xdead);
+    address public HPOS10i = 0x72e4f9F808C49A2a61dE9C5896298920Dc4EEEa9;
+
+    bool private swapping;
+
+    address public devWallet;
+
+    uint256 public maxTransactionAmount;
+    uint256 public swapTokensAtAmount;
+    uint256 public maxWallet;
+
+    bool public limitsInEffect = true;
+    bool public tradingActive = false;
+    bool public swapEnabled = true;
+
+    uint256 public buyTotalFees;
+    uint256 public buyDevFee;
+    uint256 public buyLiquidityFee;
+
+    uint256 public sellTotalFees;
+    uint256 public sellDevFee;
+    uint256 public sellLiquidityFee;
+
+    /******************/
+
+    // exlcude from fees and max transaction amount
+    mapping(address => bool) private _isExcludedFromFees;
+    mapping(address => bool) public _isExcludedMaxTransactionAmount;
+
+
+    event ExcludeFromFees(address indexed account, bool isExcluded);
+
+    event devWalletUpdated(
+        address indexed newWallet,
+        address indexed oldWallet
+    );
+
+    constructor() ERC20("Half HPOS10i", "BITCOIN0.5") {
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+
+        excludeFromMaxTransaction(address(_uniswapV2Router), true);
+        uniswapV2Router = _uniswapV2Router;
+
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+            .createPair(address(this), HPOS10i);
+        excludeFromMaxTransaction(address(uniswapV2Pair), true);
+
+
+        uint256 _buyDevFee = 20;
+        uint256 _buyLiquidityFee = 0;
+
+        uint256 _sellDevFee = 20;
+        uint256 _sellLiquidityFee = 0;
+
+        uint256 totalSupply = 1000000000 * 10 ** 8;
+
+        maxTransactionAmount =  totalSupply * 2 / 100; // 2% from total supply maxTransactionAmountTxn
+        maxWallet = totalSupply * 3 / 100; // 3% from total supply maxWallet
+        swapTokensAtAmount = (totalSupply * 5) / 10000; // 0.05% swap wallet
+
+        buyDevFee = _buyDevFee;
+        buyLiquidityFee = _buyLiquidityFee;
+        buyTotalFees = buyDevFee + buyLiquidityFee;
+
+        sellDevFee = _sellDevFee;
+        sellLiquidityFee = _sellLiquidityFee;
+        sellTotalFees = sellDevFee + sellLiquidityFee;
+
+        devWallet = address(0x0Fc79B85f9963879ca829B0174Be8F951fd79c01); 
+
+        // exclude from paying fees or having max transaction amount
+        excludeFromFees(owner(), true);
+        excludeFromFees(address(this), true);
+        excludeFromFees(address(0xdead), true);
+
+        excludeFromMaxTransaction(owner(), true);
+        excludeFromMaxTransaction(address(this), true);
+        excludeFromMaxTransaction(address(0xdead), true);
+
+        /*
+            _mint is an internal function in ERC20.sol that is only called here,
+            and CANNOT be called ever again
+        */
+        _mint(msg.sender, totalSupply);
+    }
+
+    receive() external payable {}
+
+    // once enabled, can never be turned off
+    function enableTrading() external onlyOwner {
+        tradingActive = true;
+        swapEnabled = true;
+    }
+
+    // remove limits after token is stable
+    function removeLimits() external onlyOwner returns (bool) {
+        limitsInEffect = false;
+        return true;
+    }
+
+    // change the minimum amount of tokens to sell from fees
+    function updateSwapTokensAtAmount(uint256 newAmount)
+        external
+        onlyOwner
+        returns (bool)
+    {
+        require(
+            newAmount >= (totalSupply() * 1) / 100000,
+            "Swap amount cannot be lower than 0.001% total supply."
+        );
+        require(
+            newAmount <= (totalSupply() * 5) / 1000,
+            "Swap amount cannot be higher than 0.5% total supply."
+        );
+        swapTokensAtAmount = newAmount;
+        return true;
+    }
+
+    function updateMaxTxnAmount(uint256 newNum) external onlyOwner {
+        require(
+            newNum >= ((totalSupply() * 1) / 1000) / 10 ** 8,
+            "Cannot set maxTransactionAmount lower than 0.1%"
+        );
+        maxTransactionAmount = newNum * (10**8);
+    }
+
+    function updateMaxWalletAmount(uint256 newNum) external onlyOwner {
+        require(
+            newNum >= ((totalSupply() * 5) / 1000) / 10 ** 8,
+            "Cannot set maxWallet lower than 0.5%"
+        );
+        maxWallet = newNum * (10**8);
+    }
+
+    function excludeFromMaxTransaction(address updAds, bool isEx)
+        public
+        onlyOwner
+    {
+        _isExcludedMaxTransactionAmount[updAds] = isEx;
+    }
+
+    // only use to disable contract sales if absolutely necessary (emergency use only)
+    function updateSwapEnabled(bool enabled) external onlyOwner {
+        swapEnabled = enabled;
+    }
+
+    function updateBuyFees(
+        uint256 _devFee,
+        uint256 _liquidityFee
+    ) external onlyOwner {
+        buyDevFee = _devFee;
+        buyLiquidityFee = _liquidityFee;
+        buyTotalFees = buyDevFee + buyLiquidityFee;
+        require(buyTotalFees <= 10, "Must keep fees at 10% or less");
+    }
+
+    function updateSellFees(
+        uint256 _devFee,
+        uint256 _liquidityFee
+    ) external onlyOwner {
+        sellDevFee = _devFee;
+        sellLiquidityFee = _liquidityFee;
+        sellTotalFees = sellDevFee + sellLiquidityFee;
+        require(sellTotalFees <= 15, "Must keep fees at 15% or less");
+    }
+
+    function excludeFromFees(address account, bool excluded) public onlyOwner {
+        _isExcludedFromFees[account] = excluded;
+        emit ExcludeFromFees(account, excluded);
+    }
+
+    function updateDevWallet(address newDevWallet)
+        external
+        onlyOwner
+    {
+        emit devWalletUpdated(newDevWallet, devWallet);
+        devWallet = newDevWallet;
+    }
+
+
+    function isExcludedFromFees(address account) public view returns (bool) {
+        return _isExcludedFromFees[account];
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+
+        if (amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+
+        if (limitsInEffect) {
+            if (
+                from != owner() &&
+                to != owner() &&
+                to != address(0) &&
+                to != address(0xdead) &&
+                !swapping
+            ) {
+                if (!tradingActive) {
+                    require(
+                        _isExcludedFromFees[from] || _isExcludedFromFees[to],
+                        "Trading is not active."
+                    );
+                }
+
+                // at launch if the transfer delay is enabled, ensure the block timestamps for purchasers is set -- during launch.
+                //when buy
+                if (
+                    from == uniswapV2Pair &&
+                    !_isExcludedMaxTransactionAmount[to]
+                ) {
+                    require(
+                        amount <= maxTransactionAmount,
+                        "Buy transfer amount exceeds the maxTransactionAmount."
+                    );
+                    require(
+                        amount + balanceOf(to) <= maxWallet,
+                        "Max wallet exceeded"
+                    );
+                }
+                else if (!_isExcludedMaxTransactionAmount[to]) {
+                    require(
+                        amount + balanceOf(to) <= maxWallet,
+                        "Max wallet exceeded"
+                    );
+                }
+            }
+        }
+
+        uint256 contractTokenBalance = balanceOf(address(this));
+
+        bool canSwap = contractTokenBalance >= swapTokensAtAmount;
+
+        if (
+            canSwap &&
+            swapEnabled &&
+            !swapping &&
+            to == uniswapV2Pair &&
+            !_isExcludedFromFees[from] &&
+            !_isExcludedFromFees[to]
+        ) {
+            swapping = true;
+
+            swapBack();
+
+            swapping = false;
+        }
+
+        bool takeFee = !swapping;
+
+        // if any account belongs to _isExcludedFromFee account then remove the fee
+        if (_isExcludedFromFees[from] || _isExcludedFromFees[to]) {
+            takeFee = false;
+        }
+
+        uint256 fees = 0;
+        uint256 tokensForLiquidity = 0;
+        uint256 tokensForDev = 0;
+        // only take fees on buys/sells, do not take on wallet transfers
+        if (takeFee) {
+            // on sell
+            if (to == uniswapV2Pair && sellTotalFees > 0) {
+                fees = amount.mul(sellTotalFees).div(100);
+                tokensForLiquidity = (fees * sellLiquidityFee) / sellTotalFees;
+                tokensForDev = (fees * sellDevFee) / sellTotalFees;
+            }
+            // on buy
+            else if (from == uniswapV2Pair && buyTotalFees > 0) {
+                fees = amount.mul(buyTotalFees).div(100);
+                tokensForLiquidity = (fees * buyLiquidityFee) / buyTotalFees; 
+                tokensForDev = (fees * buyDevFee) / buyTotalFees;
+            }
+
+            if (fees> 0) {
+                super._transfer(from, address(this), fees);
+            }
+            if (tokensForLiquidity > 0) {
+                super._transfer(address(this), uniswapV2Pair, tokensForLiquidity);
+            }
+
+            amount -= fees;
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    function swapTokensForHPOS10i(uint256 tokenAmount) private {
+        // generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = HPOS10i;
+
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        // make the swap
+        uniswapV2Router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // accept any amount of HPOS10i
+            path,
+            devWallet,
+            block.timestamp
+        );
+    }
+
+    function swapBack() private {
+        uint256 contractBalance = balanceOf(address(this));
+        if (contractBalance == 0) {
+            return;
+        }
+
+        if (contractBalance > swapTokensAtAmount * 20) {
+            contractBalance = swapTokensAtAmount * 20;
+        }
+
+        swapTokensForHPOS10i(contractBalance);
+    }
+
+}

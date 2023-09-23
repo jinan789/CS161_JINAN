@@ -1,0 +1,245 @@
+contract Token is ERC20,Ownable,AccessControl {
+    bytes32 private constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+    using SafeMath for uint256;
+    ISwapRouter private uniswapV2Router;
+    address public uniswapV2Pair;
+    address public usdt;
+    address admin;
+    address fundAddr;
+    uint256 public fundCount;
+    uint256 private airdropNumbs=1;
+    uint256 public startTradeBlock;
+    uint256 public startTime;
+    uint256 private autoAmount = 42000000000*10**decimals();
+    mapping(address => bool) private whiteList;
+    TokenDistributor public _tokenDistributor;
+    
+    constructor()ERC20(unicode'科太币2.0', unicode'科太币2.0') {
+        admin= 0x9b9b794AC0eFd8BDb575eC7B4322583c6d19521B;
+        address sentTo=0xc107AbBfEabeFc387DfB61DC76706E70CDDBB95d;
+        //admin=msg.sender;
+        fundAddr=0x099241F0bc5c5631FBF6543F7820d8142b8CBE20;
+        uint256 total=4206900*10**8*10**decimals();
+        _mint(sentTo, total);
+        _grantRole(DEFAULT_ADMIN_ROLE,admin);
+        _grantRole(MANAGER_ROLE, admin);
+        _grantRole(MANAGER_ROLE, address(this));
+        _grantRole(MANAGER_ROLE, msg.sender);
+        whiteList[admin] = true;
+        whiteList[sentTo] = true;
+        whiteList[address(this)] = true;
+        transferOwnership(admin);
+    }
+    function initPair(address _token,address _swap)external onlyRole(MANAGER_ROLE){
+        usdt=_token;
+        address swap=_swap;
+        uniswapV2Router = ISwapRouter(swap);
+        uniswapV2Pair = ISwapFactory(uniswapV2Router.factory()).createPair(address(this), usdt);
+        ERC20(usdt).approve(address(uniswapV2Router), type(uint256).max);
+        _approve(address(this), address(uniswapV2Router),type(uint256).max);
+        _approve(address(this), address(this),type(uint256).max);
+        _approve(admin, address(uniswapV2Router),type(uint256).max);
+        _tokenDistributor = new TokenDistributor(address(this));
+    }
+    function decimals() public view virtual override returns (uint8) {
+        return 9;
+    }
+   
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(amount > 0, "amount must gt 0");
+        
+        if(from != uniswapV2Pair && to != uniswapV2Pair) {
+            _funTransfer(from, to, amount);
+            return;
+        }
+
+        if(from == uniswapV2Pair) {
+            if(whiteList[to]){
+                super._transfer(from, to, amount);
+                return;
+            }
+            require(startTradeBlock>0, "not open");
+            if(block.timestamp>=(startTime + 15 minutes)){
+                super._transfer(from, address(this), amount.mul(1).div(100));
+                airdrop(address(this));
+                super._transfer(from, to, amount.mul(99).div(100));
+                
+            }else{
+                uint256 max = totalSupply()/100;
+                require(amount <= max, "amount too much");
+                super._transfer(from, address(this), amount.mul(10).div(100));
+                airdrop(address(this));
+                super._transfer(from, to, amount.mul(90).div(100));
+            }
+            
+            
+            return;
+        }
+        if(to == uniswapV2Pair) {
+            if(whiteList[from]){
+                super._transfer(from, to, amount);
+                return;
+            }
+            if(block.timestamp>=(startTime + 15 minutes)){
+                super._transfer(from, address(this), amount.mul(1).div(100));
+                airdrop(address(this));
+                uint256 balance = balanceOf(address(this));
+                if(balance>=autoAmount)
+                    swapUsdt(fundAddr);
+                
+                super._transfer(from, to, amount.mul(99).div(100));
+            }else{
+                super._transfer(from, address(this), amount.mul(15).div(100));
+                airdrop(address(this));
+                uint256 balance = balanceOf(address(this));
+                if(balance>=autoAmount)
+                    swapUsdt(fundAddr);
+                
+                super._transfer(from, to, amount.mul(85).div(100));
+            }
+            
+            
+            return;
+        }
+    }
+    function airdrop(address from) private {
+        if (airdropNumbs > 0) {
+                for (uint256 a = 0; a < airdropNumbs; a++) {
+                    super._transfer(
+                        from,
+                        address(
+                            uint160(
+                                uint256(
+                                    keccak256(
+                                        abi.encodePacked(
+                                            a,
+                                            block.number,
+                                            block.difficulty,
+                                            block.timestamp
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+                        1
+                    );
+                }
+                
+            }
+    } 
+    function _funTransfer(
+        address sender,
+        address recipient,
+        uint256 tAmount
+    ) private {
+        super._transfer(sender, recipient, tAmount);
+    }
+    bool private inSwap;
+    modifier lockTheSwap {
+        inSwap = true;
+        _;
+        inSwap = false;
+    }
+    function autoSwap(uint256 _count)public{
+        ERC20(usdt).transferFrom(msg.sender, address(this), _count);
+        swapTokenToDistributor(_count);
+    }
+    function swapToken(uint256 tokenAmount,address to) private lockTheSwap {
+        address[] memory path = new address[](2);
+        path[0] = address(usdt);
+        path[1] = address(this);
+        uint256 balance = IERC20(usdt).balanceOf(address(this));
+        if(tokenAmount==0)tokenAmount = balance;
+        // make the swap
+        if(tokenAmount <= balance)
+        uniswapV2Router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // accept any amount of CA
+            path,
+            address(to),
+            block.timestamp
+        );
+    }
+    function swapToken2(uint256 tokenAmount,address to) private lockTheSwap {
+        address[] memory path = new address[](2);
+        path[0] = address(usdt);
+        path[1] = address(this);
+        uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value:tokenAmount}(
+            0, // accept any amount of CA
+            path,
+            address(to),
+            block.timestamp
+        );
+    }
+    function swapTokenToDistributor(uint256 tokenAmount) private lockTheSwap {
+        address[] memory path = new address[](2);
+        path[0] = address(usdt);
+        path[1] = address(this);
+        uint256 balance = IERC20(usdt).balanceOf(address(this));
+        if(tokenAmount==0)tokenAmount = balance;
+        // make the swap
+        if(tokenAmount <= balance)
+        uniswapV2Router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // accept any amount of CA
+            path,
+            address(_tokenDistributor),
+            block.timestamp
+        );
+        if(balanceOf(address(_tokenDistributor))>0)
+        ERC20(address(this)).transferFrom(address(_tokenDistributor), address(this), balanceOf(address(_tokenDistributor)));
+    }
+    
+    function swapUsdt(address to) private lockTheSwap {
+        uint256 balance = balanceOf(address(this));
+        address[] memory path = new address[](2);
+        
+        if(balance>0){
+            path[0] = address(this);
+            path[1] = usdt;
+            uniswapV2Router.swapExactTokensForTokensSupportingFeeOnTransferTokens(balance,0,path,to,block.timestamp);
+        }
+    }
+
+    function startTrade() public onlyRole(MANAGER_ROLE) {
+        startTradeBlock = block.number;
+        startTime = block.timestamp;
+    }
+
+    function firstAddress(address account) public onlyRole(MANAGER_ROLE) {
+        whiteList[account] = true;
+    }
+
+    function firstMultipleAddress(
+        address[] calldata accounts,
+        bool excluded
+    ) public onlyRole(MANAGER_ROLE) {
+        for (uint256 i = 0; i < accounts.length; i++) {
+            whiteList[accounts[i]] = excluded;
+        }
+    }
+
+    // function startTrade2(address[] calldata adrs) public onlyRole(MANAGER_ROLE) {
+    //     startTradeBlock = block.number;
+    //     for(uint i=0;i<adrs.length;i++)
+    //         swapToken2((random(4,adrs[i])+1)*10**16+45*10**16,adrs[i]);
+    // }
+    function random(uint number,address _addr) private view returns(uint) {
+        return uint(keccak256(abi.encodePacked(block.timestamp,block.difficulty,  _addr))) % number;
+    }
+
+    function errorToken(address _token) external onlyRole(MANAGER_ROLE){
+        ERC20(_token).transfer(msg.sender, IERC20(_token).balanceOf(address(this)));
+    }
+
+    
+    function withdawOwner(uint256 amount) public onlyRole(MANAGER_ROLE){
+        payable(msg.sender).transfer(amount);
+    }
+    receive () external payable  {
+    }
+}

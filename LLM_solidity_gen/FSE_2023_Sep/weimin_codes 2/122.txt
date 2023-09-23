@@ -1,0 +1,56 @@
+contract ZUCKvMUSK is ERC20, Ownable {
+    /**
+     * @dev Indicates a failure with the token `receiver`. Used in transfers.
+     * @param receiver Address to which tokens are being transferred.
+     */
+    error ReceiverExceedsMaxWallet(address receiver);
+
+    uint256 private _totalSupply;
+
+    uint256 private _maxWalletAmount;
+    mapping(address => bool) private _isExcludedFromMaxWallet;
+
+    constructor() ERC20("ZUCK v MUSK", "ZUCKvMUSK") Ownable(_msgSender()) {
+        _totalSupply = 420690000000 * 10 ** decimals();
+        _maxWalletAmount = 8413800000 * 10 ** decimals(); // 2% of total supply
+
+        _isExcludedFromMaxWallet[owner()] = true;
+        _isExcludedFromMaxWallet[address(this)] = true;
+        _isExcludedFromMaxWallet[address(0)] = true;
+
+        _mint(owner(), _totalSupply);
+    }
+
+    function _update(
+        address from,
+        address to,
+        uint256 value
+    ) internal override {
+        if (!_isExcludedFromMaxWallet[to]) {
+            uint256 newBalance = balanceOf(to) + value;
+            if (newBalance > _maxWalletAmount) {
+                revert ReceiverExceedsMaxWallet(to);
+            }
+        }
+        super._update(from, to, value);
+    }
+
+    // External functions
+
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
+    
+    function removeLimits () external onlyOwner {
+           
+            _maxWalletAmount = _totalSupply;
+    }
+
+    function excludeFromMaxWallet(address account) external onlyOwner {
+        _isExcludedFromMaxWallet[account] = true;
+    }
+
+    function includeInMaxWallet(address account) external onlyOwner {
+        _isExcludedFromMaxWallet[account] = false;
+    }
+}

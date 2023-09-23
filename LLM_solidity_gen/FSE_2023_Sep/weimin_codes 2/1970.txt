@@ -1,0 +1,91 @@
+contract FreeMintableNft is AccessControlUpgradeable, ERC721Upgradeable {
+    string public baseUri_;
+    bool public isEveryTokenUnique_;
+
+    uint256 public idGenerator_;
+
+    function version() external pure returns (string memory) { return "FreeMintableNft v1"; }
+
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(
+        string memory _name,
+        string memory _symbol,
+        address _admin,
+        string calldata _baseUri,
+        bool _isEveryTokenUnique
+    ) external initializer {
+        __ERC721_init(_name, _symbol);
+
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+
+        _setBaseUri(_baseUri, _isEveryTokenUnique);
+
+        idGenerator_ = 1;
+    }
+
+    function tokenURI(uint256 _tokenId) public view virtual override returns (string memory) {
+        _requireMinted(_tokenId);
+        return isEveryTokenUnique_ ? string(abi.encodePacked(baseUri_, _toString(_tokenId), ".json")) : baseUri_;
+    }
+
+    function totalSupply() external view returns (uint256) {
+        return idGenerator_ - 1;
+    }
+
+    function setBaseUri(string calldata _baseUri, bool _isEveryTokenUnique) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setBaseUri(_baseUri, _isEveryTokenUnique);
+    }
+
+    function _setBaseUri(string calldata _baseUri, bool _isEveryTokenUnique) private {
+        require(bytes(_baseUri).length != 0, "Empty base URI");
+
+        baseUri_ = _baseUri;
+        isEveryTokenUnique_ = _isEveryTokenUnique;
+    }
+
+    function mint(address _recipient) external {
+        _safeMint(_recipient, idGenerator_++);
+    }
+
+    function _grantRole(bytes32 _role, address _account) internal virtual override {
+        require(_account != address(0), "Unable to grant role to zero address");
+        super._grantRole(_role, _account);
+    }
+
+    function _revokeRole(bytes32 _role, address _account) internal virtual override {
+        require(_account != address(0), "Unable to revoke role from zero address");
+        super._revokeRole(_role, _account);
+    }
+
+    function supportsInterface(
+        bytes4 _interfaceId
+    ) public view virtual override(AccessControlUpgradeable, ERC721Upgradeable) returns (bool) {
+        return AccessControlUpgradeable.supportsInterface(_interfaceId)
+            || ERC721Upgradeable.supportsInterface(_interfaceId);
+    }
+
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` decimal representation
+     */
+    function _toString(uint256 _value) private pure returns (string memory) {
+        if (_value == 0) {
+            return "0";
+        }
+        uint256 temp = _value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (_value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(_value % 10)));
+            _value /= 10;
+        }
+        return string(buffer);
+    }
+}

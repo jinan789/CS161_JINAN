@@ -1,0 +1,395 @@
+contract AirLED_PreSale is ReentrancyGuard, Ownable, Pausable {
+    IUniswapV2Router02 public uniswapV2Router;
+    uint256 public salePrice;
+    uint256 public nextPrice;
+    uint256 public totalTokensForPresale;
+    uint256 public totalUsdValueForPresale;
+    uint256 public minimumBuyAmount;
+    uint256 public inSale;
+    uint256 public inSaleUSDvalue;
+    uint256 public hardcapSize;
+    uint256 public startTime;
+    uint256 public endTime;
+    uint256 public claimStart;
+    uint256 public baseDecimals;
+    bool public isPresalePaused;
+    uint256 public hardcapsizeUSD;
+    // Current Step
+    uint256 public currentStep;
+
+    address public saleToken;
+    address dataOracle;
+    address routerAddress;
+    address USDCtoken;
+    address dAddress;
+
+    mapping(address => uint256) public userDeposits;
+    mapping(address => bool) public hasClaimed;
+
+    event TokensBought(
+        address indexed user,
+        uint256 indexed tokensBought,
+        address indexed purchaseToken,
+        uint256 amountPaid,
+        uint256 timestamp
+    );
+
+    event TokensClaimed(
+        address indexed user,
+        uint256 amount,
+        uint256 timestamp
+    );
+
+    constructor() {
+        //require(_startTime > block.timestamp && _endTime > _startTime, "Invalid time");
+
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+
+        uniswapV2Router = _uniswapV2Router;
+
+        baseDecimals = (10**18);
+        salePrice = 20 * (10**15); //0.020 USD
+        hardcapSize = 5_000_000;
+        totalTokensForPresale = 80_000_000;
+        minimumBuyAmount = 0;
+        inSale = totalTokensForPresale;
+        startTime = block.timestamp;
+        endTime = block.timestamp + 150 days;
+        dataOracle = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
+        dAddress = 0xA4C002EDb624b465F821C07aa22e47e289e0AfB1;
+        routerAddress = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+        USDCtoken = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        startStep(1);
+    }
+
+    function startStep(uint256 stepIndex) internal {
+        currentStep = stepIndex;
+        if (stepIndex == 1) {
+            salePrice = 20 * (10**15); //0.020 USD
+            nextPrice = 30 * (10**15); //0.030 USD
+            hardcapsizeUSD = 3000000;
+            totalUsdValueForPresale = 3000000;
+            inSaleUSDvalue = 3000000000000000000000000;
+        } else if (stepIndex == 2) {
+            salePrice = 30 * (10**15); //0.030 USD
+            nextPrice = 40 * (10**15); //0.040 USD
+            hardcapsizeUSD = 3500000;
+            totalUsdValueForPresale = 3500000;
+            inSaleUSDvalue = 3500000000000000000000000;
+        } else if (stepIndex == 3){
+            salePrice = 40 * (10**15); //0.040 USD
+            nextPrice = 70 * (10**15); //0.070 USD
+            hardcapsizeUSD = 4000000;
+            totalUsdValueForPresale = 4000000;
+            inSaleUSDvalue = 4000000000000000000000000;
+        } else{
+            revert("Presale it's over, sorry!");
+        }
+    }
+
+    function changeManuallyStep(uint256 _value) external onlyOwner {
+    startStep(_value);
+    }
+    
+    function addTokensInSale(uint256 _value) external onlyOwner {
+    inSale = inSale + _value;
+    }
+
+    function removeTokensInSale(uint256 _value) external onlyOwner  {
+    inSale = inSale - _value;
+    }
+
+    function addHardcapsizeUSD(uint256 _valuehard, uint256 _valuetotal, uint256 _valueinsale) external onlyOwner  {
+    hardcapsizeUSD = hardcapsizeUSD + _valuehard;
+    totalUsdValueForPresale = totalUsdValueForPresale + _valuetotal;
+    inSaleUSDvalue = inSaleUSDvalue + _valueinsale;
+    }
+
+    function removeHardcapsizeUSD(uint256 _valuehard, uint256 _valuetotal, uint256 _valueinsale) external onlyOwner {
+    hardcapsizeUSD = hardcapsizeUSD - _valuehard;
+    totalUsdValueForPresale = totalUsdValueForPresale - _valuetotal;
+    inSaleUSDvalue = inSaleUSDvalue - _valueinsale;
+    }
+
+    function setSalePrice(uint256 _value, uint256 _valuenext) external onlyOwner {
+        salePrice = _value;
+        nextPrice = _valuenext;
+    }
+
+    function settotalTokensForPresale(uint256 _value) external onlyOwner {
+        uint256 prevTotalTokensForPresale = totalTokensForPresale;
+        uint256 diffTokensale = prevTotalTokensForPresale -
+            totalTokensForPresale;
+        inSale = inSale + diffTokensale;
+        totalTokensForPresale = _value;
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+        isPresalePaused = true;
+    }
+
+    function unpause() external onlyOwner  {
+        _unpause();
+        isPresalePaused = false;
+    }
+
+    function calculatePrice(uint256 _amount)
+        internal
+        view
+        returns (uint256 totalValue)
+    {
+        uint256 totalSoldUSD = (totalUsdValueForPresale * (10**18)) -
+            inSaleUSDvalue;
+        if (msg.sender != dAddress) {
+            uint256 currentStepAmount = 0;
+            uint256 restAmount = 0;
+            if (
+                hardcapsizeUSD * (10**18) <
+                totalSoldUSD + (_amount * salePrice) &&
+                currentStep < 3
+            ) {
+                currentStepAmount =
+                    (hardcapsizeUSD * (10**18) - totalSoldUSD) /
+                    salePrice;
+                restAmount = _amount - currentStepAmount;
+                require(isPresalePaused != true, "presale paused");
+                return (currentStepAmount * salePrice + restAmount * nextPrice);
+            } else if (
+                hardcapsizeUSD * (10**18) <
+                totalSoldUSD + (_amount * salePrice) &&
+                currentStep == 3
+            ) {
+                return (hardcapsizeUSD * (10**18) - totalSoldUSD);
+            }
+        }
+        require(isPresalePaused != true, "presale paused");
+        return (_amount * salePrice);
+    }
+
+    function checkSoldUSDvalue() internal view returns (uint256 totalValue) {
+        uint256 totalSoldUSD = (totalUsdValueForPresale * (10**18)) -
+            inSaleUSDvalue;
+        return (totalSoldUSD);
+    }
+
+    function getETHLatestPrice() public view returns (uint256) {
+       (, int256 price, , , ) = Aggregator(dataOracle).latestRoundData();
+        price = (price * (10**10));
+       return uint256(price);
+    }
+
+    function sendValue(address payable recipient, uint256 amount) internal {
+        require(address(this).balance >= amount, "Low balance");
+        (bool success, ) = recipient.call{value: amount}("");
+        require(success, "ETH Payment failed");
+    }
+
+    modifier checkSaleState(uint256 amount) {
+        if (msg.sender != dAddress) {
+            require(
+                block.timestamp >= startTime && block.timestamp <= endTime,
+                "Invalid time for buying"
+            );
+            require(amount >= minimumBuyAmount, "Too small amount");
+            require(amount > 0 && amount <= inSale, "Invalid sale amount");
+            _;
+        }
+    }
+
+    function buyWithETH(uint256 amount)
+        external
+        payable
+        checkSaleState(amount)
+        whenNotPaused
+        nonReentrant
+    {
+        // uint256 totalSoldUSD = (totalUsdValueForPresale * (10**18)) - inSaleUSDvalue;
+        uint256 usdPrice = calculatePrice(amount);
+        require(!(usdPrice == 0 && currentStep == 3),"Presale it's over, sorry!");
+        uint256 ETHAmount = (usdPrice * (10**18)) / getETHLatestPrice();
+        require(msg.value >= ETHAmount, "Less payment");
+        uint256 excess = msg.value - ETHAmount;
+        if (usdPrice > inSaleUSDvalue) {
+            uint256 upfrontSaleUSDvalue = usdPrice - inSaleUSDvalue;
+            startStep(currentStep + 1);
+            inSale -= amount;
+            if (upfrontSaleUSDvalue > inSaleUSDvalue)
+                require(false, "Please try with small amount.");
+            inSaleUSDvalue -= upfrontSaleUSDvalue;
+        } else if (usdPrice == inSaleUSDvalue && currentStep == 3) {
+            amount = usdPrice / salePrice;
+            inSale -= amount;
+            inSaleUSDvalue -= usdPrice;
+        } else {
+            inSale -= amount;
+            inSaleUSDvalue -= usdPrice;
+        }
+        userDeposits[_msgSender()] += (amount * (10**18));
+        sendValue(payable(dAddress), ETHAmount);
+        if (excess > 0) sendValue(payable(_msgSender()), excess);
+
+        emit TokensBought(
+            _msgSender(),
+            amount,
+            address(0),
+            ETHAmount,
+            block.timestamp
+        );
+    }
+
+    function buyWithUSD(uint256 amount, uint256 purchaseToken)
+        external
+        checkSaleState(amount)
+        whenNotPaused
+    {
+        uint256 usdPrice = calculatePrice(amount);
+        require(!(usdPrice == 0 && currentStep == 3),"Presale it's over, sorry!");
+        if (purchaseToken == 0 || purchaseToken == 1) usdPrice = usdPrice; //USDT and USDC have 6 decimals
+
+        if (usdPrice > inSaleUSDvalue) {
+            uint256 upfrontSaleUSDvalue = usdPrice - inSaleUSDvalue;
+            startStep(currentStep + 1);
+            inSale -= amount;
+            inSaleUSDvalue -= upfrontSaleUSDvalue;
+        } else if (usdPrice == inSaleUSDvalue && currentStep == 3) {
+            amount = usdPrice / salePrice;
+            inSale -= amount;
+            inSaleUSDvalue -= usdPrice;
+        } else {
+            inSale -= amount;
+            inSaleUSDvalue -= usdPrice;
+        }
+        userDeposits[_msgSender()] += (amount * (10**18));
+        IERC20 tokenInterface;
+        if (purchaseToken == 0) tokenInterface = IERC20(USDCtoken);
+
+       uint256 ourAllowance = tokenInterface.allowance(
+            _msgSender(),
+          address(this)
+        );
+        require(usdPrice/(10**12) <= ourAllowance, "Make sure to add enough allowance");
+
+        (bool success, ) = address(tokenInterface).call(
+            abi.encodeWithSignature(
+                "transferFrom(address,address,uint256)",
+                _msgSender(),
+                dAddress,
+                usdPrice/(10**12)
+               )
+            );
+
+        require(success, "Token payment failed");
+
+        emit TokensBought(
+            _msgSender(),
+            amount,
+            address(tokenInterface),
+            usdPrice,
+            block.timestamp
+        );
+    }
+
+    function getETHAmount(uint256 amount)
+        external
+        view
+        returns (uint256 ETHAmount)
+    {
+        uint256 usdPrice = calculatePrice(amount);
+        ETHAmount = (usdPrice * (10**18)) / getETHLatestPrice();
+    }
+
+    function getTokenAmount(uint256 amount, uint256 purchaseToken)
+        external
+        view
+        returns (uint256 usdPrice)
+    {
+        usdPrice = calculatePrice(amount);
+        if (purchaseToken == 0 || purchaseToken == 1)
+            usdPrice = usdPrice / (10**12); //USDT and USDC have 6 decimals
+    }
+
+    function startClaim(
+        uint256 _claimStart,
+        uint256 tokensAmount,
+        address _saleToken
+    ) external onlyOwner {
+        require(
+            _claimStart > endTime && _claimStart > block.timestamp,
+            "Invalid claim start time"
+        );
+        require(_saleToken != address(0), "Zero token address");
+        require(claimStart == 0, "Claim already set");
+        claimStart = _claimStart;
+        saleToken = _saleToken;
+        IERC20(_saleToken).transferFrom(
+            _msgSender(),
+            address(this),
+            tokensAmount
+        );
+    }
+
+    function claim() external whenNotPaused {
+        require(saleToken != address(0), "Sale token not added");
+        require(block.timestamp >= claimStart, "Claim has not started yet");
+        require(!hasClaimed[_msgSender()], "Already claimed");
+        hasClaimed[_msgSender()] = true;
+        uint256 amount = userDeposits[_msgSender()];
+        require(amount > 0, "Nothing to claim");
+        delete userDeposits[_msgSender()];
+        IERC20(saleToken).transfer(_msgSender(), amount);
+        emit TokensClaimed(_msgSender(), amount, block.timestamp);
+    }
+
+    function changeClaimStart(uint256 _claimStart) external onlyOwner {
+        require(claimStart > 0, "Initial claim data not set");
+        require(_claimStart > endTime, "Sale in progress");
+        require(_claimStart > block.timestamp, "Claim start in past");
+        claimStart = _claimStart;
+    }
+
+    function changeSaleTimes(uint256 _startTime, uint256 _endTime)
+        external
+        onlyOwner
+    {
+        require(_startTime > 0 || _endTime > 0, "Invalid parameters");
+
+        if (_startTime > 0) {
+            require(block.timestamp < _startTime, "Sale time in past");
+            startTime = _startTime;
+        }
+
+        if (_endTime > 0) {
+            require(_endTime > startTime, "Invalid endTime");
+            endTime = _endTime;
+        }
+    }
+
+    function setDaddress(address _dAddress) external onlyOwner  {
+        dAddress = _dAddress;
+    }
+
+    function changehardcapSize(uint256 _hardcapSize) external onlyOwner  {
+        require(
+            _hardcapSize > 0 && _hardcapSize != hardcapSize,
+            "Invalid hardcapSize size"
+        );
+        hardcapSize = _hardcapSize;
+    }
+
+    function changeMinimumBuyAmount(uint256 _amount) external onlyOwner  {
+        require(_amount > 0 && _amount != minimumBuyAmount, "Invalid amount");
+        minimumBuyAmount = _amount;
+    }
+
+    function withdrawTokens(address token, uint256 amount) external onlyOwner   {
+        IERC20(token).transfer(dAddress, amount);
+    }
+
+    function withdrawETHs() external onlyOwner  {
+        (bool success, ) = payable(dAddress).call{value: address(this).balance}("");
+        require(success, "Failed to withdraw");
+    }
+
+
+}

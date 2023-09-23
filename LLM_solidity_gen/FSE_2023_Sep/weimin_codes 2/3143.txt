@@ -1,0 +1,28 @@
+contract Ethscrip_Token is TokenOwnable, ReentrancyGuard, ERC20{
+
+    constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
+
+    /*
+        EthscripTokenProtocol processing. Only holders of ethscrip have permission to operate.
+            Splitting is based on Ethscriptions, such as Eths ethscriptions. 
+            There are a total of 21,000 valid ethscriptions, with each ethscriptions corresponding to 1,000 tokens. 
+            The maximum number of tokens that can be split is 21,000,000.
+        EthscripTokenProtocol will automatically handle the inflow of assets.
+    */
+    function mint(address account, uint256 amount) public onlyEthscripOwner nonReentrant{
+        _mint(account, amount);
+    }
+
+    /*
+        EthscripTokenProtocol processing. Only holders of token have permission to operate.
+            EthscripTokenProtocol supports reverse operations of assets.
+            ethscrip -> token; token -> ethscrip;
+            The Principle of Inverse Operation:
+                1 ethscrip = x token;
+                x token = 1 ethscrip;
+        EthscripTokenProtocol will automatically handle the outflow of assets.
+    */
+    function burn(address account, uint256 amount) public onlyTokenOwner nonReentrant{
+        _burn(account, amount);
+    }
+}

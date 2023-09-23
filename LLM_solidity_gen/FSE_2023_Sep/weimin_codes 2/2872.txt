@@ -1,0 +1,47 @@
+contract SeizableBridgeERC20 is Initializable, ISeizable, BridgeERC20 {
+  using Roles for Roles.Role;
+  
+  Roles.Role internal _seizers;
+
+  function initialize(
+    address owner, 
+    IProcessor processor
+  ) 
+    public override initializer 
+  {
+    BridgeERC20.initialize(owner, processor);
+  }
+
+  modifier onlySeizer() {
+    require(isSeizer(_msgSender()), "SE02");
+    _;
+  }
+
+  function isSeizer(address _seizer) public override view returns (bool) {
+    return _seizers.has(_seizer);
+  }
+
+  function addSeizer(address _seizer) public override onlyAdministrator {
+    _seizers.add(_seizer);
+    emit SeizerAdded(_seizer);
+  }
+
+  function removeSeizer(address _seizer) public override onlyAdministrator {
+    _seizers.remove(_seizer);
+    emit SeizerRemoved(_seizer);
+  }
+
+  /**
+   * @dev called by the owner to seize value from the account
+   */
+  function seize(address _account, uint256 _value)
+    public override onlySeizer hasProcessor
+  {
+    _processor.seize(_msgSender(), _account, _value);
+    emit Seize(_account, _value);
+    emit Transfer(_account, _msgSender(), _value); 
+  }
+
+  /* Reserved slots for future use: https://docs.openzeppelin.com/sdk/2.5/writing-contracts.html#modifying-your-contracts */
+  uint256[49] private ______gap;
+}

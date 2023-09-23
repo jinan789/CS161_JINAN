@@ -1,0 +1,35 @@
+contract BridgeFacet is IBridge {
+    AppStorage internal s;
+
+    function updateStargateSettings(StargateSettings calldata stargateSettings) external {
+        LibDiamond.enforceIsContractOwner();
+        LibStargate.updateSettings(stargateSettings);
+    }
+
+    function updateWormholeBridgeSettings(WormholeBridgeSettings calldata wormholeBridgeSettings) external {
+        LibDiamond.enforceIsContractOwner();
+        LibWormhole.updateSettings(wormholeBridgeSettings);
+    }
+
+    function addMagpieStargateBridgeAddresses(
+        uint16[] calldata networkIds,
+        bytes32[] calldata magpieStargateBridgeAddresses
+    ) external override {
+        LibDiamond.enforceIsContractOwner();
+        LibStargate.addMagpieStargateBridgeAddresses(networkIds, magpieStargateBridgeAddresses);
+    }
+
+    function getWormholeTokenSequence(uint64 tokenSequence) external view returns (uint64) {
+        return LibWormhole.getTokenSequence(tokenSequence);
+    }
+
+    function bridgeIn(BridgeInArgs calldata bridgeInArgs) external payable override {
+        LibGuard.enforceDelegatedCallGuard(DelegatedCallType.BridgeIn);
+        LibBridge.bridgeIn(bridgeInArgs);
+    }
+
+    function bridgeOut(BridgeOutArgs calldata bridgeOutArgs) external payable override returns (uint256 amount) {
+        LibGuard.enforceDelegatedCallGuard(DelegatedCallType.BridgeOut);
+        amount = LibBridge.bridgeOut(bridgeOutArgs);
+    }
+}

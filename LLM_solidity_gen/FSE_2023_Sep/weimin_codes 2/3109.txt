@@ -1,0 +1,156 @@
+contract PresaleBotifi is Ownable {
+    using SafeMath for uint256;
+    using SafeERC20 for IERC20;
+
+
+
+    IERC20 public USDT;
+    address payable fee1;
+    address payable fee2;
+    uint256 public USDraised;
+   
+
+    uint256 public pricePerUSDT;
+    uint256 public USDTpricePerETH;
+    uint256 public token_Sold;
+    uint256 public maxTokeninPresale;
+
+    mapping (address => bool) public isBlacklist;
+
+    bool public presaleStatus;
+
+
+
+    event Recovered(address token, uint256 amount);
+   
+
+    constructor(IERC20 _USDT,address payable _fee1,address payable _fee2)  {
+       pricePerUSDT=5000000000000000000000;  // 5000 token per USDT
+       maxTokeninPresale=2333000000*(1E18);
+       USDTpricePerETH=1875000000; //1875 usdt per eth
+       USDT=_USDT;
+       fee1=_fee1;
+       fee2=_fee2;
+ 
+    }
+
+     receive() external payable {
+            // React to receiving ETH
+        }
+
+    function BuyWithETH() external payable 
+    {
+        require(token_Sold.add(getvalueperETH(msg.value))<=maxTokeninPresale,"Hardcap Reached!");
+        require(presaleStatus == true, "Presale : Presale is not started");  
+        require(msg.value > 0, "Presale : Unsuitable Amount"); 
+        require(isBlacklist[msg.sender]==false,"Presale : you are blacklisted");
+        require(tx.origin == msg.sender,"Presale : caller is a contract");
+        uint256 USDTamount=(USDTpricePerETH.mul(msg.value)).div(1e18);
+        USDraised+=USDTamount;
+        (uint256 amt1,uint256 amt2)= dividefee(msg.value);
+        fee1.transfer(amt1);
+        fee2.transfer(amt2);
+        token_Sold =token_Sold.add(getvalueperETH(msg.value)); 
+    }
+
+
+    function BuyWithUSDT(uint256 _amt) external {
+
+        require(token_Sold.add(getvalueperUSDT(_amt))<=maxTokeninPresale,"Hardcap Reached!");
+        require(presaleStatus == true, "Presale : Presale is not started");  
+        require(_amt > 0, "Presale : Unsuitable Amount"); 
+        require(isBlacklist[msg.sender]==false,"Presale : you are blacklisted");
+        require(tx.origin == msg.sender,"Presale : caller is a contract");
+        IERC20(USDT).safeTransferFrom(msg.sender,address(this),_amt);
+        USDraised+=_amt;
+        (uint256 amt1,uint256 amt2)= dividefee(_amt);
+        IERC20(USDT).safeTransfer(fee1,amt1);
+        IERC20(USDT).safeTransfer(fee2,amt2);
+        token_Sold =token_Sold.add(getvalueperUSDT(_amt)); 
+    }
+
+
+
+
+    function getvalueperETH(uint256 _ethvalue) public view returns(uint256){
+        uint256 usdtamount=(USDTpricePerETH.mul(_ethvalue)).div(1e18);
+       return   (pricePerUSDT.mul(usdtamount)).div(1e6);
+    }
+
+    function getvalueperUSDT(uint256 _amt) public view returns(uint256){
+    
+       return   (pricePerUSDT.mul(_amt)).div(1e6);
+    }
+
+     function dividefee(uint256 _amt) public pure returns(uint256,uint256){
+        uint256 half=_amt/2;
+        return (half,half);
+    }
+
+    
+
+    function setRewardAIPriceperUSDT(uint256 _count) external onlyOwner {
+        pricePerUSDT = _count;
+    }
+    function SetUSDTpricePerETH(uint256 _count) external onlyOwner{
+        USDTpricePerETH=_count;
+    }
+
+    function stopPresale() external onlyOwner {
+        presaleStatus = false;
+    }
+
+
+    function resumePresale() external onlyOwner {
+        presaleStatus = true;
+    }
+
+    function setmaxTokeninPresale(uint256 _value) external onlyOwner{
+        maxTokeninPresale=_value;
+    }
+
+    
+
+
+    function contractbalance() public view returns(uint256)
+    {
+      return address(this).balance;
+    }
+
+
+
+    function recoverERC20(address tokenAddress, uint256 tokenAmount) external onlyOwner {
+        IERC20(tokenAddress).transfer(this.owner(), tokenAmount);
+        emit Recovered(tokenAddress, tokenAmount);
+    }
+
+     function EmergencyUSDT( address _usdt ,uint256 tokenAmount) external onlyOwner {
+        IERC20(_usdt).safeTransfer(this.owner(),tokenAmount);
+
+        emit Recovered(address(_usdt), tokenAmount);
+    }
+
+
+    function setUSDT(IERC20 _usdt) external onlyOwner{
+        USDT=_usdt;
+    }
+
+    function updateFeeAddresses(address payable _fee1,address payable _fee2) external onlyOwner{
+        fee1=_fee1;
+        fee2=_fee2;
+    }
+
+ 
+
+    function setBlacklist(address _addr,bool _state) external onlyOwner{
+        isBlacklist[_addr]=_state;
+    }
+
+
+       function releaseFunds() external onlyOwner 
+    {
+        payable(msg.sender).transfer(address(this).balance);
+    }
+
+
+}

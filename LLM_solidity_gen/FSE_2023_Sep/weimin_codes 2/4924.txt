@@ -1,0 +1,113 @@
+contract Presale is Ownable {
+    using SafeMath for uint256;
+
+    IERC20 public token;
+    IERC20 public usdtToken;
+    AggregatorV3Interface internal price_feed;
+    uint256 public usdRate = 1666; // 1 USD = 1666 Tokens
+    uint256 public usdRaised;
+    uint256 public minUsdtPurchase = 10e6; // 10 USDT minimum purchase
+    uint256 public minEthPurchase = 0.005 ether; // 0.005 ETH minimum purchase
+    uint256 public startTime;
+    uint256 public endTime;
+
+    event TokensPurchased(address indexed buyer, uint256 amount);
+    event TokensRecovered(address indexed sender, address indexed tokenAddress, uint256 amount);
+
+    constructor(address _tokenAddress, address _usdtTokenAddress, address _oracle, uint256 _startTime, uint256 _endTime) {
+        token = IERC20(_tokenAddress);
+        usdtToken = IERC20(_usdtTokenAddress);
+        price_feed = AggregatorV3Interface(_oracle);
+        startTime = _startTime;
+        endTime = _endTime;
+        _transferOwnership(msg.sender);
+    }
+
+    modifier onlyDuringSale() {
+        require(block.timestamp >= startTime && block.timestamp <= endTime, "Presale is not active");
+        _;
+    }
+
+    function getEthInUsdt() internal view returns (uint256) {
+        (, int256 price, , , ) = price_feed.latestRoundData();
+        price = price * 1e10;
+        return uint256(price);
+    }
+
+    function buyTokensWithETH() external payable onlyDuringSale {
+        require(msg.value >= minEthPurchase, "ETH amount below minimum purchase");
+
+        uint256 amountInUsdt = (msg.value * getEthInUsdt()) / 1e30;
+
+        uint256 amountInTokens = amountInUsdt.mul(usdRate).mul(1e18).div(1e6);
+        require(amountInTokens <= token.balanceOf(address(this)), "Not enough tokens available");
+
+        (bool ethTransferSuccess, ) = payable(owner()).call{value: msg.value}("");
+        require(ethTransferSuccess, "ETH transfer failed");
+
+        token.transfer(msg.sender, amountInTokens);
+        usdRaised = usdRaised.add(amountInUsdt);
+        emit TokensPurchased(msg.sender, amountInTokens);
+    }
+
+    function buyTokensWithUSDT(uint256 usdtAmount) external onlyDuringSale {
+        require(usdtAmount >= minUsdtPurchase, "USDT amount below minimum purchase");
+
+        uint256 amountInUsdt = usdtAmount;
+        uint256 amountInTokens = amountInUsdt.mul(usdRate).mul(1e18).div(1e6);
+
+        require(amountInTokens <= token.balanceOf(address(this)), "Not enough tokens available");
+        require(usdtToken.transferFrom(msg.sender, owner(), amountInUsdt), "USDT transfer failed");
+
+        token.transfer(msg.sender, amountInTokens);
+        usdRaised = usdRaised.add(amountInUsdt);
+        emit TokensPurchased(msg.sender, amountInTokens);
+    }
+
+    function setUsdRate(uint256 newUsdRate) external onlyOwner {
+        require(newUsdRate > 0, "USD rate must be greater than zero");
+        usdRate = newUsdRate;
+    }
+
+    function setMinUsdtPurchase(uint256 amount) external onlyOwner {
+        minUsdtPurchase = amount;
+    }
+
+    function setMinEthPurchase(uint256 amount) external onlyOwner {
+        minEthPurchase = amount;
+    }
+
+    function setStartTime(uint256 _startTime) external onlyOwner {
+        startTime = _startTime;
+    }
+
+    function setEndTime(uint256 _endTime) external onlyOwner {
+        endTime = _endTime;
+    }
+
+    function setTokenContract(address newTokenAddress) external onlyOwner {
+        require(newTokenAddress != address(0), "Token contract address cannot be zero");
+        token = IERC20(newTokenAddress);
+    }
+
+    function setUsdtTokenContract(address newUsdtTokenAddress) external onlyOwner {
+        require(newUsdtTokenAddress != address(0), "USDT Token contract address cannot be zero");
+        usdtToken = IERC20(newUsdtTokenAddress);
+    }
+
+    function withdrawFunds() external onlyOwner {
+        uint256 ethBalance = address(this).balance;
+        (bool success, ) = payable(msg.sender).call{value: ethBalance}("");
+        require(success, "ETH withdrawal failed");
+    }
+
+    function recoverWrongTokens(address _tokenAddress) external onlyOwner {
+        IERC20 wrongToken = IERC20(_tokenAddress);
+        uint256 balance = wrongToken.balanceOf(address(this));
+        require(balance > 0, "No tokens to recover");
+
+        require(wrongToken.transfer(owner(), balance), "Token recovery failed");
+
+        emit TokensRecovered(msg.sender, _tokenAddress, balance);
+    }
+}

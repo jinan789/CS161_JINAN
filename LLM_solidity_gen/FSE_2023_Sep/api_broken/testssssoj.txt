@@ -1,0 +1,425 @@
+Some notes:
+1. To better describe what we did to improve the framework at each round, we could use the feedback from the round 1-8 outputs as an additional source of information
+1.5 also, we could also refer to the prompts themselves (the txt files) for a better clue on what was changed
+2. For better semi-automated collection of feedback, we could compile all of the feedback into one file, and ask GPT-4 to deduplicate
+3. Again, for better semi-automation, we could ask GPT-4 to perform preliminary deduplication, summarization, and pattern matching on the reports. GPT-4 is good at this type of task, and we could again ask to turn creation into verification (with a step by step explanation for each removal, deduplication, or matching.)
+（with the semi-automated approach, we could test it on the found patterns and see if we miss any or contain all.）
+(I,e, batched varification and feedback extraction)
+4. Also, at the earlier stages, we broke a contract into multiple parts (e.g. PART1, PART2, etc), and took each as a separate API call. However, by noting that there are way more contracts to be processed and we could shift to a different contract for a more diverse set of inputs, we abandoned this design and instead input single contracts.
+5. Also discuss the limitations and tradeoffs of each of the found patterns
+6. Mention that are modifications to the demo codes did not change the core functionality, and eased the presentation
+7. We could also introduce some categorizations and say that some certain found patterns are tradeoff and may sacrifice something else. (e.g. pattern 19)
+8. AVOID adjectives!!!
+9. Earlier versions include reflections under each of the round latex sections. We could refer to that as additional source of information.
+10. Additional improvements during the tuning phase: At the beginning, we input pure files, and some of the files were overly long and we had to perform manual adjustments to remove extra lines/comments. This was very time consuming. Later on, we selected the first N lines. Then, we selected/filtered based on contracts/functions.
+11. Discussion: contribution of short functions: inter-procedural calls exist and short ones could still contribute to such. Justification: however, as the set of our preliminarily found patterns only contained 1 (check this num) inter-procedural pattern (i.e. cross functional security check).
+12. Regarding the optimization/tuning process, say that we did not intentionally make 1 improvement across each round. Instead, we continuously made improvements and in total took 70 contracts and established an initial set of patterns.
+13. To say that we also asked for feedback on the P and S category and found that this is not quite useful (no useful info provided), and decided to drop it. (But it is still probably better to keep the self reflection questions.)
+14. Pattern 20: relies on some not-so-likely conditions, but we could later say that we have some categories that rely on specific conditions.
+15. Discussion: explainability of the GPT-4 model or LLM in general remains an issue, which prevents us from better understanding the system.
+16. MAYBE NOT: say that our discovery process itself is the prompt running and tuning process. Rather, we tune while running. Use statistics along the way to show improvements. Mention the observation that later stages 
+(But we still want to blur the line of training iterations per 10 contracts, and instead say that we made continuous improvements at each contract and rounds are just for it easy for us to count and manage things)
+(This way, we can say that any further improvements (e.g. prompt tuning))
+(NOTE: say that we did not rotate FSE patterns, but instead selected and updated most representative pattern categories)
+(So far: 70 contracts for tuning and 35 + 35 + 35. To run ablation, sample from . Say that the first 35: added/finalized single occurrence requirements, . second 35: relaxed single occurrence, added semi-automatic verification. Third 35: TODO. Say that the running round (step 3) tunes slower and focuses more on pattern finding.)
+(Refer to the paper draft for a better idea"NOW ITS'S ")
+17. Make sure pure functions are put first, in both figures, tables, and datasets
+18. Say that each reported pattern is a pattern and we summarize them into meta-patterns (or BETTER: say the reported patterns are reported patterns, and we summarize them into meta-patterns, simplified to be called patterns)
+19 say that it is difficult or we just did not track exactly what we improved at each contract, but rather a holistic accounting of our improvements for the first 70 contracts.
+20 later should consider swapping earlier found patterns to have smaller indices. This could be automated by Python
+21. Regarding how our method saves gas, we can compute an approximation of how much time manual code reading costs.
+22. The A category counts are not quite reliable yet, could instead just present them as a qualitative discussion
+(One solution is to combine some later categories into earlier ones, and use later ones as examples
+23: For RQ2 presentation, we could also present the number and percentage and etc. of the failure reasons
+24: Limitation: even though we performed ablation to show the effectiveness of our major design choices, further exploration of some of our improvements made during the tuning phase could still be needed.
+25. Discussion regarding existing works: 1. Post reading. 2. Manual finding. Out work can do both and can find more than existing.
+
+
+
+
+wechat notes:
+1. Removing codes: to prove gpt’s memory 
+2. For the ablation, compare the original ones to the ablation ones, and try to find any diffs. (Present a table of differences (compare pattern by pattern among ablation and against ablation))
+3. contribution: we introduce some metrics to evaluate the performance.
+4. make sure to also discuss how we classified the reported patterns.
+
+
+
+
+
+Repeated Condition Check    & 1.1   & 16  &  Y      & repeated "onlyUnpauser" modifier causes repeated require checks   \\
+
+
+\hline 
+\hline 
+
+Constant Function Hash Calculation    & 1.2  & 1  &  Y      &   \\
+Redundant Success Check    &1.2   & A4  &  N      &   \\
+
+\hline 
+\hline 
+
+
+Redundant Address Check    & 1.3  &A4   & N       & The address to be checked against 0 is an input, which requires validation   \\
+Repeated Calls to External Contracts    & 1.3  &A5   &  N      &   \\
+Redundant Memory Array Initialization    & 1.3  & 17  & Y      &  Take this as an example for pattern 17. more at the pattern specification. \\
+\hline 
+\hline 
+
+
+
+Repeated Check for Zero Addresses    & 1.4  &A5   &  N      &   \\
+Expensive Storage Operations    & 1.4  & A3  &  N      &   \\
+Usage of ‘require‘ for Input Validation    & 1.4  & 18  &  Y      & NOTE: this is not a found pattern from the codes, but rather an imaginarily inferred one. Need to find examples  \\
+    
+\hline 
+\hline 
+
+
+
+
+Repeated computation of ‘\_msgSender()‘    & 1.5  &A5   &  N      &   \\
+Repeated computation of ‘\_allowances[owner][spender]‘    & 1.5  &A5   &  N      &   \\
+    
+\hline 
+\hline 
+
+
+
+Redundant Condition Check    & 1.6  & 9  &  Y     & NOTE: use a mapping to substitute complicated branched for (e.g. iterated to find a matching index) or if (iterated checking some conditions that could be changed to a map) HOWEVER, this case needs to be verified by codes. Not guaranteed to reduce gas \\
+Multiple Calls to the Same Function    & 1.6  &A5   &  N      &   \\
+    
+\hline 
+\hline 
+
+
+Repeating Expensive Operations    & 1.7  & A5  &  N      &   \\
+Redundant Conditional Statement    & 1.7  &A3   &  N      &   \\
+Unnecessary State Updates    & 1.7  & 19  &  Y      &   \\
+    
+\hline 
+\hline 
+
+
+Redundant Condition Checks in transfer Function    & 1.8  &A4   &  N      &   \\
+Redundant Computation in openTrading Function    & 1.8  & 1  &  Y    &   \\
+\hline 
+\hline 
+
+
+Inefficient Storage Reading    & 1.9  & A5  &  N      &   \\
+Redundant Ownership Check    & 1.9  &A4   &  N      &   \\
+    
+\hline 
+\hline 
+
+Use of SafeMath library for arithmetic operations    & 1.10  & 22  &  Y      & This example is "pragma solidity 0.8.20;", which is higher than 0.8.0, so safe math is not needed anymore.  \\
+Use of public variable setters    & 1.10  & 23  &  Y      & This is one of those patterns that are made up, but make sense, and could potentially be applied elsewhere  \\
+    & 1.10  &   &  N      &   \\
+    
+\hline 
+\hline 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\todo{RSM scores are available from round 2}
+
+
+Extensive use of storage    & 2.1  &A3   &  N      &   \\
+Redundant condition checks    & 2.1  & 20  &  Y     &relies on some not-so-likely conditions, but we could later say that we have some categories that rely on specific conditions. From 0x2f8fD77D037C0778E98fF160168995CD14634eaE  \\
+Frequent emission of events    & 2.1  & 21  &  Y      &  From 0x2f8fD77D037C0778E98fF160168995CD14634eaE  \\
+Unnecessary type conversions     & 2.1  & A4  &  N      &   \\
+   
+\hline 
+\hline 
+
+
+Repeated Balance Checks    & 2.2  &A4   &  N      &   \\
+Excessive use of require statements    & 2.2  & A4  &  N      &  A4 because the require checks are necessary \\
+Inefficient Storage Access    & 2.2  & A4  &  N      &   \\
+    
+\hline 
+\hline 
+
+
+Redundant balance checking    & 2.3  &A4   &  N      &   \\
+Avoiding multiple storage reads    & 2.3  &A4   &  N      &   \\
+Multiple conditional checks    & 2.3  & A4  &  N      &   \\
+    
+\hline 
+\hline 
+
+Redundant `require` checks    & 2.4  &A3   &  N      &   \\
+Multiple contract interactions in a loop    & 2.4  & A3  &  N      & conditioned on swap being refactorable and redundant   \\
+Potential for redundant allowance checks    & 2.4  & A3  &  N      &   \\
+    
+\hline 
+\hline 
+
+
+
+Redundant Approval Checks    & 2.5  &A3   &  N      &   \\
+Unnecessary Balance Check    & 2.5  &A4   &  N      &   \\
+
+\hline 
+\hline 
+
+
+
+
+
+Redundant Gas Calculation    & 2.6  & A4  &  N      &   \\
+Use of Conditional Statement Where Not Necessary    & 2.6  &A3   &  N      & That way, in the case that the fees are already 0, huge gas cost will be incurred  \\
+Multiple Checks for the Same Condition      & 2.6  & A4  &  N      &   \\
+\hline 
+\hline 
+
+
+
+
+Redundant Checks    & 2.7  &A4   &  N      &   \\
+Unnecessary Memory Allocation    & 2.7  &A10   &  N      &   \\
+Redundant Subtraction    & 2.7  & A3  &  N      &   \\
+\hline 
+\hline 
+
+
+
+
+Repeated Calls to External Contract Functions    & 2.8  &A5   &  N      &   \\
+Use of 'now' alias for 'block.timestamp'    & 2.8  &A4   &  N      &   \\
+Frequent use of multiplication and division by 1e18    & 2.8  &A10   &  N      &   \\
+\hline 
+\hline 
+
+
+
+
+Unnecessary conditional checks    & 2.9  &A3   &  N      &   \\
+Redundant Balance Calculations    & 2.9  &A4   &  N      & those repeated accesses to the map variable is distributed across different if-else branches, which means they cannot be executed within one function call at the same time.  \\
+\hline 
+\hline 
+
+
+
+
+Use of `require` statements    & 2.10  & A3  &  N      & Trading requires for gas cost is a terrible idea  \\
+Access of storage variables    & 2.10  & A4  &  N      &   \\
+Redundant contract interactions    & 2.10  & A4  &  N      &   \\
+\hline 
+\hline 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Repeated contract instance creation    & 3.1  &A4   &  N      &   \\
+Redundant State Variable Assignments    & 3.1  & A5  &  N      &   \\
+Unnecessary Data Loading    & 3.1  & 1  &  Y      &   \\
+\hline 
+\hline 
+
+
+
+
+
+
+Repeatedly Accessing State Variables    & 3.2  &1   &  Y      &   \\
+Redundant State Variable Checks    & 3.2  &A13   &  N      &   \\
+Unnecessary Array Pushes    & 3.2  &A3   &  N      &   \\
+\hline 
+\hline 
+
+
+
+
+Multiple calls to the same function    & 3.3  & A4  &  N      &   \\
+Unnecessary calculations inside a conditional block    & 3.3  & A5  &  N      &   \\
+\hline 
+\hline 
+
+
+
+
+Frequent Access to External Contracts and Storage    & 3.4  &A5   &  N      &   \\
+Redundant Storage Reads    & 3.4  &A5   &  N      &   \\
+Unnecessary Conditionals    & 3.4  &A4   &  N      &   \\
+\hline 
+\hline 
+
+
+
+
+Redundant Storage Reads    & 3.5  &A5   &  N      &   \\
+Repeated Function Calls    & 3.5  &A5   &  N      &   \\
+\hline 
+\hline 
+
+
+
+
+Redundant Condition Checks    & 3.6  &A5   &  N      &   \\
+Unnecessary Math Operations    & 3.6  &A8   &  N      &   \\
+Redundant State Variables Updates    & 3.6  &A5   &  N      &   \\
+\hline 
+\hline 
+
+
+
+
+Repeated computation in loops    & 3.7  &1   &  Y      &   \\
+Expensive storage operations    & 3.7  &A5   &  N      &   \\
+\hline 
+\hline 
+
+
+
+
+Repeated calls to the \_gameStatus function    & 3.8  &A5   &  N      &   \\
+Multiple checks for admin or game manager privileges    & 3.8  &A5   &  N      &   \\
+Unnecessary storage of boolean variables in the Game struct    & 3.8  &A3   &  N      &   \\
+\hline 
+\hline 
+
+
+
+
+Redundant SSTORE Operations    & 3.9  & A5  &  N      &   \\
+Redundant SLOAD Operations    & 3.9  & A5  &  N      &   \\
+\hline 
+\hline 
+
+
+
+
+Redundant Storage Operations in `set` and `setBalance` Functions    & 3.10  & A5  &  N      &   \\
+Unnecessary Write Operations in `remove` Function    & 3.10  & A10  &  N      &   \\
+\hline 
+\hline 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Accessing Length Property Multiple Times    & 3.1  & A5  &  N      &   \\
+
+\hline 
+\hline 
+
+
+Redundant Balance Check    & 3.2  &24   &  Y      & it saves gas if there are multiple transfer_froms from the same address, which saves repeated accesses to the "from" balance. Some issues: in the example The new if check does not quite make sense.  It also deleted the unchecked keyword for no legitimate reason.   \\
+\hline 
+\hline 
+
+
+Repeated Use of Storage Variables    & 3.3  &A4   &  N      &  The specified storage reads and writes are necessary \\
+Multiple Storage Writes    & 3.3  &A8   &  N      &   \\
+\hline 
+\hline 
+
+
+Multiple Calls to the Same Function    & 3.4  & A4   &  N      & No twice found  \\
+Multiple Comparisons with Zero    & 3.4  &A15   &  N      & How do we combine these two logical statements...  \\
+\hline 
+\hline 
+
+
+Redundant ABI Encodings    & 3.5  &A3   &  N      & It requires us to send a totally incompatible set of params to another function call, and asks us to change the called function's signature just to match its incompatible params  \\
+Hardcoded Gas Limit    & 3.5  &A15   &  N      &  It asks for a better approximation of gas, that's too much to ask and the hardcoded gas limit is already part of the design of the original codes, and is not suitable to be changed. \\
+Repeated Access of `params_` Struct Members    & 3.5  &A4   &  N      &  \\
+\hline 
+\hline 
+
+
+Repeated External Function Calls    & 3.6  & 1  &  Y      &   \\
+Multiple Calls to `IERC20Detailed` and `IStableDebtToken`    & 3.6  &1   &  Y      &   \\
+\hline 
+\hline 
+
+Multiple Storage Reads    & 3.7  &1   &  Y      &   \\
+Unused Computation    & 3.7  & A3  &  N      &"but if `applications[_tick].expireAt == 0`, the loop continues without using `_votes`"   \\
+Over-allocation of Memory    & 3.7  &A3   &  N      &   \\
+\hline 
+\hline 
+
+Excessive use of inline Assembly    & 3.8  &A3   &  N      &   \\
+Repeatedly calling \texttt{sload} function.   & 3.8  & A3  &  N      & "which could potentially be executed multiple times"  \\
+Unnecessary forced revert    & 3.  & A4  &  N      &seems like it's a design feature   \\
+\hline 
+\hline 
+
+Repeated Keccak256 computation    & 3.9  &A4   &  N      &" This operation could be repeated elsewhere in the contract, which would be wasteful. "   \\
+Redundant computation in require statements    & 3.9  & A3  &  N      &  moving computation off chain is a bad idea \\
+High gas usage in the linearPolynomialEvaluation function    & 3.9  & A3  &  N      & "It is not shown in the code, but the `linearPolynomialEvaluation` function is likely computationally heavy. It probably iterates"  \\
+\hline 
+\hline 
+
+Use of `require` to check conditions multiple times    & 3.10  & A4  &  N      & each require has its own error message  \\
+Repeated computation of hash and unnecessary storage access    & 3.10  & A4  &  N      & Not much we can do with reading and assignment  \\
+\hline 
+\hline 

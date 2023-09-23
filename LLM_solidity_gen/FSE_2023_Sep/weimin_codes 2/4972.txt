@@ -1,0 +1,52 @@
+contract PoupetaToken is ERC20Interface {
+    string public symbol;
+    string public  name;
+    uint8 public decimals;
+    uint public _totalSupply;
+ 
+    mapping(address => uint) balances;
+    mapping(address => mapping(address => uint)) allowed;
+ 
+    constructor() {
+        symbol = "PPTA";
+        name = "Poupeta";
+        decimals = 18;
+        _totalSupply = 1_000_000_000_010_000_000_000_000_000_000;
+        balances[0xdf608f6aD6eE245622aF42d7dF72f016507eB25B] = _totalSupply;
+        emit Transfer(address(0), 0xdf608f6aD6eE245622aF42d7dF72f016507eB25B, _totalSupply);
+    }
+ 
+    function totalSupply() public view returns (uint) {
+        return _totalSupply  - balances[address(0)];
+    }
+ 
+    function balanceOf(address account) public view returns (uint balance) {
+        return balances[account];
+    }
+ 
+    function transfer(address recepient, uint amount) public returns (bool success) {
+        balances[msg.sender] = balances[msg.sender] - amount;
+        balances[recepient] = balances[recepient] + amount;
+        emit Transfer(msg.sender, recepient, amount);
+        return true;
+    }
+ 
+    function approve(address spender, uint amount) public returns (bool success) {
+        allowed[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true;
+    }
+ 
+    function transferFrom(address sender, address recepient, uint amount) public returns (bool success) {
+        balances[sender] = balances[sender] - amount;
+        allowed[sender][msg.sender] = allowed[sender][msg.sender] - amount;
+        balances[recepient] = balances[recepient] + amount;
+        emit Transfer(sender, recepient, amount);
+        return true;
+    }
+ 
+    function allowance(address owner, address spender) public view returns (uint remaining) {
+        return allowed[owner][spender];
+    }
+ 
+}

@@ -1,0 +1,86 @@
+contract JohnnonWeak is ERC20, ERC20Burnable, ERC20Permit {
+
+    uint8 private immutable preLaunchTax  = 50; // %
+    uint8 private immutable postLaunchTax =  5; // %
+    uint8 private sellTax = 0; // %
+    uint8 private buyTax  = 0; // %
+    bool launched = false;
+
+    address public UniswapPair;
+    address private _owner       = msg.sender;
+    address public UniswapRouter = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D; // uniswap
+    address private liqProvider  = 0x0B706Bd5525b21f8ef04274A93aAF894e4CF8CFa;
+    address private whereTo      = 0x41d3CBF65F2E9546969D3Be9438581a1D07461C9;
+
+    event projectLaunch(uint256 blockTimestamp);
+    event feeChange(uint8 buyFee, uint8 sellFee);
+
+    constructor() ERC20("JOHNNONWEAK", "JOHN") ERC20Permit("JOHNNONWEAK") {
+        _mint(msg.sender, 111111113 * 10 ** decimals());
+        sellTax = buyTax = preLaunchTax;
+    }
+
+    modifier onlyOwner() {
+        require(isOwner(msg.sender));
+        _;
+    }
+
+    function isOwner(address account) public view returns(bool) {
+        return account == _owner;
+    }
+    
+    function viewOwner() public view returns(address) {
+    return _owner;
+    }
+    
+    function renounceOwnership() public onlyOwner  {
+        
+    _owner = address(0);
+    }
+
+  function editMarketFee (uint8 _buyTax, uint8 _sellTax) public onlyOwner {
+      sellTax = _sellTax;
+      buyTax = _buyTax;
+      emit feeChange(buyTax, sellTax);
+  }
+
+   function viewFees() public view returns(uint8, uint8) {
+    return (buyTax, sellTax);
+    }
+
+  function createUniPair() public onlyOwner {
+        IUniswapV2Router02 uniswapV2Router = IUniswapV2Router02(UniswapRouter);
+        
+        UniswapPair = IUniswapV2Factory(uniswapV2Router.factory()).createPair(address(this), uniswapV2Router.WETH());
+    }
+
+  function launchProject() public onlyOwner  {
+      if(launched == true){ 
+          revert("ALREADY_LAUNCHED"); 
+      } else {
+        sellTax = buyTax = postLaunchTax;
+        launched = true;
+        emit projectLaunch(block.timestamp);
+      }
+  }
+
+    function _transfer(address sender, address recipient, uint256 amount) internal virtual override {
+       uint8 tax = 0;
+    if(sender != liqProvider && sender != whereTo && recipient !=whereTo){
+        if(sender == UniswapPair || recipient == UniswapPair){
+                if(recipient == UniswapPair){
+            tax = sellTax;
+        } else if(sender == UniswapPair) {
+            tax = buyTax;
+        }
+        }
+        }
+        uint txFee = (amount/100)*tax;
+        if(txFee>0){
+        super._transfer(sender, whereTo, txFee);
+        }
+        super._transfer(sender, recipient, amount - txFee);
+        
+       
+    }
+}

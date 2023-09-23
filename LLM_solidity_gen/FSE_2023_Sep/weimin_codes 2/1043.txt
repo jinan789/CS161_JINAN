@@ -1,0 +1,167 @@
+contract KermitGENESIS is Ownable, ERC721A, DefaultOperatorFilterer {
+
+    using Strings for uint256;
+
+    string private baseTokenURI;
+
+    IERC20 public kermitToken = IERC20(0x53250B5DFA8C911547aFeAf18DB025024C8E919A); // Address of the $kermit token
+
+    uint256 public mintCost = 0.03 ether;
+
+    uint64 public maxSupply = 300;
+
+    uint64 public whitelistTotalSupply = 0;
+    uint64 public publicTotalSupply = 0;
+
+    bool public whitelistActive = false;
+    bool public publicSaleActive = false;
+
+    constructor() ERC721A("Kermit GENESIS", "KG") {}
+
+    modifier mintCompliance(uint256 _mintAmount) {
+        require(_mintAmount > 0 , "Invalid mint amount!");
+        require(totalMinted() + _mintAmount <= maxSupply, "Max supply exceeded!");
+        _;
+    }
+
+    modifier hasRequiredKermitTokens(address _address) {
+        require(kermitToken.balanceOf(_address) >= 1e6 * 1e18, "You need at least 1 million $kermit tokens to mint!");
+        _;
+    }
+
+    function whitelistMint(uint64 _mintAmount) public payable mintCompliance(_mintAmount) hasRequiredKermitTokens(msg.sender) {
+        require(whitelistActive, "Whitelist is not Active");
+        require(msg.value == mintCost * _mintAmount, "Insufficient funds!");
+
+        whitelistTotalSupply += _mintAmount;
+
+        _safeMint(msg.sender, _mintAmount);
+    }
+
+    function publicMint(uint64 _mintAmount) public payable mintCompliance(_mintAmount) {
+        require(publicSaleActive, "Public sale is not Active");
+        require(tx.origin == msg.sender);
+
+        require(msg.value == mintCost * _mintAmount, "Insufficient funds!");
+
+        publicTotalSupply += _mintAmount;
+        _safeMint(msg.sender, _mintAmount);
+    }
+
+
+    ///Allows owner of the collection to airdrop a token to any address
+    function ownerMint(uint256 _mintAmount, address _receiver) public mintCompliance(_mintAmount) onlyOwner {
+        _safeMint(_receiver, _mintAmount);
+    }
+
+    //@return token ids owned by an address in the collection
+    function walletOfOwner(address _owner)
+        external
+        view
+        returns (uint256[] memory)
+    {
+        uint256 ownerTokenCount = balanceOf(_owner);
+        uint256[] memory ownedTokenIds = new uint256[](ownerTokenCount);
+        uint256 currentTokenId = 1;
+        uint256 ownedTokenIndex = 0;
+
+        while (ownedTokenIndex < ownerTokenCount && currentTokenId <= maxSupply) {
+            if(exists(currentTokenId) == true) {
+                address currentTokenOwner = ownerOf(currentTokenId);
+
+                if (currentTokenOwner == _owner) {
+                    ownedTokenIds[ownedTokenIndex] = currentTokenId;
+                    ownedTokenIndex++;
+                }
+            }
+            currentTokenId++;
+        }
+
+        return ownedTokenIds;
+    }
+
+    function transferFrom(address from, address to, uint256 tokenId) public override onlyAllowedOperator(from) {
+        super.transferFrom(from, to, tokenId);
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) public override onlyAllowedOperator(from) {
+        super.safeTransferFrom(from, to, tokenId);
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data)
+        public
+        override
+        onlyAllowedOperator(from)
+    {
+        super.safeTransferFrom(from, to, tokenId, data);
+    }
+
+    //@return full url for passed in token id 
+    function tokenURI(uint256 _tokenId)
+
+        public
+        view
+        virtual
+        override
+        returns (string memory)
+
+    {
+
+        require(
+        _exists(_tokenId),
+        "ERC721Metadata: URI query for nonexistent token"
+        );
+
+        string memory currentBaseURI = _baseURI();
+
+        return bytes(currentBaseURI).length > 0
+
+            ? string(abi.encodePacked(currentBaseURI, _tokenId.toString(), ""))
+
+            : "";
+    }
+
+    //@return amount an address has minted during all sales
+    function numberMinted(address _owner) public view returns (uint256) {
+        return _numberMinted(_owner);
+    }
+
+    function exists(uint256 _tokenId) public view returns (bool) {
+        return _exists(_tokenId);
+    }
+
+    //@return url for the nft metadata
+    function _baseURI() internal view virtual override returns (string memory) {
+        return baseTokenURI;
+    }
+
+    function setBaseURI(string calldata _URI) external onlyOwner {
+        baseTokenURI = _URI;
+    }
+    
+
+    function withdraw() public onlyOwner {
+        (bool os, ) = payable(owner()).call{value: address(this).balance}("");
+        require(os);
+    }
+
+    function setWhitelistActive(bool _state) public onlyOwner {
+        whitelistActive = _state;
+    }
+
+    function setPublicActive(bool _state) public onlyOwner {
+        publicSaleActive = _state;
+    }
+
+    function totalMinted() public view returns (uint256) {
+        return whitelistTotalSupply + publicTotalSupply;
+    }
+
+    function checkKermitFunds(address _wallet) public view returns (uint256) {
+    return kermitToken.balanceOf(_wallet);
+    }
+
+    /// Fallbacks 
+    receive() external payable { }
+    fallback() external payable { }
+}

@@ -1,0 +1,86 @@
+contract MToken is BRC20, Owned, ExcludedFromFeeList {
+    bool inSwapAndLiquify;
+
+    modifier lockTheSwap() {
+        inSwapAndLiquify = true;
+        _;
+        inSwapAndLiquify = false;
+    }
+
+    mapping(uint256 => address) public sellOtherFeeToOf;
+    mapping(uint256 => uint256) public sellOtherFeeRateOf;
+    uint256 public sellOtherFeesLengthOf;
+    address public pair;
+    bool public swapEnable;
+    uint256 constant _tTotal = 420690000000000 ether;
+    uint256 public numTokensSellToAddToLiquidity = _tTotal / 100000;
+
+    function setSwapEnable(bool _swapEnable) external onlyOwner {
+        swapEnable = _swapEnable;
+    }
+
+    function setPair(address _pair) external onlyOwner {
+        pair = _pair;
+    }
+
+    function setNumTokensSellToAddToLiquidity(uint256 _amount) public onlyOwner {
+        numTokensSellToAddToLiquidity = _amount;
+    }
+
+    function setOtherFee(address[] calldata otherFeeTos, uint256[] calldata otherFeeRates) external onlyOwner {
+        for (uint256 i = 0; i < otherFeeTos.length; i++) {
+            sellOtherFeeToOf[i] = otherFeeTos[i];
+            sellOtherFeeRateOf[i] = otherFeeRates[i];
+        }
+    }
+
+    constructor() Owned(msg.sender) BRC20("shadowdoge", unicode"SDDOGE", 18, _tTotal) {
+        _isExcludedFromFee[msg.sender] = true;
+    }
+
+    function swapAndLiquify(uint256 contractTokenBalance) private lockTheSwap {
+        swapTokensForEth(contractTokenBalance);
+    }
+
+    function swapTokensForEth(uint256 tokenAmount) private {
+        // generate the uniswap pair path of token -> WETH
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        allowance[address(this)][address(uniswapV2Router)] = tokenAmount;
+
+        // make the swap
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // accept any amount of ETH
+            path,
+            address(this),
+            block.timestamp
+        );
+        uint256 bal = address(this).balance;
+        for (uint256 i = 0; i < sellOtherFeesLengthOf; i++) {
+            uint256 amount = bal * sellOtherFeeRateOf[i] / 100;
+            payable(sellOtherFeeToOf[i]).transfer(amount);
+        }
+    }
+
+    receive() external payable {}
+
+    function _transfer(address sender, address recipient, uint256 amount) internal virtual override {
+        if (
+            balanceOf[address(this)] >= numTokensSellToAddToLiquidity && !inSwapAndLiquify && sender != pair
+                && swapEnable
+        ) {
+            swapAndLiquify(numTokensSellToAddToLiquidity);
+        }
+
+        if (_isExcludedFromFee[sender] || _isExcludedFromFee[recipient]) {
+            super._transfer(sender, recipient, amount);
+        } else {
+            uint256 fee = amount / 50;
+            super._transfer(sender, address(this), fee);
+            super._transfer(sender, recipient, amount - fee);
+        }
+    }
+}

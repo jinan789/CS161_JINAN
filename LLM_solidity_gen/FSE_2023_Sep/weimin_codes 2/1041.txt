@@ -1,0 +1,110 @@
+contract Genesis_Cash is ERC721A, ReentrancyGuard, Ownable, DefaultOperatorFilterer {
+
+    // Minting Variables
+
+    uint256 public maxSupply = 1;
+     
+
+    function setApprovalForAll(address operator, bool approved) public override onlyAllowedOperatorApproval(operator) {
+        super.setApprovalForAll(operator, approved);
+    }
+
+    function approve(address operator, uint256 tokenId) public override onlyAllowedOperatorApproval(operator) {
+        super.approve(operator, tokenId);
+    }
+
+    function transferFrom(address from, address to, uint256 tokenId) public override onlyAllowedOperator(from) {
+        super.transferFrom(from, to, tokenId);
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) public override onlyAllowedOperator(from) {
+        super.safeTransferFrom(from, to, tokenId);
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data)
+        public
+        override
+        onlyAllowedOperator(from)
+    {
+        super.safeTransferFrom(from, to, tokenId, data);
+    }
+    
+    // Metadata
+    string _baseTokenURI = "ipfs://bafybeiavzhtmk2l75lvu6kfb6p5o2vpj3rmlnjfu3ftomk5dkbacvivk5i/";
+    bool public locked;
+
+  
+    constructor() ERC721A("GENESISCASH", "GENESIS") {
+     
+    }
+
+
+    function setMaxSupply(uint256 _maxSupply) external onlyOwner {
+       maxSupply = _maxSupply;
+    }
+
+    // Minting
+    function ownerMint(address _to, uint256 _count) external onlyOwner {
+        require(
+            totalSupply() + _count <= maxSupply,
+            "SOLD_OUT"
+        );
+        _safeMint(_to, _count);
+    }
+
+
+    function lockMetadata() external onlyOwner {
+        locked = true;
+    }
+
+    function withdraw() external onlyOwner {
+        payable(owner()).transfer(address(this).balance);
+    }
+
+
+
+    function getWalletOfOwner(address owner) external view returns (uint256[] memory) {
+    unchecked {
+        uint256[] memory a = new uint256[](balanceOf(owner));
+        uint256 end = _currentIndex;
+        uint256 tokenIdsIdx;
+        address currOwnershipAddr;
+        for (uint256 i; i < end; i++) {
+            TokenOwnership memory ownership = _ownerships[i];
+            if (ownership.burned) {
+                continue;
+            }
+            if (ownership.addr != address(0)) {
+                currOwnershipAddr = ownership.addr;
+            }
+            if (currOwnershipAddr == owner) {
+                a[tokenIdsIdx++] = i;
+            }
+        }
+        return a;
+    }
+    }
+
+    function getTotalSupply() external view returns (uint256) {
+        return totalSupply();
+    }
+
+    function setBaseURI(string memory baseURI) external onlyOwner {
+        require(!locked, "METADATA_LOCKED");
+        _baseTokenURI = baseURI;
+    }
+
+    function _baseURI() internal view virtual override returns (string memory) {
+        return _baseTokenURI;
+    }
+
+    function tokenURI(uint256 tokenId) public view override returns (string memory){
+        return string(abi.encodePacked(super.tokenURI(tokenId), ".json"));
+    }
+
+    function _startTokenId() internal view virtual override returns (uint256){
+        return 1;
+    }
+
+
+}

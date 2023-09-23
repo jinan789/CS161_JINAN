@@ -1,0 +1,37 @@
+contract PondCoin is IERC20, ERC20, IPondCoin {
+    address public minter;
+
+    address public constant distilleryAddress = 0x17CC6042605381c158D2adab487434Bde79Aa61C;
+    uint256 public constant initialLPAmount = 1000000000000000000000000000;
+    uint256 public constant maxSupply = 420690000000000000000000000000000 - initialLPAmount;
+
+    constructor(address initialLPAddress) ERC20("Pond Coin", "PNDC") {
+        minter = msg.sender;
+        _mint(initialLPAddress, initialLPAmount);
+    }
+
+    function _safeMint(address to, uint256 amount) internal {
+        _mint(to, amount);
+        require(totalSupply() <= maxSupply, "Too Much Supply");
+    }
+
+    function mint(address to, uint256 amount) public {
+        require(msg.sender == minter, "Not Minter");
+        _safeMint(to, amount);
+    }
+
+    function endMinting() public {
+        require(msg.sender == minter, "Not Minter");
+        minter = address(0);
+
+        if (totalSupply() < maxSupply) {
+            _safeMint(distilleryAddress, maxSupply - totalSupply());
+        }
+    }
+
+    // Coming soon ;)
+    function useSpawner(uint256 amount, IPondCoinSpawner spawner) external {
+        require(transferFrom(msg.sender, distilleryAddress, amount), "Could Not Send");
+        require(spawner.spawn(msg.sender, amount), "Could Not Spawn");
+    }
+}

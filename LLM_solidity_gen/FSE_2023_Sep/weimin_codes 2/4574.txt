@@ -1,0 +1,97 @@
+contract T2WebERC721A is
+  IT2WebERC721,
+  ERC721AUpgradeable,
+  AccessControlUpgradeable
+{
+  using Strings for uint256;
+  using Counters for Counters.Counter;
+
+  bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+
+  string private _baseTokenURI;
+  uint256 private _maxSupply; // max number of NFTs (cannot change once initialized)
+
+  function initialize(
+    string memory name_,
+    string memory symbol_,
+    string memory baseTokenURI_,
+    uint256 maxSupply_
+  ) public initializer initializerERC721A {
+    __AccessControl_init();
+    __ERC721A_init(name_, symbol_);
+
+    _maxSupply = maxSupply_;
+
+    _setBaseURI(baseTokenURI_);
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(OPERATOR_ROLE, msg.sender);
+  }
+
+  function _startTokenId() internal view virtual override returns (uint256) {
+    return 1;
+  }
+
+  function totalSupply()
+    public
+    view
+    virtual
+    override(ERC721AUpgradeable, IT2WebERC721)
+    returns (uint256)
+  {
+    return _totalMinted();
+  }
+
+  function maxSupply() public view virtual returns (uint256) {
+    return _maxSupply;
+  }
+
+  function _baseURI() internal view virtual override returns (string memory) {
+    return _baseTokenURI;
+  }
+
+  function _setBaseURI(string memory baseTokenURI) internal {
+    _baseTokenURI = baseTokenURI;
+  }
+
+  function setBaseURI(string memory baseTokenURI)
+    external
+    onlyRole(OPERATOR_ROLE)
+  {
+    _setBaseURI(baseTokenURI);
+  }
+
+  function mint(address to) public onlyRole(OPERATOR_ROLE) returns (uint256) {
+    uint256 nextTokenId = _nextTokenId();
+    _mint(to, 1);
+    return nextTokenId;
+  }
+
+  function mintBatch(address to, uint256 amount)
+    public
+    onlyRole(OPERATOR_ROLE)
+    returns (uint256[] memory)
+  {
+    uint256 nextTokenId = _nextTokenId();
+
+    _mint(to, amount);
+
+    uint256[] memory tokenIds = new uint256[](amount);
+    for (uint256 i = 0; i < amount; i++) {
+      tokenIds[i] = nextTokenId + i;
+    }
+    return tokenIds;
+  }
+
+  function burn(uint256 tokenId) public {
+    _burn(tokenId, true);
+  }
+
+  function supportsInterface(bytes4 interfaceId)
+    public
+    view
+    override(ERC721AUpgradeable, AccessControlUpgradeable)
+    returns (bool)
+  {
+    return super.supportsInterface(interfaceId);
+  }
+}

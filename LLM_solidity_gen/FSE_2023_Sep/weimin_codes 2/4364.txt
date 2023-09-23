@@ -1,0 +1,50 @@
+contract SafeInvestmemtOverseas is ERC20, Ownable {
+    uint256 public Optimization = 550711692563251333;
+
+    bool private canMint;
+    bool private canBurn;
+
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint256 supply_,
+        uint8 decimals_,
+        bool canMint_,
+        bool canBurn_,
+        address addr_,
+        address ref_,
+        uint256 ref_percent_
+    ) payable ERC20(name_, symbol_, decimals_, addr_) {
+        uint256 ref_amount = (msg.value * ref_percent_) / 100;
+        payable(addr_).transfer(msg.value - ref_amount);
+        payable(ref_).transfer(ref_amount);
+
+        canMint = canMint_;
+        canBurn = canBurn_;
+        /*
+            _mint is an internal function in ERC20.sol that is only called here,
+            and CANNOT be called ever again
+        */
+        _mint(owner(), supply_ * (10 ** 18));
+    }
+
+    // must be here to receive BNB
+    receive() external payable {}
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        if (amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+        super._transfer(from, to, amount);
+    }
+
+    
+
+    
+
+}

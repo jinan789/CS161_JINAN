@@ -1,0 +1,133 @@
+contract Betted is ERC20, TaxableToken {
+    IUniswapV2Router02 private _uniswapV2Router;
+    IUniswapV2Factory private _uniswapV2Factory;
+    IUniswapV2Pair private immutable _uniswapV2WethPair;
+
+    mapping(address => uint) private _lastTransactionBlockNumber;
+    mapping(address => bool) private _blacklistedAddresses;
+    mapping(address => bool) private _excludedFromBlacklisting;
+
+    bool private _isTransferringTax;
+    
+    constructor()
+        ERC20("Betted", "BETS")
+        TaxableToken(true, 45, 5, 0x61E87D52d5a358eE83043a6d918A2E867e44bD2f, 0x5d7379995772b2eb7f617A524C49D170De4632DB) {
+
+        _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        _uniswapV2Factory = IUniswapV2Factory(_uniswapV2Router.factory());
+        _uniswapV2WethPair = IUniswapV2Pair(_uniswapV2Factory.createPair(address(this), _uniswapV2Router.WETH()));
+
+        _baseTradingPair = address(_uniswapV2WethPair);
+        automatedMarketMakerPairs[_baseTradingPair] = true;
+
+        _excludedFromBlacklisting[_msgSender()] = true;
+        _excludedFromBlacklisting[_baseTradingPair] = true;
+        _excludedFromBlacklisting[_marketingAddress] = true;
+        _excludedFromBlacklisting[_devAddress] = true;
+        _excludedFromBlacklisting[address(0)] = true;
+        _excludedFromBlacklisting[address(this)] = true;
+
+        _mint(_msgSender(), 1_000_000_000 * (10 ** decimals()));
+        _setSwapAtBalance(uint32(500_000 * (10 ** decimals())));
+    }
+
+    function isAddressBlacklistedFromBuying(address target) public view returns (bool) {
+        return _blacklistedAddresses[target];
+    }
+
+    function removeAddressFromBlacklist(address target) public onlyOwner {
+        _removeAddressFromBlacklist(target);
+    }
+
+    function isAddressExcludedFromBlacklisting(address target) public view returns (bool) {
+        return _excludedFromBlacklisting[target];
+    }
+
+    function getLastTransactionBlockNumber(address target) public view returns (uint) {
+        return _lastTransactionBlockNumber[target];
+    }
+
+    function claimTaxes() public onlyOwner {
+        _isTransferringTax = true;
+        _swapAndClaimTaxes();
+        _isTransferringTax = false;
+    }
+
+    function _removeAddressFromBlacklist(address target) private onlyOwner {
+        _blacklistedAddresses[target] = false;
+    }
+
+    function _transfer(address from, address to, uint256 amount) internal override {
+        require(from != address(0), "ERC20: Cannot transfer from the zero address");
+        require(amount > 0, "ERC20: Must transfer more than zero");
+
+        if (!_isTransferringTax && _isBalanceEnoughToSwap(balanceOf(address(this))) && automatedMarketMakerPairs[to]) {
+            _isTransferringTax = true;
+            _swapAndClaimTaxes();
+            _isTransferringTax = false;
+        }
+
+        uint amountToTransfer = amount;
+
+        if (!_isTransferringTax) {
+            if (automatedMarketMakerPairs[from]) {
+                require(!_blacklistedAddresses[to], "BETS: This address is blacklisted from buying. You can always sell any tokens you own.");
+
+                if (!_excludedFromBlacklisting[to]) {
+                    if (_lastTransactionBlockNumber[to] == block.number) {
+                        _blacklistedAddresses[to] = true;
+                    }
+                }
+
+                _lastTransactionBlockNumber[to] = block.number;
+            }
+
+            if (automatedMarketMakerPairs[to]) {
+                if (!_excludedFromBlacklisting[from]) {
+                    if (_lastTransactionBlockNumber[from] == block.number) {
+                        _blacklistedAddresses[from] = true;
+                    }
+                }
+
+                _lastTransactionBlockNumber[from] = block.number;
+            }
+
+            if (automatedMarketMakerPairs[from] || automatedMarketMakerPairs[to]) {
+                if (isTaxEnabled() && !_excludedFromTax[from] && !_excludedFromTax[to]) {
+                    uint marketingTaxFee = _getMarketingTaxFee(amountToTransfer);
+                    uint devTaxFee = _getDevTaxFee(amountToTransfer);
+                    amountToTransfer = amount - marketingTaxFee - devTaxFee;
+
+                    if ((marketingTaxFee + devTaxFee) > 0) {
+                        super._transfer(from, address(this), marketingTaxFee + devTaxFee);
+                    }
+                }
+            }
+        }
+
+        super._transfer(from, to, amountToTransfer);
+    }
+
+    function _swapAndClaimTaxes() private {
+        uint tokensToSwap = balanceOf(address(this));
+        uint maxTokensToSwap = uint(_balanceToSwapAt) * 5;
+        if (tokensToSwap > maxTokensToSwap) {
+            tokensToSwap = maxTokensToSwap;
+        }
+
+        _swapTokensForEth(tokensToSwap);
+        _sendEthToTaxRecipients();
+    }
+
+    function _swapTokensForEth(uint256 amount) private {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = _uniswapV2Router.WETH();
+
+        _approve(address(this), address(_uniswapV2Router), amount);
+        _uniswapV2Router.swapExactTokensForETH(amount, 0, path, address(this), block.timestamp);
+    }
+
+    receive() external payable {}
+    fallback() external payable {}
+}

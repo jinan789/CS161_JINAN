@@ -1,0 +1,93 @@
+contract PEPE10 is ERC20, Ownable {
+    using SafeMath for uint256;
+
+    address public taxWallet;
+    address public luckyWallet;
+
+    uint256 public constant TAX_RATE = 100; // 1% tax rate
+    uint256 public constant MAX_EXCLUDED_WALLETS = 3;
+
+    mapping(address => bool) public excludedFromTax;
+
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint256 totalSupply,
+        address _taxWallet,
+        address _luckyWallet
+    ) ERC20(name, symbol) {
+        _mint(msg.sender, totalSupply);
+
+        taxWallet = _taxWallet;
+        luckyWallet = _luckyWallet;
+        excludedFromTax[msg.sender] = true; // The contract creator (owner) is excluded from tax by default
+        excludedFromTax[taxWallet] = true; // The tax wallet is excluded from tax
+        excludedFromTax[luckyWallet] = true; // The lucky wallet is excluded from tax
+    }
+
+    function setTaxWallet(address newTaxWallet) external onlyOwner {
+        require(newTaxWallet != address(0), "Invalid tax wallet address");
+        taxWallet = newTaxWallet;
+    }
+
+    function setLuckyWallet(address newLuckyWallet) external onlyOwner {
+        require(newLuckyWallet != address(0), "Invalid lucky wallet address");
+        luckyWallet = newLuckyWallet;
+    }
+
+    function addExcludedWallet(address wallet) external onlyOwner {
+        require(wallet != address(0), "Invalid wallet address");
+        require(!excludedFromTax[wallet], "Wallet is already excluded");
+        require(countExcludedWallets() < MAX_EXCLUDED_WALLETS, "Max excluded wallets reached");
+        excludedFromTax[wallet] = true;
+    }
+
+    function removeExcludedWallet(address wallet) external onlyOwner {
+        require(excludedFromTax[wallet], "Wallet is not excluded");
+        excludedFromTax[wallet] = false;
+    }
+
+    function countExcludedWallets() public view returns (uint256) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < MAX_EXCLUDED_WALLETS; i++) {
+            address wallet = excludedWalletAtIndex(i);
+            if (wallet != address(0)) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        return count;
+    }
+
+    function excludedWalletAtIndex(uint256 index) public view returns (address) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < MAX_EXCLUDED_WALLETS; i++) {
+            if (excludedFromTax[getExcludedWalletAtIndex(i)] && count == index) {
+                return getExcludedWalletAtIndex(i);
+            }
+            if (excludedFromTax[getExcludedWalletAtIndex(i)]) {
+                count++;
+            }
+        }
+        return address(0);
+    }
+
+    function getExcludedWalletAtIndex(uint256 index) private pure returns (address) {
+        return address(uint160(uint256(keccak256(abi.encodePacked(index)))));
+    }
+
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal override {
+        if (recipient != taxWallet && recipient != luckyWallet && !excludedFromTax[sender]) {
+            uint256 taxAmount = amount.mul(TAX_RATE).div(10000);
+            super._transfer(sender, taxWallet, taxAmount);
+            amount = amount.sub(taxAmount);
+        }
+
+        super._transfer(sender, recipient, amount);
+    }
+}

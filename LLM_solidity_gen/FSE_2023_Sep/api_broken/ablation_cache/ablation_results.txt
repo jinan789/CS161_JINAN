@@ -1,0 +1,103 @@
+
+Redundant Calls to External Contracts    & fse.1   &A5  &  N      &    \\
+Frequent Use of `block.timestamp    & fse.1   &1  &  Y      &    \\
+Multiple Reads of the Same State Variable    & fse.1   & A4 &  N      &    \\
+
+\hline 
+\hline 
+
+
+Unnecessary Storage of Variables    & fse.2   &12  &  Y      &    \\
+Redundant condition check    & fse.2   &A4  &  N      &  No twice found  \\
+Redundant keccak256 computation    & fse.2   &A3  &  N      &    \\
+
+\hline 
+\hline 
+
+Frequent calls to `_etherPrice()`    & fse.3   &A4  &  N      &    \\
+Repetitive arithmetic operations    & fse.3   &A8  &  N      &    \\
+Unnecessary `require` checks    & fse.3   &A15  &  N      &    \\
+Multiple `transfer()` calls within a single function    & fse.3   &A15  &  N      &    \\
+
+\hline 
+\hline 
+
+Redundant approval calls    & fse.4   & A3 &  N      &    \\
+Unnecessary `if` conditions    & fse.4   &1  &  Y      &    \\
+Unnecessary Storage Read    & fse.4  & A5 &  N      &    \\
+
+\hline 
+\hline 
+
+
+
+Excessive Function Calls    & codes.1   & A13 &  N      & codes in the middle could change some states   \\
+Unoptimized Array Handling    & codes.1   &A8  &  N      & Using memory as intermediates means we have to copy every item from storage over here, and then store back to storage.  Removal is the same, since we have to pop at some point anyways \\
+Not Using Libraries for Complex Operations    & codes.1   &A17  &  N      &    \\
+Unnecessary State Variable    & codes.1   & A17  &  N      &    \\
+\hline 
+\hline 
+
+
+Inefficient use of data types    & codes.2   & 3 &  Y      & " Use the smallest data type that can accommodate your data"   \\
+Unoptimized array operation    & codes.2   &9  &  Y      & "Numerous operations on arrays can be gas-intensive. For instance, searching an unsorted array for a particular value requires a linear search which is O(n). This pattern was found by considering the computational complexity of array operations. Linear searches are inefficient, and doing this multiple times can waste gas. Use a mapping for constant-time lookups if possible. If you need to use an array, consider keeping it sorted so you can use binary search for faster lookups."    \\
+Unnecessary function visibility    & codes.2   &25  &  Y      &    \\
+Not utilizing short-circuiting in boolean operations.    & codes.2   &20  &  Y      &    \\
+\hline 
+\hline 
+
+Unoptimized Data Types and Structures    & codes.3   &3  &  Y      &    \\
+Unused Code and Dead Code    & codes.3   &26  &  Y      &    \\
+Overuse of External Calls    & codes.3   &A17  &  N      &    \\
+Inefficient Error Handling    & codes.3   &27  & Y      &    \\
+Unoptimized Function Visibility    & codes.3   &25  &  Y      &    \\
+\hline 
+\hline 
+
+Non-optimal data types    & codes.4   &3  &  Y      &    \\
+Unnecessary array length declarations    & codes.4   & A17 &  N      &    \\
+Using `address.call()` instead of `address.transfer()` or `address.send()`    & codes.4   &A10  &  N      &    \\
+\hline 
+\hline 
+
+
+
+
+
+
+Repeated external calls to the same contract    & cot.1   &1  &  Y      &    \\
+Unnecessary checks of the zero address    & cot.1   &A3  &  N      &    \\
+Repeated storage reads of the same variable    & cot.1   &A4  &  N      &  Not reading from storage, overlaps with pattern 1  \\
+
+\hline 
+\hline 
+
+
+
+Unnecessary string conversion    & cot.2   &A4  &  N      &Not a conversion    \\
+Redundant variable declaration    & cot.2   &12  &  Y      &    \\
+Repeated contract interaction    & cot.2   &A13  &  N      &    \\
+Unnecessary use of assembly    & cot.2   & A8 &  N      &    \\
+Unnecessary balance check    & cot.2   & A3 &  N      &    \\
+
+\hline 
+\hline
+
+Repeatedly calling the same function inside a contract    & cot.3   &A5  &  N      &    \\
+Excessive `require` statements    & cot.3   & A15 &  N      &    \\
+Repeated calculation of similar expression    & cot.3   &A5  &  N      &    \\
+
+\hline 
+\hline
+
+Redundant Approval Calls    & cot.4   &A3  &  N      & "But, if this condition is true once, it will likely be true again in future calls. It means that you are making redundant approval calls, wasting gas."   \\
+Redundant Condition Checks    & cot.4   & 1 &  Y      &    \\
+Frequent Storage Access    & cot.4   &A5  &  N      &    \\
+Redundant Contract Creations    & cot.4   & A3 &  N      & The new map would be trading storage for gas at one spot   \\
+
+\hline 
+\hline
+
+
+
+

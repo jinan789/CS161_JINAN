@@ -1,0 +1,218 @@
+contract CompoundSupplyMonitorUSDCV2 {
+    using SafeMath for uint256;
+    address public owner;
+    address public compoundStrategy;
+    address public USDC;
+    address public pool;
+    address public vaultState;
+
+    constructor(address _owner) {
+        owner = _owner;
+        compoundStrategy = 0xf680783e00567C3b87A21cAF5316d1F1F99bba43; //0x8C93468cCF7072b01BD71D7372312F955CDa5B5F
+        USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        pool = IcometStrategyInterface(compoundStrategy).comet();
+        vaultState = IcometStrategyInterface(compoundStrategy).state();
+    }
+
+    function setCompoundStrategy(address _compoundStrategy) external {
+        require(msg.sender == owner, " only owner set compound Strategy");
+        compoundStrategy = _compoundStrategy;
+    }
+
+    function getCTokenLiquidity(
+        address underlying,
+        address cToken
+    ) external view returns (uint256) {
+        uint256 _balance;
+        _balance = IERC20(underlying).balanceOf(cToken);
+        return _balance;
+    }
+
+    function getCUSDCV3PoolLiquidityInternal() internal view returns (uint256) {
+        uint256 _balance;
+        _balance = IERC20(USDC).balanceOf(pool);
+        return _balance;
+    }
+
+    function isCompoundV3USDCLiquidityInsufficient(
+        uint256 _USDCAmountThreshold
+    ) public view returns (bool) {
+        uint256 _USDCCash; // 1e18
+        _USDCCash = getCUSDCV3PoolLiquidityInternal();
+
+        if (_USDCAmountThreshold >= _USDCCash) {
+            return true;
+        }
+        return false;
+    }
+
+    function hasSupplyUSDC(address _vault) public view returns (bool) {
+        /*
+            struct UserBasic {
+            int104 principal;
+            uint64 baseTrackingIndex;
+            uint64 baseTrackingAccrued;
+            uint16 assetsIn;
+            uint8 _reserved;
+        }
+
+            */
+        IComet.UserBasic memory _userBasic = IComet(pool).userBasic(_vault);
+        if (_userBasic.principal > 0) {
+            return true;
+        }
+        return false;
+    }
+
+    function getUSDCBalance(address vault) external view returns (uint256) {
+        return IERC20(USDC).balanceOf(vault);
+    }
+
+    function getUSDCBalanceInternal(
+        address vault
+    ) internal view returns (uint256) {
+        return IERC20(USDC).balanceOf(vault);
+    }
+
+    function getUserBasic(address _vault) external view returns (int104) {
+        /*
+            struct UserBasic {
+            int104 principal;
+            uint64 baseTrackingIndex;
+            uint64 baseTrackingAccrued;
+            uint16 assetsIn;
+            uint8 _reserved;
+            }
+
+            */
+
+        IComet.UserBasic memory _userBasic = IComet(pool).userBasic(_vault);
+        return _userBasic.principal;
+    }
+
+    function getBaseTokenBalance(
+        address _pool,
+        address _vault
+    ) external view returns (uint256) {
+        uint256 _balance;
+        _balance = IERC20(_pool).balanceOf(_vault);
+        return _balance;
+    }
+
+    function getUserCollateral(
+        address _pool,
+        address _vault,
+        address _asset
+    ) external view returns (uint128, uint128) {
+        /*
+    
+            struct UserCollateral {
+            uint128 balance;
+            uint128 _reserved;
+            }
+            */
+
+        IComet.UserCollateral memory _userCollateral = IComet(_pool)
+            .userCollateral(_vault, _asset);
+
+        return (_userCollateral.balance, _userCollateral._reserved);
+    }
+
+    function getVaultExitLastTimeInternal(
+        address vault
+    ) internal view returns (uint256) {
+        uint256 lastestTime;
+        lastestTime = IcometStatusInterface(vaultState).getLastTime(vault);
+        return lastestTime;
+    }
+
+    function getVaultAllowedEnterTime(
+        address vault,
+        uint256 interval
+    ) external view returns (uint256) {
+        uint256 lastestTime;
+        uint256 enterTime;
+        lastestTime = IcometStatusInterface(vaultState).getLastTime(vault);
+        enterTime = lastestTime + interval;
+        return enterTime;
+    }
+
+    function isVaultAllowedEnterPeriod(
+        address vault,
+        uint256 interval
+    ) external view returns (bool) {
+        uint256 lastestTime;
+        uint256 enterTime;
+        lastestTime = IcometStatusInterface(vaultState).getLastTime(vault);
+        enterTime = lastestTime + interval;
+        return block.timestamp >= enterTime;
+    }
+
+    function encodeEnterInput(
+        uint256 amount
+    ) internal pure returns (bytes memory encodedInput) {
+        return abi.encodeWithSignature("enter(uint256)", amount);
+    }
+
+    function encodeExitInput()
+        internal
+        pure
+        returns (bytes memory encodedInput)
+    {
+        return abi.encodeWithSignature("exit()");
+    }
+
+    function executeExit(
+        address _vault
+    ) internal view returns (bool canExec, bytes memory execPayload) {
+        bytes memory args = encodeExitInput();
+        execPayload = abi.encodeWithSelector(
+            IVaultInterface(_vault).execute.selector,
+            compoundStrategy,
+            args
+        );
+        return (true, execPayload);
+    }
+
+    function executeEnter(
+        address _vault
+    ) internal view returns (bool canExec, bytes memory execPayload) {
+        uint256 amount;
+        amount = IERC20(USDC).balanceOf(_vault);
+        bytes memory args = encodeEnterInput(amount);
+        execPayload = abi.encodeWithSelector(
+            IVaultInterface(_vault).execute.selector,
+            compoundStrategy,
+            args
+        );
+        return (true, execPayload);
+    }
+
+    function checker(
+        address _vault,
+        uint256 _USDCThreshold,
+        uint256 _vaultAllowedEnterUSDCBalanceThreshold,
+        uint256 _vaultAllowedEnterPoolUSDCCashThreshold,
+        uint256 _interval
+    ) external view returns (bool canExec, bytes memory execPayload) {
+        uint256 _vaultUSDCCash;
+        uint256 _vaultExitLastTime;
+        uint256 _poolUSDCCash;
+        _vaultUSDCCash = getUSDCBalanceInternal(_vault);
+        _vaultExitLastTime = getVaultExitLastTimeInternal(_vault);
+        _poolUSDCCash = getCUSDCV3PoolLiquidityInternal();
+        if (hasSupplyUSDC(_vault)) {
+            if (isCompoundV3USDCLiquidityInsufficient(_USDCThreshold)) {
+                return executeExit(_vault);
+            }
+        }
+        if (
+            _vaultUSDCCash >= _vaultAllowedEnterUSDCBalanceThreshold &&
+            _poolUSDCCash >= _vaultAllowedEnterPoolUSDCCashThreshold &&
+            block.timestamp >= _vaultExitLastTime + _interval
+        ) {
+            return executeEnter(_vault);
+        }
+        return (false, bytes("monitor is ok"));
+    }
+}

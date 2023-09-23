@@ -1,0 +1,279 @@
+contract T2WebProjectMaster is IT2WebProjectMaster, AccessControlUpgradeable {
+  using Counters for Counters.Counter;
+
+  bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+  uint256 public constant A_HUNDRED_PERCENT = 10_000; // 100%
+
+  address private _erc721Implementation;
+
+  address private _signer;
+  address private _vault;
+  address private _affiliate;
+
+  Counters.Counter private _projectIdTracker;
+
+  // project backend id => true | false
+  mapping(uint256 => bool) private _createdProjects;
+
+  // project id => project
+  mapping(uint256 => Project) private _projects;
+
+  // project id => sale type => sale data
+  mapping(uint256 => mapping(uint256 => SaleInfo)) private _saleInfo;
+
+  modifier onlyAdmin() {
+    require(
+      hasRole(DEFAULT_ADMIN_ROLE, _msgSender()),
+      "ProjectMaster: caller is not admin"
+    );
+    _;
+  }
+
+  modifier onlyOperator() {
+    require(
+      hasRole(OPERATOR_ROLE, _msgSender()),
+      "ProjectMaster: caller is not operator"
+    );
+    _;
+  }
+
+  function initialize(
+    address signer_,
+    address vault_,
+    address affiliate_
+  ) public initializer {
+    __AccessControl_init();
+
+    _signer = signer_;
+    _vault = vault_;
+    _affiliate = affiliate_;
+
+    // _erc721Implementation = address(new T2WebERC721());
+    _erc721Implementation = address(new T2WebERC721A());
+
+    address msgSender = _msgSender();
+    _setupRole(DEFAULT_ADMIN_ROLE, msgSender);
+    _setupRole(OPERATOR_ROLE, msgSender);
+  }
+
+  function reinitialize() public onlyAdmin {
+    _erc721Implementation = address(new T2WebERC721A());
+  }
+
+  function getProject(uint256 projectId_)
+    external
+    view
+    returns (Project memory)
+  {
+    return _projects[projectId_];
+  }
+
+  function getSaleInfo(uint256 projectId_, uint256 saleType_)
+    external
+    view
+    returns (SaleInfo memory)
+  {
+    return _saleInfo[projectId_][saleType_];
+  }
+
+  function createProject(
+    address projectOwner_,
+    ProjectRequest calldata projectInfo_,
+    SaleInfo[] calldata saleData_
+  ) external onlyOperator returns (Project memory project) {
+    require(_createdProjects[projectInfo_.backendId] == false, "KNOWN_TX");
+
+    uint256 projectId = _projectIdTracker.current() + 1;
+
+    address _contractAddress = address(0);
+    if (VaultType(projectInfo_.vaultType) == VaultType.MINT) {
+      _contractAddress = Clones.cloneDeterministic(
+        _erc721Implementation,
+        keccak256(
+          abi.encodePacked(
+            projectOwner_,
+            projectInfo_.backendId,
+            block.timestamp
+          )
+        )
+      );
+      uint256 maxSupply = saleData_[0].amount + saleData_[1].amount;
+      IT2WebERC721(_contractAddress).initialize(
+        projectInfo_.name,
+        projectInfo_.symbol,
+        projectInfo_.baseTokenURI,
+        maxSupply
+      );
+    }
+
+    if (projectInfo_.affiliateEnabled) {
+      IT2WebAffiliate(_affiliate).initAffiliate(
+        projectId,
+        projectOwner_,
+        projectInfo_.affiliateFeeRate,
+        projectInfo_.initialReferrals
+      );
+    }
+
+    uint256 endTime = saleData_[1].endTime;
+    if (endTime < saleData_[0].endTime) {
+      endTime = saleData_[0].endTime;
+    }
+
+    project = Project({
+      id: projectId,
+      backendId: projectInfo_.backendId,
+      owner: projectOwner_,
+      contractType: projectInfo_.contractType,
+      state: ProjectState.DEPLOYED,
+      vaultType: VaultType(projectInfo_.vaultType),
+      contractAddress: _contractAddress,
+      adminFeeRate: projectInfo_.adminFeeRate,
+      canReveal: projectInfo_.canReveal,
+      affiliateEnabled: projectInfo_.affiliateEnabled,
+      affiliateFeeRate: projectInfo_.affiliateFeeRate,
+      transferUnsoldDisabled: projectInfo_.transferUnsoldDisabled,
+      paymentToken: projectInfo_.paymentToken,
+      finishAt: endTime,
+      isRevealed: false
+    });
+
+    _projects[projectId] = project;
+    _saleInfo[projectId][uint256(SaleType.PRESALE)] = saleData_[0];
+    _saleInfo[projectId][uint256(SaleType.PUBLICSALE)] = saleData_[1];
+
+    _projectIdTracker.increment();
+
+    _createdProjects[projectInfo_.backendId] = true;
+  }
+
+  function setProjectBaseTokenURI(
+    uint256 projectId_,
+    string memory baseTokenURI_,
+    address sender_
+  ) external override onlyOperator {
+    Project storage project = _projects[projectId_];
+
+    require(
+      project.canReveal && project.owner == sender_,
+      "ProjectMaster: not allowed"
+    );
+
+    project.isRevealed = true;
+
+    IT2WebERC721(project.contractAddress).setBaseURI(baseTokenURI_);
+  }
+
+  function _distributeNFTs(
+    Project memory project_,
+    address to_,
+    uint256 amount_
+  ) internal returns (uint256[] memory tokenIds) {
+    if (project_.vaultType == VaultType.MINTED) {
+      tokenIds = IT2WebNFTVault(_vault).distributeTo(
+        project_.backendId,
+        to_,
+        amount_
+      );
+    } else if (project_.vaultType == VaultType.MINT) {
+      tokenIds = IT2WebERC721(project_.contractAddress).mintBatch(to_, amount_);
+    }
+  }
+
+  function distributeNFTs(
+    uint256 projectId_,
+    address to_,
+    uint256 amount_
+  ) public override onlyOperator returns (uint256[] memory) {
+    return _distributeNFTs(_projects[projectId_], to_, amount_);
+  }
+
+  function getMaxSupply(uint256 projectId_) public view returns (uint256) {
+    Project memory project = _projects[projectId_];
+    if (project.vaultType == VaultType.MINTED) {
+      return IT2WebNFTVault(_vault).getMaxSupply(project.backendId);
+    } else if (project.vaultType == VaultType.MINT) {
+      return IT2WebERC721(project.contractAddress).maxSupply();
+    }
+
+    return 0;
+  }
+
+  function getTotalSupply(uint256 projectId_) public view returns (uint256) {
+    Project memory project = _projects[projectId_];
+    if (project.vaultType == VaultType.MINTED) {
+      return IT2WebNFTVault(_vault).getTotalSupply(project.backendId);
+    } else if (project.vaultType == VaultType.MINT) {
+      return IT2WebERC721(project.contractAddress).totalSupply();
+    }
+    return 0;
+  }
+
+  function claimItems(
+    uint256 projectId_,
+    uint256 amount_,
+    address to_
+  ) public override onlyOperator {
+    Project memory project = _projects[projectId_];
+    require(
+      project.owner == to_,
+      "ProjectManager: caller is not project owner"
+    );
+    require(
+      block.timestamp >= project.finishAt ||
+        project.state == ProjectState.FINISHED,
+      "ProjectMaster: the project is not finished"
+    );
+
+    uint256 maxSupply = getMaxSupply(projectId_);
+    uint256 totalSupply = getTotalSupply(projectId_);
+    uint256 remain = maxSupply > totalSupply ? maxSupply - totalSupply : 0;
+    uint256 amount = amount_;
+    if (amount > remain) {
+      amount = remain;
+    }
+    require(amount > 0 && amount <= 500, "ProjectMaster: invalid amount");
+
+    _distributeNFTs(project, to_, amount);
+  }
+
+  function closeProject(uint256 projectId_, address sender_)
+    external
+    override
+    onlyOperator
+  {
+    Project storage project = _projects[projectId_];
+
+    require(
+      project.owner == sender_,
+      "ProjectMaster: caller is not project owner or operator"
+    );
+
+    project.state = ProjectState.FINISHED;
+  }
+
+  function addReferral(uint256 projectId_, address user_)
+    external
+    onlyOperator
+  {
+    IT2WebAffiliate(_affiliate).addReferral(projectId_, user_);
+  }
+
+  function checkAffiliate(uint256 projectId_, string memory referralCode_)
+    external
+    view
+    onlyOperator
+    returns (address)
+  {
+    Project memory project = _projects[projectId_];
+    address refferal = address(0);
+    if (project.affiliateEnabled) {
+      refferal = IT2WebAffiliate(_affiliate).getReferralAddress(
+        projectId_,
+        referralCode_
+      );
+    }
+
+    return refferal;
+  }
+}

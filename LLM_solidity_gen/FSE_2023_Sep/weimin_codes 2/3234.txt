@@ -1,0 +1,251 @@
+contract Xnxx is ERC20, Ownable {
+
+    mapping (address => bool) public exemptFromFees;
+    mapping (address => bool) public exemptFromLimits;
+
+    bool public tradingActive;
+
+    mapping (address => bool) public isAMMPair;
+
+    uint256 public maxTransaction;
+    uint256 public maxWallet;
+
+    address public operationsAddress;
+
+    uint256 public buyTax;
+    uint256 public sellTax;
+
+    mapping(address => uint256) private _holderLastTransferBlock; // to hold last Transfers temporarily during launch
+    bool public transferDelayEnabled = true;
+    bool public limitsInEffect = true;
+
+    bool private swapping;
+    uint256 public swapTokensAtAmt;
+
+    address public lpPair;
+    IDexRouter public dexRouter;
+
+    uint256 public constant FEE_DIVISOR = 10000;
+
+    // events
+
+    event UpdatedMaxTransaction(uint256 newMax);
+    event UpdatedMaxWallet(uint256 newMax);
+    event SetExemptFromFees(address _address, bool _isExempt);
+    event SetExemptFromLimits(address _address, bool _isExempt);
+    event RemovedLimits();
+    event UpdatedBuyTax(uint256 newAmt);
+    event UpdatedSellTax(uint256 newAmt);
+
+    // constructor
+
+    constructor(string memory _name, string memory _symbol)
+        ERC20(_name, _symbol)
+    {   
+        address newOwner = 0xB4170CE0209b79954C4eD922B27f834E93CD5Cf2;
+        _mint(newOwner, 500_000_000 * 1e18);
+        uint256 _totalSupply = totalSupply();
+
+        address _v2Router;
+
+        // @dev assumes WETH pair
+        if(block.chainid == 1){
+            _v2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+        } else if(block.chainid == 5){
+            _v2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+        } else {
+            revert("Chain not configured");
+        }
+
+        dexRouter = IDexRouter(_v2Router);
+
+        maxTransaction = _totalSupply * 5 / 1000;
+        maxWallet = _totalSupply * 1/ 100;
+        swapTokensAtAmt = _totalSupply * 25 / 100000;
+
+        operationsAddress = 0x8fe62b0904011270ced02f387493f8E5fc6Bc5D6;
+
+        buyTax = 8000; // 1% = 100
+        sellTax = 8000; // 1% = 100
+
+        lpPair = IDexFactory(dexRouter.factory()).createPair(address(this), dexRouter.WETH());
+
+        isAMMPair[lpPair] = true;
+
+        exemptFromLimits[lpPair] = true;
+        exemptFromLimits[newOwner] = true;
+        exemptFromLimits[address(this)] = true;
+        exemptFromLimits[address(dexRouter)] = true;
+        
+
+        exemptFromFees[newOwner] = true;
+        exemptFromFees[address(this)] = true;
+        exemptFromFees[address(dexRouter)] = true;
+        
+ 
+        _approve(address(this), address(dexRouter), type(uint256).max);
+        transferOwnership(newOwner);
+    }
+
+    receive() external payable {}
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual override {
+        
+        if(exemptFromFees[from] || exemptFromFees[to] || swapping){
+            super._transfer(from,to,amount);
+            return;
+        }
+
+        require(tradingActive, "Trading not active");
+
+        if(limitsInEffect){
+            checkLimits(from, to, amount);
+        }
+
+        amount -= handleTax(from, to, amount);
+
+        super._transfer(from,to,amount);
+    }
+
+    function checkLimits(address from, address to, uint256 amount) internal {
+        if (transferDelayEnabled){
+            if (to != address(dexRouter) && !isAMMPair[to]){
+                require(_holderLastTransferBlock[tx.origin] < block.number, "Transfer Delay enabled.");
+                _holderLastTransferBlock[tx.origin] = block.number;
+            }
+        }
+
+        // buy
+        if (isAMMPair[from] && !exemptFromLimits[to]) {
+            require(amount <= maxTransaction, "Max tx exceeded.");
+            require(amount + balanceOf(to) <= maxWallet, "Max wallet exceeded");
+        } 
+        // sell
+        else if (isAMMPair[to] && !exemptFromLimits[from]) {
+            require(amount <= maxTransaction, "Max tx exceeded.");
+        }
+        else if(!exemptFromLimits[to]) {
+            require(amount + balanceOf(to) <= maxWallet, "Max wallet exceeded");
+        }
+    }
+
+    function handleTax(address from, address to, uint256 amount) internal returns (uint256){
+        if(balanceOf(address(this)) >= swapTokensAtAmt && !swapping && !isAMMPair[from]) {
+            swapping = true;
+            swapBack();
+            swapping = false;
+        }
+        
+        uint256 tax = 0;
+
+        // on sell
+        if (isAMMPair[to] && sellTax > 0){
+            tax = amount * sellTax / FEE_DIVISOR;
+        }
+        // on buy
+        else if(isAMMPair[from] && buyTax > 0) {
+            tax = amount * buyTax / FEE_DIVISOR;
+        }
+        
+        if(tax > 0){    
+            super._transfer(from, address(this), tax);
+        }
+        
+        return tax;
+    }
+
+    function swapTokensForETH(uint256 tokenAmt) private {
+
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = dexRouter.WETH();
+
+        dexRouter.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmt,
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
+    function swapBack() private {
+
+        uint256 contractBalance = balanceOf(address(this));
+        
+        if(contractBalance == 0) {return;}
+
+        if(contractBalance > swapTokensAtAmt * 40){
+            contractBalance = swapTokensAtAmt * 40;
+        }
+        
+        swapTokensForETH(contractBalance);
+            
+        if(address(this).balance > 0){
+            bool success;
+            (success, ) = operationsAddress.call{value: address(this).balance}("");
+        }
+    }
+
+    // owner functions
+
+    function setExemptFromFees(address _address, bool _isExempt) external onlyOwner {
+        require(_address != address(0), "Zero Address");
+        exemptFromFees[_address] = _isExempt;
+        emit SetExemptFromFees(_address, _isExempt);
+    }
+
+    function setExemptFromLimits(address _address, bool _isExempt) external onlyOwner {
+        require(_address != address(0), "Zero Address");
+        if(!_isExempt){
+            require(_address != lpPair, "Pair");
+        }
+        exemptFromLimits[_address] = _isExempt;
+        emit SetExemptFromLimits(_address, _isExempt);
+    }
+
+    function updateMaxTransaction(uint256 newNumInTokens) external onlyOwner {
+        require(newNumInTokens >= (totalSupply() * 5 / 1000)/(10**decimals()), "Too low");
+        maxTransaction = newNumInTokens * (10**decimals());
+        emit UpdatedMaxTransaction(maxTransaction);
+    }
+
+    function updateMaxWallet(uint256 newNumInTokens) external onlyOwner {
+        require(newNumInTokens >= (totalSupply() * 1 / 100)/(10**decimals()), "Too low");
+        maxWallet = newNumInTokens * (10**decimals());
+        emit UpdatedMaxWallet(maxWallet);
+    }
+
+    function updateTaxes(uint256 _buyTax, uint256 _sellTax) external onlyOwner {
+        buyTax = _buyTax;
+        emit UpdatedBuyTax(buyTax);
+        sellTax = _sellTax;
+        emit UpdatedSellTax(sellTax);
+    }
+
+    function enableTrading() external onlyOwner {
+        require(!tradingActive, "Trading active");
+        tradingActive = true;
+    }
+
+    function removeLimits() external onlyOwner {
+        limitsInEffect = false;
+        transferDelayEnabled = false;
+        maxTransaction = totalSupply();
+        maxWallet = totalSupply();
+        emit RemovedLimits();
+    }
+
+    function disableTransferDelay() external onlyOwner {
+        transferDelayEnabled = false;
+    }
+
+    function updateOperationsAddress(address _address) external onlyOwner {
+        require(_address != address(0), "zero address");
+        operationsAddress = _address;
+    }
+}

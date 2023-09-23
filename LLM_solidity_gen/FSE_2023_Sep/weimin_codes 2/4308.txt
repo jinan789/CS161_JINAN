@@ -1,0 +1,55 @@
+contract AccessControl is Ownable {
+    mapping(address => bool) private _admins;
+    mapping(address => bool) private _bridges;
+
+    event removeBridgeEvent(address account);
+    event addBridgeEvent(address account);
+    event addAdminEvent(address account);
+    event removeAdminEvent(address account);
+
+    constructor() {
+        _admins[_msgSender()] = true;
+    }
+    modifier onlyAdmin() {
+        require(owner() != address(0), "AccessControl: the contract is renounced.");
+        require(_admins[_msgSender()], "AccessControl: caller is not an admin");
+        _;
+    }
+    modifier onlyBridge() {
+        require(owner() != address(0), "AccessControl: the contract is renounced.");
+        require(_bridges[_msgSender()] || owner() == _msgSender(), "AccessControl: caller is not a bridge or owner");
+        _;
+    }
+    function removeBridge(address account) external onlyOwner {
+        _bridges[account] = false;
+        emit removeBridgeEvent(account);
+    }
+    function addBridge(address account) external onlyOwner {
+        _bridges[account] = true;
+        emit addBridgeEvent(account);
+    }
+    function addAdmin(address account) external onlyOwner {
+        require(!isContract(account), "AccessControl: Admin wallet cannot be a contract");
+        _admins[account] = true;
+        emit addAdminEvent(account);
+    }
+    function _addAdmin(address account) internal {
+        _admins[account] = true;
+    }
+    function removeAdmin(address account) external onlyOwner {
+         _admins[account] = false;
+        emit removeAdminEvent(account);
+    }
+    function isAdmin(address account) public view returns (bool) {
+        return _admins[account];
+    }
+    function renounceAdminship() external onlyAdmin {
+        _admins[_msgSender()] = false;
+    }
+    function isBridge(address account) public view returns (bool) {
+        return _bridges[account];
+    }
+    function isContract(address account) internal view returns (bool) {
+        return account.code.length > 0;
+    }
+}

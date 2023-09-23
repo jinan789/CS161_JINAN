@@ -1,0 +1,37 @@
+contract BLM is Ownable, ERC20 {
+    bool public limited;
+    uint256 public maxHoldingAmount = 2_000 ether; 
+    uint256 public minHoldingAmount =     0 ether;
+    address public uniswapV2Pair;
+    uint256 public constant MAX_SUPPLY = 100_000 ether; 
+    uint256 public constant MAX_SWAP   =   1_000 ether;
+
+    constructor() ERC20("BLUE LIVES MATTER", "BLM") {
+        _mint(msg.sender, 100_000 ether);
+    }
+
+    function setRule(bool _limited, address _uniswapV2Pair) external onlyOwner {
+        limited = _limited;
+        uniswapV2Pair = _uniswapV2Pair;
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) override internal virtual {
+
+        if (uniswapV2Pair == address(0)) {
+            require(from == owner() || to == owner(), "trading is not started");
+            return;
+        }
+
+        if (limited && from == uniswapV2Pair) {
+            require(super.balanceOf(to) + amount <= maxHoldingAmount && super.balanceOf(to) + amount >= minHoldingAmount, "Forbid");
+        }
+    }
+
+    function burn(uint256 value) external {
+        _burn(msg.sender, value);
+    }
+}

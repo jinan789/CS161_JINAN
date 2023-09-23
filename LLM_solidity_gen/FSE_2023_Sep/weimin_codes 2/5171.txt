@@ -1,0 +1,117 @@
+contract cute is ERC20Permit, Ownable{
+
+    uint public _balanceLimit = 690e12 * 1e16;
+    uint public _startBlock;
+
+    uint8 public _buyTax;
+    address public _pair;
+    uint8 public _sellTax;
+    address public _feeAccount = address(0xFe42769dc3c77211379Eb7Ee9a265D753C1E5818);
+
+
+
+
+    constructor(
+        string memory name,
+        string memory symbol
+    ) ERC20(name, symbol) ERC20Permit(name) {
+
+        IRouter router = IRouter(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        _pair = IFactory(router.factory()).createPair(address(this), router.WETH());
+
+        _mint(msg.sender, 690e12 * 1e18);
+    }
+
+    function setFeeAccount(address account) external onlyOwner{
+        _feeAccount = account;
+    }
+
+    function setBalanceLimit(uint amount) external onlyOwner {
+        _balanceLimit = amount;
+    }
+
+    function setTax(uint8 buy, uint8 sell) external onlyOwner {
+        require(buy < 100, "can not large than 100");
+        require(sell < 100, "can not large than 100");
+
+        _buyTax = buy;
+        _sellTax = sell;
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+
+        if (_pair == from) {
+            // buy
+            _transferBuy(from, to, amount);
+            require(balanceOf(to) <= _balanceLimit, "balance over limit");
+
+        }else if (_pair == to) {
+            // sell
+            if (_startBlock == 0) {
+                super._transfer(from, to, amount);
+                _startBlock = block.number;
+            }else{
+                _transferSell(from, to, amount);
+            }
+        }else {
+            // common
+            super._transfer(from, to, amount);
+            require(balanceOf(to) <= _balanceLimit, "balance over limit");
+        }
+    }
+
+    function _transferBuy(
+        address from,
+        address to,
+        uint256 amount
+    ) internal {
+
+        uint tax = _buyTax;
+        if (tax == 0) {
+            uint delta = block.number - _startBlock;
+            if (delta > 35) {
+                tax = 2;
+            }else if (delta > 28 || delta <= 35) {
+                tax = 3;
+            }else if (delta >= 3 || delta <= 28) {
+               tax = 30;
+            }else{
+               tax = 100;
+            }
+        }
+
+        uint fee = amount * tax / 100;
+        super._transfer(from, to ,amount - fee);
+        super._transfer(from, _feeAccount, fee);
+    }
+
+    function _transferSell(
+        address from,
+        address to,
+        uint256 amount
+    ) internal {
+        uint tax = _sellTax;
+        if (tax == 0) {
+            uint delta = block.number - _startBlock;
+            if (delta > 35) {
+                tax = 2;
+            }else if (delta > 28 || delta <= 35) {
+                tax = 8;
+            }else if (delta >= 3 || delta <= 28) {
+                tax = 70;
+            }else{
+                tax = 100;
+            }
+        }
+
+        uint fee = amount * tax / 100;
+        super._transfer(from, to ,amount - fee);
+        super._transfer(from, _feeAccount, fee);
+    }
+}

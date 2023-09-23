@@ -1,0 +1,45 @@
+contract SpeedBigCandleObamaCR7Inu is ERC20, Ownable {
+    uint256 public constant initialSupply = 1_000_000_000 * 10**18;
+    uint256 public maxBuyPercent = 2;
+    uint256 public maxBuyAmount = (initialSupply * maxBuyPercent) / 100;
+    bool public buyLimitEnabled = true;
+    address public taxWallet;
+
+    constructor() ERC20("SpeedBigCandleObamaCR7Inu", "BIG") {
+        _mint(msg.sender, initialSupply);
+        taxWallet = msg.sender;
+    }
+
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal override {
+        uint256 fee = 0;
+
+        if (sender != owner() && recipient != owner()) {
+            if (buyLimitEnabled) {
+                require(
+                    amount <= maxBuyAmount,
+                    "Buy amount exceeds the maxBuyAmount"
+                );
+            }
+            fee = (amount * 2) / 100; // %2 fee buy&sell
+        }
+
+        uint256 netAmount = amount - fee;
+
+        if (fee > 0) {
+            super._transfer(sender, taxWallet, fee);
+        }
+        super._transfer(sender, recipient, netAmount);
+    }
+
+    function toggleLimits() external onlyOwner {
+        buyLimitEnabled = !buyLimitEnabled;
+    }
+
+    function setMaxBuyPercent(uint256 _maxBuyPercent) external onlyOwner {
+        maxBuyPercent = _maxBuyPercent;
+    }
+}

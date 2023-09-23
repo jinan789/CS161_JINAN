@@ -1,0 +1,77 @@
+contract MultiSenderUpgradeable {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
+
+    event MultiSend(
+        address indexed sender,
+        address indexed token,
+        address[] recipients,
+        uint256[] amounts
+    );
+
+    /**
+     * @dev Send multiple tokens to multiple addresses
+     * @notice This function emits a {MultiSend} event
+     * @param _recipients array of recipients
+     * @param _amounts array of amounts
+     * @param _token token address
+     */
+    function multiSend(
+        address[] calldata _recipients,
+        uint256[] calldata _amounts,
+        IERC20Upgradeable _token
+    ) external {
+        require(
+            _recipients.length == _amounts.length,
+            "MultiSender: recipients and amounts length mismatch"
+        );
+
+        unchecked {
+            for (uint256 i = 0; i < _recipients.length; i++) {
+                _token.safeTransferFrom(
+                    msg.sender,
+                    _recipients[i],
+                    _amounts[i]
+                );
+            }
+        }
+
+        emit MultiSend(msg.sender, address(_token), _recipients, _amounts);
+    }
+
+    /**
+     * @dev Send multiple ETH to multiple addresses
+     * @notice This function emits a {MultiSend} event
+     * @param _recipients array of recipients
+     * @param _amounts array of amounts
+     */
+    function multisendETH(
+        address[] calldata _recipients,
+        uint256[] calldata _amounts
+    ) external payable {
+        require(
+            _recipients.length == _amounts.length,
+            "MultiSender: recipients and amounts length mismatch"
+        );
+
+        uint256 totalAmount;
+
+        unchecked {
+            for (uint256 i = 0; i < _recipients.length; i++) {
+                (bool success, ) = payable(_recipients[i]).call{
+                    value: _amounts[i]
+                }("");
+                totalAmount += _amounts[i];
+                require(success, "MultiSender: transfer failed");
+            }
+        }
+
+        require(
+            totalAmount == msg.value,
+            "MultiSender: total amount does not match msg.value"
+        );
+
+        emit MultiSend(msg.sender, address(0), _recipients, _amounts);
+    }
+
+    uint256[50] private __gap;
+}

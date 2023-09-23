@@ -1,0 +1,46 @@
+contract LockedStakingWithInit is StakingV3 {
+    constructor(
+        address _stakingToken,
+        address _rewardToken,
+        uint256 _rewardAmount,
+        uint256 _startTime,
+        uint256 _stopTime,
+        uint256 _stakingCap,
+        address _newOwner
+    ) {
+        super.initializeStaking(
+            _stakingToken,
+            _rewardToken,
+            _rewardAmount,
+            _startTime,
+            _stopTime,
+            _stakingCap
+        );
+
+        transferOwnership(_newOwner);
+    }
+
+    function withdraw(uint256 amount) public override {
+        require(
+            block.timestamp >= stopTime,
+            "Staking: staking period not over yet"
+        );
+        super.withdraw(amount);
+    }
+
+    function getReward() public override {
+        require(
+            block.timestamp >= stopTime,
+            "Staking: staking period not over yet"
+        );
+        super.getReward();
+    }
+
+    function exit() public override {
+        require(
+            block.timestamp >= stopTime,
+            "Staking: staking period not over yet"
+        );
+        super.exit();
+    }
+}

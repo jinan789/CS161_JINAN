@@ -1,0 +1,46 @@
+contract WebX is ERC20, ERC20Burnable, ERC20Lockable {
+
+    constructor() ERC20("WebX", "WEBX") {
+        _mint(msg.sender, 400000000 * (10 ** decimals()));
+    }
+
+    function transfer(address to, uint256 amount) public checkLock(msg.sender, amount) override returns (bool) {
+        return super.transfer(to, amount);
+    }
+
+    function transferFrom(address from, address to, uint256 amount) public checkLock(from, amount) override returns (bool) {
+        return super.transferFrom(from, to, amount);
+    }
+
+    function balanceOf(address holder) public view override returns (uint256 balance) {
+        balance = super.balanceOf(holder);
+       
+    }
+
+    function balanceOfavaliable(address holder) public view returns (uint256 balance) {
+        uint256 totalBalance = super.balanceOf(holder);
+        uint256 avaliableBalance = 0;
+        (uint256 lockedBalance, uint256 lockedLength) = totalLocked(holder);
+        require(totalBalance >= lockedBalance);
+
+        if (lockedLength > 0) {
+            for (uint i = 0; i < lockedLength; i++) {
+                (uint256 releaseTime, uint256 amount) = lockInfo(holder, i);
+                if (releaseTime <= block.timestamp) {
+                    avaliableBalance += amount;
+                }
+            }
+        }
+        balance = totalBalance - lockedBalance + avaliableBalance;
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    )
+        internal override {
+        super._beforeTokenTransfer(from, to, amount);
+    }
+
+}

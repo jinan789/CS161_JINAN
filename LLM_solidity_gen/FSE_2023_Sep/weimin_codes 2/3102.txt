@@ -1,0 +1,205 @@
+contract RandomGolfClub is ERC721, Ownable {
+  using Strings for uint256;
+  using Counters for Counters.Counter;
+
+  Counters.Counter private supply;
+
+  string public uriPrefix = "";
+  string public uriSuffix = ".json";
+  string public hiddenMetadataUri;
+  
+  uint256 public cost = 0.275 ether;
+  uint256 public maxSupply = 999;
+  uint256 public maxMintAmountPerTx = 2;
+  uint256 public nftPerAddressLimit = 2;
+  
+  bytes32 public merkleRoot;
+
+  bool public paused = true;
+  bool public revealed = true;
+  bool public publicMint = true;
+
+  mapping(address => uint256) public addressMintedBalance;
+
+  address payable payment;
+  address public crossmintAddress;
+
+  constructor(address _payment) ERC721("RGC Legacy Tags", "RGC") {
+    payment = payable(_payment);
+    setHiddenMetadataUri("");
+  }
+
+  modifier mintCompliance(uint256 _mintAmount) {
+    require(_mintAmount > 0 && _mintAmount <= maxMintAmountPerTx, "Invalid mint amount!");
+    require(supply.current() + _mintAmount <= maxSupply, "Max supply exceeded!");
+
+    _;
+  }
+
+  function totalSupply() public view returns (uint256) {
+    return supply.current();
+  }
+
+  // function crossmint(address _to, uint256 _mintAmount) public payable mintCompliance(_mintAmount){
+  //   require(publicMint == true, "Public mint is not open");
+  //   require(!paused, "Contract is paused!");
+  //   require(msg.value >= cost * _mintAmount, "Insufficient funds!");
+  //   uint256 ownerMintedAmount = addressMintedBalance[_to];
+  //   require(ownerMintedAmount + _mintAmount <= nftPerAddressLimit, "max NFT per address exceeded");
+  //   // ethereum (all)  = 0xdab1a1854214684ace522439684a145e62505233 
+  //   require(msg.sender == crossmintAddress, "This function is for Crossmint only.");
+
+  //   _mintLoop(_to, _mintAmount);
+  //   addressMintedBalance[_to] += _mintAmount;
+  // }
+
+  function crossmint(address _to, bytes32[] calldata _merkleProof, uint256 _mintAmount) public payable mintCompliance(_mintAmount){
+    if (publicMint == true) {
+      require(publicMint == true, "Public mint is not open"); 
+    }
+    else {
+      require(publicMint == false);
+      bytes32 leaf = keccak256(abi.encodePacked(_to));
+      require(MerkleProof.verify(_merkleProof, merkleRoot, leaf), "Invalid proof.");
+    }
+    require(!paused, "Contract is paused!");
+    require(msg.value >= cost * _mintAmount, "Insufficient funds!");
+    uint256 ownerMintedAmount = addressMintedBalance[_to];
+    require(ownerMintedAmount + _mintAmount <= nftPerAddressLimit, "max NFT per address exceeded");
+    // ethereum (all)  = 0xdab1a1854214684ace522439684a145e62505233 
+    require(msg.sender == crossmintAddress, "This function is for Crossmint only.");
+
+    _mintLoop(_to, _mintAmount);
+    addressMintedBalance[_to] += _mintAmount;
+  }
+
+  function WhitelistMint(bytes32[] calldata _merkleProof, uint256 _mintAmount) public payable mintCompliance(_mintAmount) {
+    require(!paused, "Contract is paused!");
+    require(publicMint == false);
+    require(msg.value >= cost * _mintAmount, "Insufficient funds!");
+    bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
+    require(MerkleProof.verify(_merkleProof, merkleRoot, leaf), "Invalid proof.");
+    uint256 ownerMintedAmount = addressMintedBalance[msg.sender];
+    require(ownerMintedAmount + _mintAmount <= nftPerAddressLimit, "max NFT per address exceeded");
+
+    _mintLoop(msg.sender, _mintAmount);
+    addressMintedBalance[msg.sender] += _mintAmount;
+  }
+
+  function Mint(uint256 _mintAmount) public payable mintCompliance(_mintAmount) {
+    require(publicMint == true, "Public mint is not open");
+    require(!paused, "Contract is paused!");
+    require(msg.value >= cost * _mintAmount, "Insufficient funds!");
+    uint256 ownerMintedAmount = addressMintedBalance[msg.sender];
+    require(ownerMintedAmount + _mintAmount <= nftPerAddressLimit, "max NFT per address exceeded");
+
+    _mintLoop(msg.sender, _mintAmount);
+    addressMintedBalance[msg.sender] += _mintAmount;
+  }
+  
+  function mintForAddress(uint256 _mintAmount, address _receiver) public mintCompliance(_mintAmount) onlyOwner {
+    _mintLoop(_receiver, _mintAmount);
+  }
+
+  function walletOfOwner(address _owner) public view returns (uint256[] memory) {
+    uint256 ownerTokenCount = balanceOf(_owner);
+    uint256[] memory ownedTokenIds = new uint256[](ownerTokenCount);
+    uint256 currentTokenId = 1;
+    uint256 ownedTokenIndex = 0;
+
+    while (ownedTokenIndex < ownerTokenCount && currentTokenId <= maxSupply) {
+      address currentTokenOwner = ownerOf(currentTokenId);
+
+      if (currentTokenOwner == _owner) {
+        ownedTokenIds[ownedTokenIndex] = currentTokenId;
+
+        ownedTokenIndex++;
+      }
+
+      currentTokenId++;
+    }
+
+    return ownedTokenIds;
+  }
+
+  function tokenURI(uint256 _tokenId) public view virtual override returns (string memory) {
+    require(
+      _exists(_tokenId),
+      "ERC721Metadata: URI query for nonexistent token"
+    );
+
+    if (revealed == false) {
+      return hiddenMetadataUri;
+    }
+
+    string memory currentBaseURI = _baseURI();
+    return bytes(currentBaseURI).length > 0
+        ? string(abi.encodePacked(currentBaseURI, _tokenId.toString(), uriSuffix))
+        : "";
+  }
+
+  function setRevealed(bool _state) public onlyOwner {
+    revealed = _state;
+  }
+
+  function setCost(uint256 _cost) public onlyOwner {
+    cost = _cost;
+  }
+
+  function setMaxMintAmountPerTx(uint256 _maxMintAmountPerTx) public onlyOwner {
+    maxMintAmountPerTx = _maxMintAmountPerTx;
+  }
+
+  function setHiddenMetadataUri(string memory _hiddenMetadataUri) public onlyOwner {
+    hiddenMetadataUri = _hiddenMetadataUri;
+  }
+
+  function setUriPrefix(string memory _uriPrefix) public onlyOwner {
+    uriPrefix = _uriPrefix;
+  }
+
+  function setUriSuffix(string memory _uriSuffix) public onlyOwner {
+    uriSuffix = _uriSuffix;
+  }
+
+  function setPaused(bool _state) public onlyOwner {
+    paused = _state;
+  }
+ 
+  function setPublicMint(bool _state) public onlyOwner {
+    publicMint = _state;
+  }
+
+  function setmerkleRoot(bytes32 _merkleRoot) public onlyOwner {
+    merkleRoot = _merkleRoot;
+  }
+
+  function setMaxSupply(uint256 _newSupply) public onlyOwner {
+    maxSupply = _newSupply;
+  }
+  
+  function setNftPerAddressLimit(uint256 _limit) public onlyOwner {
+    nftPerAddressLimit = _limit;
+  }
+
+  function setCrossmintAddress(address _crossmintAddress) public onlyOwner {
+    crossmintAddress = _crossmintAddress;
+  }
+
+  function withdraw() public onlyOwner {
+  
+    (bool os, ) = payable(payment).call{value: address(this).balance}("");
+    require(os);
+  }
+
+  function _mintLoop(address _receiver, uint256 _mintAmount) internal {
+    for (uint256 i = 0; i < _mintAmount; i++) {
+      supply.increment();
+      _safeMint(_receiver, supply.current());
+    }
+  }
+
+  function _baseURI() internal view virtual override returns (string memory) {
+    return uriPrefix;
+  }
+}

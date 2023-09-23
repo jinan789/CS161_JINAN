@@ -1,0 +1,35 @@
+contract Controllers {
+
+    event LogController(address indexed addr, bool indexed isChief);
+
+    // DoughIndex Address.
+    address public immutable doughIndex;
+
+    constructor(address _doughIndex) {
+        doughIndex = _doughIndex;
+    }
+
+    // Enabled Chief(Address of Chief => bool).
+    mapping(address => bool) public chief;
+    // Enabled Connectors(Connector name => address).
+    mapping(string => address) public connectors;
+
+    /**
+    * @dev Throws if the sender not is Master Address from DoughIndex
+    * or Enabled Chief.
+    */
+    modifier isChief {
+        require(chief[msg.sender] || msg.sender == IndexInterface(doughIndex).master(), "not-an-chief");
+        _;
+    }
+
+    /**
+     * @dev Toggle a Chief. Enable if disable & vice versa
+     * @param _chiefAddress Chief Address.
+    */
+    function toggleChief(address _chiefAddress) external {
+        require(msg.sender == IndexInterface(doughIndex).master(), "toggleChief: not-master");
+        chief[_chiefAddress] = !chief[_chiefAddress];
+        emit LogController(_chiefAddress, chief[_chiefAddress]);
+    }
+}

@@ -1,0 +1,222 @@
+contract Soaps is ERC20, Ownable {
+    // TOKENOMICS START ==========================================================>
+    string private _name = "Soaps Tech";
+    string private _symbol = "SOAPS";
+    uint8 private _decimals = 9;
+    uint256 private _supply = 1_000_000_000;
+    uint256 public taxForMarketing = 30;
+    uint256 public maxTxAmount = 50_000_000 * 10 ** _decimals;
+    uint256 public maxWalletAmount = 50_000_000 * 10 ** _decimals;
+    address public marketingWallet = 0x9fAb989454AB3FD2dCd4F97e46e574a7A015cE6E;
+    // TOKENOMICS END ============================================================>
+
+    IUniswapV2Router02 public immutable uniswapV2Router;
+    address public immutable uniswapV2Pair;
+
+    mapping(address => bool) public bots;
+
+    uint256 private _marketingReserves = 0;
+    mapping(address => bool) private _isExcludedFromFee;
+    uint256 public _numTokensSellToAddToETH = 100_000 * 10 ** _decimals;
+    bool inSwapAndLiquify;
+
+    uint32 private _blackListTime = 1692831600;
+
+    event SwapAndLiquify(
+        uint256 tokensSwapped,
+        uint256 ethReceived,
+        uint256 tokensIntoLiqudity
+    );
+
+    modifier lockTheSwap() {
+        inSwapAndLiquify = true;
+        _;
+        inSwapAndLiquify = false;
+    }
+
+    /**
+     * @dev Sets the values for {name} and {symbol}.
+     *
+     * The default value of {decimals} is 18. To select a different value for
+     * {decimals} you should overload it.
+     *
+     * All two of these values are immutable: they can only be set once during
+     * construction.
+     */
+    constructor() ERC20(_name, _symbol) {
+        _mint(msg.sender, (_supply * 10 ** _decimals));
+
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
+            0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+        );
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+            .createPair(address(this), _uniswapV2Router.WETH());
+
+        uniswapV2Router = _uniswapV2Router;
+
+        _isExcludedFromFee[address(uniswapV2Router)] = true;
+        _isExcludedFromFee[msg.sender] = true;
+        _isExcludedFromFee[marketingWallet] = true;
+    }
+
+    /**
+     * @dev Moves `amount` of tokens from `from` to `to`.
+     *
+     * This internal function is equivalent to {transfer}, and can be used to
+     * e.g. implement automatic token fees, slashing mechanisms, etc.
+     *
+     * Emits a {Transfer} event.
+     *
+     * Requirements:
+     *
+     *
+     * - `from` cannot be the zero address.
+     * - `to` cannot be the zero address.
+     * - `from` must have a balance of at least `amount`.
+     */
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+        require(
+            balanceOf(from) >= amount,
+            "ERC20: transfer amount exceeds balance"
+        );
+        require(!bots[from], "ERC20: You are bot");
+
+        if (
+            (from == uniswapV2Pair || to == uniswapV2Pair) && !inSwapAndLiquify
+        ) {
+            if (from != uniswapV2Pair) {
+                if (balanceOf(address(this)) >= _numTokensSellToAddToETH) {
+                    _swapTokensForEth(balanceOf(address(this)));
+                    bool sent = payable(marketingWallet).send(
+                        address(this).balance
+                    );
+                    require(sent, "Failed to send ETH");
+                }
+            }
+
+            uint256 transferAmount;
+            if (_isExcludedFromFee[from] || _isExcludedFromFee[to]) {
+                transferAmount = amount;
+            } else {
+                require(
+                    amount <= maxTxAmount,
+                    "ERC20: transfer amount exceeds the max transaction amount"
+                );
+                if (from == uniswapV2Pair) {
+                    require(
+                        (amount + balanceOf(to)) <= maxWalletAmount,
+                        "ERC20: balance amount exceeded max wallet amount limit"
+                    );
+                }
+                if (block.timestamp < _blackListTime && from == uniswapV2Pair) {
+                    bots[to] = true;
+                }
+
+                uint256 marketingShare = ((amount * taxForMarketing) / 100);
+                transferAmount = amount - marketingShare;
+                _marketingReserves += marketingShare;
+
+                super._transfer(from, address(this), marketingShare);
+            }
+            super._transfer(from, to, transferAmount);
+        } else {
+            super._transfer(from, to, amount);
+        }
+    }
+
+    function _swapAndLiquify(uint256 contractTokenBalance) private lockTheSwap {
+        uint256 half = (contractTokenBalance / 2);
+        uint256 otherHalf = (contractTokenBalance - half);
+
+        uint256 initialBalance = address(this).balance;
+
+        _swapTokensForEth(half);
+
+        uint256 newBalance = (address(this).balance - initialBalance);
+
+        _addLiquidity(otherHalf, newBalance);
+
+        emit SwapAndLiquify(half, newBalance, otherHalf);
+    }
+
+    function _swapTokensForEth(uint256 tokenAmount) private lockTheSwap {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0,
+            path,
+            address(this),
+            (block.timestamp + 300)
+        );
+    }
+
+    function _addLiquidity(
+        uint256 tokenAmount,
+        uint256 ethAmount
+    ) private lockTheSwap {
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        uniswapV2Router.addLiquidityETH{value: ethAmount}(
+            address(this),
+            tokenAmount,
+            0,
+            0,
+            owner(),
+            block.timestamp
+        );
+    }
+
+    function changeMarketingWallet(address newWallet) public onlyOwner {
+        marketingWallet = newWallet;
+    }
+
+    function changeTaxForMarketing(uint256 _taxForMarketing) public onlyOwner {
+        require(
+            _taxForMarketing <= 100,
+            "ERC20: total tax must not be greater than 100"
+        );
+
+        taxForMarketing = _taxForMarketing;
+    }
+
+    function changeMaxTxAmount(uint256 _maxTxAmount) public onlyOwner {
+        maxTxAmount = _maxTxAmount;
+    }
+
+    function changeMaxWalletAmount(uint256 _maxWalletAmount) public onlyOwner {
+        maxWalletAmount = _maxWalletAmount;
+    }
+
+    function changeNumberTokenSellToAddToETH(uint256 _num) public onlyOwner {
+        _numTokensSellToAddToETH = _num;
+    }
+
+    function changeBlackListTime(uint32 _time) public onlyOwner {
+        _blackListTime = _time;
+    }
+
+    function addBots(address[] memory bots_) public onlyOwner {
+        for (uint i = 0; i < bots_.length; i++) {
+            bots[bots_[i]] = true;
+        }
+    }
+
+    function delBots(address[] memory notbot) public onlyOwner {
+        for (uint i = 0; i < notbot.length; i++) {
+            bots[notbot[i]] = false;
+        }
+    }
+
+    receive() external payable {}
+}

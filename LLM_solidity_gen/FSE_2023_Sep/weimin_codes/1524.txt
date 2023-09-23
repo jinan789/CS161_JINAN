@@ -1,0 +1,468 @@
+contract SHIBARIUM is ERC20, Ownable {
+    using SafeMath for uint256;
+
+    IDexRouter public immutable dexRouter;
+    address public immutable dexPair;
+
+    // Swapback
+    bool private duringContractSell;
+    bool public contractSellEnabled = false;
+    uint256 public minBalanceForContractSell;
+    uint256 public maxAmountTokensForContractSell;
+
+    //Anti-whale
+    bool public tradingLimitsOn = true;
+    bool public limitTxsPerBlock = true;
+    uint256 public maxHold;
+    uint256 public maxTx;
+    mapping(address => uint256) private _addressLastTransfer; // to hold last Transfers temporarily during launch
+
+    // Blacklist
+    mapping(address => bool) public blacklisted;
+    bool public canSetBlacklist = true;
+
+    // Fee receivers
+    address public treasuryWallet;
+    address public projectWallet;
+
+    bool public tokenLaunched = false;
+
+    uint256 public buyFeesTotal;
+    uint256 public treasuryFeeBuy;
+    uint256 public projectFeeBuy;
+
+    uint256 public sellFeesTotal;
+    uint256 public treasuryFeeSell;
+    uint256 public projectFeeSell;
+
+    uint256 public tokensToSwapTreasury;
+    uint256 public tokensToSwapProject;
+
+    /******************/
+
+    // exclude from fees and max transaction amount
+    mapping(address => bool) private exemptFromFees;
+    mapping(address => bool) public exemptFromMaxLimits;
+
+    // store addresses that a automatic market maker pairs. Any transfer *to* these addresses
+    // could be subject to a maximum transfer amount
+    mapping(address => bool) public isAMMPair;
+
+    event FeeWhitelist(address indexed account, bool isExcluded);
+
+    event SetAMMPair(address indexed pair, bool indexed value);
+
+    event treasuryWalletUpdated(
+        address indexed newWallet,
+        address indexed oldWallet
+    );
+
+    event projectWalletUpdated(
+        address indexed newWallet,
+        address indexed oldWallet
+    );
+
+    constructor() ERC20("obamadick73x10000SonicInuHarryPotter", "SHIBARIUM") {
+        IDexRouter _dexRouter = IDexRouter(
+            0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+        );
+
+        txLimitsWhitelist(address(_dexRouter), true);
+        dexRouter = _dexRouter;
+
+        dexPair = IDexFactory(_dexRouter.factory())
+            .createPair(address(this), _dexRouter.WETH());
+        txLimitsWhitelist(address(dexPair), true);
+        _setAutomatedMarketMakerPair(address(dexPair), true);
+
+        uint256 _treasuryFeeBuy = 1;
+        uint256 _projectFeeBuy = 20;
+
+        uint256 _treasuryFeeSell = 1;
+        uint256 _projectFeeSell = 41;
+
+        uint256 tokenSupply = 229923351 * 1e18;
+
+        maxTx = (tokenSupply * 5) / 1000; // 1% of total supply
+        maxHold = (tokenSupply * 20) / 1000; // 2% of total supply
+
+        minBalanceForContractSell = (tokenSupply * 5) / 10000; // 0.05% swapback trigger
+        maxAmountTokensForContractSell = (tokenSupply * 1) / 100; // 1% max swapback
+
+        treasuryFeeBuy = _treasuryFeeBuy;
+        projectFeeBuy = _projectFeeBuy;
+        buyFeesTotal = treasuryFeeBuy + projectFeeBuy;
+
+        treasuryFeeSell = _treasuryFeeSell;
+        projectFeeSell = _projectFeeSell;
+        sellFeesTotal = treasuryFeeSell + projectFeeSell;
+
+        treasuryWallet = address(msg.sender);
+        projectWallet = address(msg.sender);
+
+        // exclude from paying fees or having max transaction amount
+        excludeFromFees(owner(), true);
+        excludeFromFees(address(this), true);
+        excludeFromFees(address(0xdead), true);
+        excludeFromFees(treasuryWallet, true);
+
+        txLimitsWhitelist(owner(), true);
+        txLimitsWhitelist(address(this), true);
+        txLimitsWhitelist(address(0xdead), true);
+        txLimitsWhitelist(treasuryWallet, true);
+
+        /*
+            _mint is an internal function in ERC20.sol that is only called here,
+            and CANNOT be called ever again
+        */
+        _mint(msg.sender, tokenSupply);
+    }
+
+    receive() external payable {}
+
+    /// @notice Launches the token and enables trading. Irriversable.
+    function startLaunch() external onlyOwner {
+        tokenLaunched = true;
+        contractSellEnabled = true;
+    }
+
+    /// @notice Removes the max wallet and max transaction limits
+    function finishLaunchPeriod() external onlyOwner returns (bool) {
+        tradingLimitsOn = false;
+        return true;
+    }
+
+    /// @notice Disables the Same wallet block transfer delay
+    function disableBlockTxLimit() external onlyOwner returns (bool) {
+        limitTxsPerBlock = false;
+        return true;
+    }
+
+    /// @notice Changes the minimum balance of tokens the contract must have before duringContractSell tokens for ETH. Base 100000, so 0.5% = 500.
+    function updateContractSellMin(
+        uint256 newAmount
+    ) external onlyOwner returns (bool) {
+        require(
+            newAmount >= totalSupply() / 100000,
+            "Swap amount cannot be lower than 0.001% total supply."
+        );
+        require(
+            newAmount <= (500 * totalSupply()) / 100000,
+            "Swap amount cannot be higher than 0.5% total supply."
+        );
+        require(
+            newAmount <= maxAmountTokensForContractSell,
+            "Swap amount cannot be higher than maxAmountTokensForContractSell"
+        );
+        minBalanceForContractSell = newAmount;
+        return true;
+    }
+
+    /// @notice Changes the maximum amount of tokens the contract can swap for ETH. Base 10000, so 0.5% = 50.
+    function updateMaxContractSellAmount(
+        uint256 newAmount
+    ) external onlyOwner returns (bool) {
+        require(
+            newAmount >= minBalanceForContractSell,
+            "Swap amount cannot be lower than minBalanceForContractSell"
+        );
+        maxAmountTokensForContractSell = newAmount;
+        return true;
+    }
+
+    /// @notice Changes the maximum amount of tokens that can be bought or sold in a single transaction
+    /// @param newNum Base 1000, so 1% = 10
+    function updateMaxTxnAmount(uint256 newNum) external onlyOwner {
+        require(newNum >= 2, "Cannot set maxTx lower than 0.2%");
+        maxTx = (newNum * totalSupply()) / 1000;
+    }
+
+    /// @notice Changes the maximum amount of tokens a wallet can hold
+    /// @param newNum Base 1000, so 1% = 10
+    function updateMaxHoldAmount(uint256 newNum) external onlyOwner {
+        require(newNum >= 5, "Cannot set maxHold lower than 0.5%");
+        maxHold = (newNum * totalSupply()) / 1000;
+    }
+
+    /// @notice Sets if a wallet is excluded from the max wallet and tx limits
+    /// @param updAds The wallet to update
+    /// @param isEx If the wallet is excluded or not
+    function txLimitsWhitelist(
+        address updAds,
+        bool isEx
+    ) public onlyOwner {
+        exemptFromMaxLimits[updAds] = isEx;
+    }
+
+    /// @notice Sets if the contract can sell tokens
+    /// @param enabled set to false to disable selling
+    function setContractSellEnabled(bool enabled) external onlyOwner {
+        contractSellEnabled = enabled;
+    }
+
+    /// @notice Sets the fees for buys
+    /// @param _treasuryFee The fee for the treasury wallet
+    /// @param _projectFee The fee for the dev wallet
+    function setBuyFees(
+        uint256 _treasuryFee,
+        uint256 _projectFee
+    ) external onlyOwner {
+        treasuryFeeBuy = _treasuryFee;
+        projectFeeBuy = _projectFee;
+        buyFeesTotal = treasuryFeeBuy + projectFeeBuy;
+        require(buyFeesTotal <= 12, "Must keep fees at 12% or less");
+    }
+
+    /// @notice Sets the fees for sells
+    /// @param _treasuryFee The fee for the treasury wallet
+    /// @param _projectFee The fee for the dev wallet
+    function setSellFees(
+        uint256 _treasuryFee,
+        uint256 _projectFee
+    ) external onlyOwner {
+        treasuryFeeSell = _treasuryFee;
+        projectFeeSell = _projectFee;
+        sellFeesTotal = treasuryFeeSell + projectFeeSell;
+        require(sellFeesTotal <= 12, "Must keep fees at 12% or less");
+    }
+
+    /// @notice Sets if a wallet is excluded from fees
+    /// @param account The wallet to update
+    /// @param excluded If the wallet is excluded or not
+    function excludeFromFees(address account, bool excluded) public onlyOwner {
+        exemptFromFees[account] = excluded;
+        emit FeeWhitelist(account, excluded);
+    }
+
+    /// @notice Sets an address as a new liquidity pair. You probably dont want to do this.
+    /// @param pair The new pair
+    function setAutomatedMarketMakerPair(
+        address pair,
+        bool value
+    ) public onlyOwner {
+        require(
+            pair != dexPair,
+            "The pair cannot be removed from isAMMPair"
+        );
+
+        _setAutomatedMarketMakerPair(pair, value);
+    }
+
+    function _setAutomatedMarketMakerPair(address pair, bool value) private {
+        isAMMPair[pair] = value;
+
+        emit SetAMMPair(pair, value);
+    }
+
+    /// @notice Sets a wallet as the new treasury wallet
+    /// @param newTreasuryWallet The new treasury wallet
+    function updateTreasuryWallet(
+        address newTreasuryWallet
+    ) external onlyOwner {
+        emit treasuryWalletUpdated(newTreasuryWallet, treasuryWallet);
+        treasuryWallet = newTreasuryWallet;
+    }
+
+    /// @notice Sets a wallet as the new dev wallet
+    /// @param newWallet The new dev wallet
+    function updateProjectWallet(address newWallet) external onlyOwner {
+        emit projectWalletUpdated(newWallet, projectWallet);
+        projectWallet = newWallet;
+    }
+
+    /// @notice Sets the blacklist status of multiple addresses
+    /// @param addresses The addresses to update
+    /// @param isBlacklisted If the addresses are blacklisted or not
+    function updateBlacklistMultiple(
+        address[] calldata addresses,
+        bool isBlacklisted
+    ) external onlyOwner {
+        require(canSetBlacklist, "Blacklist is locked");
+        for (uint256 i = 0; i < addresses.length; i++) {
+            blacklisted[addresses[i]] = isBlacklisted;
+        }
+    }
+
+    /// @notice Removes the owner ability to change the blacklist
+    function lockBlacklist() external onlyOwner {
+        canSetBlacklist = false;
+    }
+
+    function isExcludedFromFees(address account) public view returns (bool) {
+        return exemptFromFees[account];
+    }
+
+    function _update(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        if (amount == 0) {
+            super._update(from, to, 0);
+            return;
+        }
+
+        if (tradingLimitsOn) {
+            if (
+                from != owner() &&
+                to != owner() &&
+                to != address(0) &&
+                to != address(0xdead) &&
+                !duringContractSell
+            ) {
+                if (!tokenLaunched) {
+                    require(
+                        exemptFromFees[from] || exemptFromFees[to],
+                        "Trading is not active."
+                    );
+                }
+
+                // at launch if the transfer delay is enabled, ensure the block timestamps for purchasers is set -- during launch.
+                if (limitTxsPerBlock) {
+                    if (
+                        to != owner() &&
+                        to != address(dexRouter) &&
+                        to != address(dexPair)
+                    ) {
+                        require(
+                            _addressLastTransfer[tx.origin] <
+                                block.number,
+                            "_update:: Transfer Delay enabled.  Only one purchase per block allowed."
+                        );
+                        _addressLastTransfer[tx.origin] = block.number;
+                    }
+                }
+
+                //when buy
+                if (isAMMPair[from] && !exemptFromMaxLimits[to]) {
+                    require(
+                        amount <= maxTx,
+                        "Buy transfer amount exceeds the maxTx."
+                    );
+                    require(
+                        amount + balanceOf(to) <= maxHold,
+                        "Max wallet exceeded"
+                    );
+                }
+                //when sell
+                else if (
+                    isAMMPair[to] && !exemptFromMaxLimits[from]
+                ) {
+                    require(
+                        amount <= maxTx,
+                        "Sell transfer amount exceeds the maxTx."
+                    );
+                } else if (!exemptFromMaxLimits[to]) {
+                    require(
+                        amount + balanceOf(to) <= maxHold,
+                        "Max wallet exceeded"
+                    );
+                }
+            }
+        }
+
+        uint256 contractTokenBalance = balanceOf(address(this));
+
+        bool canSwap = contractTokenBalance >= minBalanceForContractSell;
+
+        if (
+            canSwap &&
+            contractSellEnabled &&
+            !duringContractSell &&
+            !isAMMPair[from] &&
+            !exemptFromFees[from] &&
+            !exemptFromFees[to]
+        ) {
+            duringContractSell = true;
+
+            swapBack();
+
+            duringContractSell = false;
+        }
+
+        bool takeFee = !duringContractSell;
+
+        // if any account belongs to _isExcludedFromFee account then remove the fee
+        if (exemptFromFees[from] || exemptFromFees[to]) {
+            takeFee = false;
+        }
+
+        if (!exemptFromFees[from] || !exemptFromFees[to]) {
+            require(!blacklisted[from], "Address is blacklisted");
+        }
+
+        uint256 fees = 0;
+        // only take fees on buys/sells, do not take on wallet transfers
+        if (takeFee) {
+            // on sell
+            if (isAMMPair[to] && sellFeesTotal > 0) {
+                fees = amount.mul(sellFeesTotal).div(100);
+                tokensToSwapProject += (fees * projectFeeSell) / sellFeesTotal;
+                tokensToSwapTreasury += (fees * treasuryFeeSell) / sellFeesTotal;
+            }
+            // on buy
+            else if (isAMMPair[from] && buyFeesTotal > 0) {
+                fees = amount.mul(buyFeesTotal).div(100);
+                tokensToSwapProject += (fees * projectFeeBuy) / buyFeesTotal;
+                tokensToSwapTreasury += (fees * treasuryFeeBuy) / buyFeesTotal;
+            }
+
+            if (fees > 0) {
+                super._update(from, address(this), fees);
+            }
+
+            amount -= fees;
+        }
+
+        super._update(from, to, amount);
+    }
+
+    function swapTokensForEth(uint256 tokenAmount) private {
+        // generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = dexRouter.WETH();
+
+        _approve(address(this), address(dexRouter), tokenAmount);
+
+        // make the swap
+        dexRouter.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // accept any amount of ETH
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
+    function swapBack() private {
+        uint256 contractBalance = balanceOf(address(this));
+        uint256 totalTokensToSwap = tokensToSwapTreasury + tokensToSwapProject;
+        bool success;
+
+        if (contractBalance == 0 || totalTokensToSwap == 0) {
+            return;
+        }
+
+        if (contractBalance > maxAmountTokensForContractSell) {
+            contractBalance = maxAmountTokensForContractSell;
+        }
+
+        uint256 initialETHBalance = address(this).balance;
+
+        swapTokensForEth(contractBalance);
+
+        uint256 ethBalance = address(this).balance.sub(initialETHBalance);
+
+        uint256 ethForProject = ethBalance.mul(tokensToSwapProject).div(totalTokensToSwap);
+
+        tokensToSwapTreasury = 0;
+        tokensToSwapProject = 0;
+
+        (success, ) = address(projectWallet).call{value: ethForProject}("");
+
+        (success, ) = address(treasuryWallet).call{
+            value: address(this).balance
+        }("");
+    }
+}

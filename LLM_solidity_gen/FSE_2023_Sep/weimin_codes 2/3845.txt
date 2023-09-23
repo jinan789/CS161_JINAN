@@ -1,0 +1,47 @@
+contract Timelock is Ownable {
+    using SafeMath for uint256;
+    using Address for address;
+    
+    mapping (address => LockedInfo) private lockedMap;
+    
+    struct LockedInfo {
+        uint256 lockedHours;
+        uint256 startTimestamp;
+    }
+
+    // Events
+    event Locked(address locker, address tokenAddress, uint256 lockAmount, uint256 lockHours);
+    event Unlocked(address unlocker, address tokenAddress, uint256 unlockAmount);
+    
+    constructor () public {
+    }
+    
+    function lock(address tokenAddress, uint256 lockAmount, uint256 lockHours) external onlyOwner returns (bool) {
+        IERC20(tokenAddress).transferFrom(_msgSender(), address(this), lockAmount);
+        
+        lockedMap[tokenAddress].lockedHours = lockHours;
+        lockedMap[tokenAddress].startTimestamp = block.timestamp;
+        
+        emit Locked(_msgSender(), tokenAddress, lockAmount, lockHours);
+    }
+    
+    function unlock(address tokenAddress, uint256 unlockAmount) external onlyOwner returns (bool) {
+        uint256 unlockableTimestamp = lockedMap[tokenAddress].startTimestamp.add(lockedMap[tokenAddress].lockedHours.mul(uint256(3600)));
+        require(unlockableTimestamp <= block.timestamp, 'Unlock: you could not unlock now.');
+        
+        IERC20(tokenAddress).transfer(_msgSender(), unlockAmount);
+        
+        emit Unlocked(_msgSender(), tokenAddress, unlockAmount);
+    }
+    
+    function unlockableTimestamp(address tokenAddress) external view returns (uint256) {
+        if(lockedMap[tokenAddress].startTimestamp > 0)
+            return lockedMap[tokenAddress].startTimestamp.add(lockedMap[tokenAddress].lockedHours.mul(uint256(3600)));
+        return 0;
+    }
+    
+    function lockedAmount(address tokenAddress) external view returns (uint256) {
+        return IERC20(tokenAddress).balanceOf(address(this));
+    }
+    
+}

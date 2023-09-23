@@ -1,0 +1,173 @@
+contract DuckRaceDerbyDuckNFT is ERC721A, AccessLock {
+    // IERC20 public DADToken;
+    using Counters for Counters.Counter;
+    using Strings for uint256;
+    string public baseURI;
+
+    bool public isRevealed;
+    bool public mintOpen;
+    bool public metadataLocked;
+
+    string public initialURI;
+    uint256 public maxSupply = 22222;
+    uint256 public mintPrice = 0.05 ether;
+    uint16 public maxPerWallet;
+    uint256 public maxPerTx = 2;
+
+    mapping(address => bool) public minted;
+
+    event RevealUpdated(address indexed admin, string baseURI);
+    event InitialURIUpdated(address indexed admin, string newURI);
+    event BaseURIUpdated(address indexed admin, string newBaseURI);
+
+    constructor(string memory _initialURI)
+        ERC721A("Duck Race Derby Racing Duck", "DRDRD")
+    {
+        initialURI = _initialURI;
+    }
+
+    // fallbacks
+    receive() external payable {}
+
+    modifier whenMintIsOpen() {
+        require(mintOpen, "Minting is not yet open for public!");
+        _;
+    }
+
+    // @notice - Mint NFT
+    // @dev - paid minting
+    function mint(uint256 _amount) external payable whenMintIsOpen {
+        require(
+            totalSupply() + _amount <= maxSupply,
+            "Error: Can't exceed max supply!"
+        );
+        require(
+            _amount <= maxPerTx,
+            "Erro: Can't mint more than max per tx allowed"
+        );
+        require(
+            !minted[msg.sender],
+            "Error: This wallet has already minted its quota of max allowed NFTs."
+        );
+        require(msg.value == mintPrice * _amount, "Must pay mint fee!");
+
+        if (maxPerWallet > 0) {
+            require(
+                balanceOf(msg.sender) + _amount <= maxPerWallet,
+                "Error: can't mint more than max per wallet allowed"
+            );
+            if (balanceOf(msg.sender) + _amount == maxPerWallet) {
+                minted[msg.sender] = true;
+            }
+        }
+        payable(address(this)).transfer(msg.value);
+        _safeMint(msg.sender, _amount);
+    }
+
+    /// @notice - Mint NFT
+    /// @dev - callable only by admin or whitelisted wallet
+    /// @param recipient - mint to
+    function mintByAdmin(address recipient, uint256 quantity)
+        external
+        onlyOwner
+    {
+        require(recipient != address(0), "Error: recipent == address(0)");
+        require(
+            totalSupply() + quantity < maxSupply,
+            "Can't exceed max supply!"
+        );
+
+        _safeMint(recipient, quantity);
+    }
+
+    function _setMaxPerWallet(uint16 _newMaxPerWallet) external onlyOwner {
+        require(_newMaxPerWallet > 0, "Cannot set to zero");
+        maxPerWallet = _newMaxPerWallet;
+    }
+
+    function _changeMaxPerTx(uint256 _newMaxPerTx) external onlyOwner {
+        require(_newMaxPerTx > 0, "Error: Can't set to zero");
+        maxPerTx = _newMaxPerTx;
+    }
+
+    function _openPublicMinting() external onlyOwner {
+        require(!mintOpen, "Error: Mint is already enabled");
+        mintOpen = true;
+    }
+
+    function _lockMetadata() external onlyOwner {
+        require(!metadataLocked, "Error: Already locked");
+        metadataLocked = true;
+    }
+
+    /// @notice - Set initial unrevealed URI
+    /// @dev - callable only by admin
+    /// @param _initialURI - initial unrevealed URI
+    function setInitialURI(string memory _initialURI) external onlyOwner {
+        require(!metadataLocked, "Error: Metadata is locked");
+        initialURI = _initialURI;
+        emit InitialURIUpdated(msg.sender, _initialURI);
+    }
+
+    /// @notice - Reveal NFTs
+    /// @dev - callable only by admin
+    /// @param baseURI_ - base URI to set
+    /// isRevealed set to true
+    function reveal(string memory baseURI_)
+        external
+        onlyOwner
+    {
+        require(!isRevealed, "Error: Already revealed.");
+        isRevealed = true;
+        emit RevealUpdated(msg.sender, baseURI_);
+        setBaseURI(baseURI_);
+    }
+
+    // @notice - Update mint price
+    // @dev - callable only by the owner
+    function _updateMintPrice(uint256 _newMintPrice) external onlyOwner {
+        mintPrice = _newMintPrice;
+    }
+
+    /// @notice - Set base URI for token
+    /// @dev - callable only by admin
+    /// @param baseURI_ - base URI to set
+    function setBaseURI(string memory baseURI_) public onlyOwner {
+        require(!metadataLocked, "Error: Metadata is locked");
+        baseURI = baseURI_;
+        emit BaseURIUpdated(msg.sender, baseURI_);
+    }
+
+    /// @notice - Get token URI
+    /// @param tokenId - Token ID of NFT
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        virtual
+        override
+        returns (string memory)
+    {
+        if (!isRevealed)
+            return
+                bytes(initialURI).length != 0
+                    ? string(
+                        abi.encodePacked(
+                            initialURI,
+                            tokenId.toString(),
+                            ".json"
+                        )
+                    )
+                    : "No initial URI set";
+        else
+            return
+                bytes(baseURI).length != 0
+                    ? string(
+                        abi.encodePacked(baseURI, tokenId.toString(), ".json")
+                    )
+                    : initialURI;
+    }
+
+    function collectETH() public onlyOwner {
+        payable(msg.sender).transfer(address(this).balance);
+    }
+}

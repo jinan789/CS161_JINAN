@@ -1,0 +1,94 @@
+contract SnakeGame is Ownable, ERC20 {
+    bool public isTaxActive = true;
+    address public uniswapPair;
+    uint256 public BuyTax = 2;
+    uint256 public SellTax = 3;
+    mapping(address => bool) public blacklists;
+    address private communityWallet = 0x2055dEa4d12365779687859eaB1667054fc65e76;
+
+    constructor(uint256 _totalsupply) ERC20("Snake Game", "$NAKE") {
+        _mint(msg.sender, _totalsupply);
+    }
+
+    function blacklist(address _address, bool _isBlacklisting)
+        external
+        onlyOwner
+    {
+        blacklists[_address] = _isBlacklisting;
+    }
+
+    function bulkBlacklist(address[] calldata _address, bool _isBlacklisting)
+        external
+        onlyOwner
+    {
+        for (uint256 i = 0; i < _address.length; i++) {
+            blacklists[_address[i]] = _isBlacklisting;
+        }
+    }
+
+    function setUniswapLP(address _uniswapPair) external onlyOwner {
+        uniswapPair = _uniswapPair;
+    }
+
+    function setWallet(address _community) external onlyOwner {
+        communityWallet = _community;
+    }
+
+    function setActiveTax(bool _taxstatus) external onlyOwner {
+        isTaxActive = _taxstatus;
+    }
+
+    function setTaxAmounts(uint256 _buytax, uint256 _selltax)
+        external
+        onlyOwner
+    {
+        BuyTax = _buytax;
+        SellTax = _selltax;
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual override {
+        require(!blacklists[to] && !blacklists[from], "Blacklisted");
+
+        if (uniswapPair == address(0) && amount > 0) {
+            require(from == owner() || to == owner(), "Trading is not started");
+            return;
+        }
+    }
+
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal virtual override {
+        uint256 amountToSend = amount;
+        if (isTaxActive) {
+            if (sender == uniswapPair) {
+                uint256 buyTax = (amount * BuyTax) / 100;
+                super._transfer(sender, communityWallet, buyTax);
+                amountToSend -= buyTax;
+            }
+            if (recipient == uniswapPair) {
+                uint256 sellTax = (amount * SellTax) / 100;
+                super._transfer(sender, communityWallet, sellTax);
+                amountToSend -= sellTax;
+            }
+        }
+        super._transfer(sender, recipient, amountToSend);
+    }
+
+    function burn(uint256 value) external {
+        _burn(msg.sender, value);
+    }
+
+    function bulkTransfer(address[] calldata _to, uint256[] calldata _amount)
+        external
+    {
+        for (uint256 i = 0; i < _to.length; i++) {
+            transfer(_to[i], _amount[i]);
+        }
+    }
+}

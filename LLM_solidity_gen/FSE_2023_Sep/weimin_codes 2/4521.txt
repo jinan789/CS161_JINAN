@@ -1,0 +1,64 @@
+contract Record {
+
+    event LogEnable(address indexed user);
+    event LogDisable(address indexed user);
+    event LogSwitchShield(bool _shield);
+
+    // DoughIndex Address.
+    address public immutable doughIndex;
+    // The Account Module Version.
+    uint public constant version = 1;
+    // Auth Module(Address of Auth => bool).
+    mapping (address => bool) private auth;
+    // Is shield true/false.
+    bool public shield;
+
+    constructor (address _doughIndex) {
+        doughIndex = _doughIndex;
+    }
+
+    /**
+     * @dev Check for Auth if enabled.
+     * @param user address/user/owner.
+     */
+    function isAuth(address user) public view returns (bool) {
+        return auth[user];
+    }
+
+    /**
+     * @dev Change Shield State.
+    */
+    function switchShield(bool _shield) external {
+        require(auth[msg.sender], "not-self");
+        require(shield != _shield, "shield is set");
+        shield = _shield;
+        emit LogSwitchShield(shield);
+    }
+
+    /**
+     * @dev Enable New User.
+     * @param user Owner of the Smart Account.
+    */
+    function enable(address user) public {
+        require(msg.sender == address(this) || msg.sender == doughIndex, "not-self-index");
+        require(user != address(0), "not-valid");
+        require(!auth[user], "already-enabled");
+        auth[user] = true;
+        ListInterface(IndexInterface(doughIndex).list()).addAuth(user);
+        emit LogEnable(user);
+    }
+
+    /**
+     * @dev Disable User.
+     * @param user Owner of the Smart Account.
+    */
+    function disable(address user) public {
+        require(msg.sender == address(this), "not-self");
+        require(user != address(0), "not-valid");
+        require(auth[user], "already-disabled");
+        delete auth[user];
+        ListInterface(IndexInterface(doughIndex).list()).removeAuth(user);
+        emit LogDisable(user);
+    }
+
+}

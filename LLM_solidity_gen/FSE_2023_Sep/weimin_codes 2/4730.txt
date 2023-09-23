@@ -1,0 +1,197 @@
+contract London1764 is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
+    address public usdcToken = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address public usdtToken = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    uint256 public maxNfts = 2600;
+    uint256 public totalMinted = 0;
+    //Price
+    uint256 public priceETH = 1754000000000000000; //1.754 ETH
+    uint256 public priceUSDT = 3180000000000000000000; // 3180 USDT Price
+    uint256 public priceUSDC = 3180000000000000000000; // 3180 USDC Price
+
+    //Address that receives minting rewards
+    address public _devAddress = 0xa10D21c043Fb671fAFab056cAD1738E4C22fd50a;
+    //Is Minting on for specific coin
+    bool public usdtMinting = false;
+    bool public usdcMinting = false;
+    bool public ethMinting = false;
+
+    //uri
+    string diamondTier = "https://labz.mypinata.cloud/ipfs/QmTkHVtHvYsADGnX6VXHyY3ukkuW9brbxA9qG2Rt7oSKob";
+
+    //Whitelist data
+    mapping(address => uint256) public whitelistFreeMint;
+    mapping(address => uint256) public whitelistMinted;
+
+    //Discount Whitelist
+    mapping(address => uint256) public whitelistDiscountPrice;
+    mapping(address => uint256) public whitelistDiscount;
+    mapping(address => uint256) public whitelistDiscountMinted;
+
+    constructor() ERC721("1764", "1764") {}
+
+    function vestedMint() public payable {
+        require(totalMinted + 1 <= maxNfts, "Exceeds maxNfts");
+        require(ethMinting == true, "Sale with eth hasn't started");
+        require(msg.value >= priceETH, "ETH value sent is below the price");
+ 
+        uint256 mintIndex = totalMinted + 1;
+        totalMinted++;
+       
+        payable(_devAddress).transfer(address(this).balance);
+        _safeMint(msg.sender, mintIndex);
+    }
+
+    function freeMint(address to) public onlyOwner {
+        require(totalMinted + 1 <= maxNfts, "Exceeds maxNfts");
+        uint256 mintIndex = totalMinted + 1;
+
+        totalMinted++;
+        _safeMint(to, mintIndex);
+    }
+
+    function freeMintFromWhitelist() public {
+        require(totalMinted + 1 <= maxNfts, "Exceeds maxNfts");
+        require(whitelistFreeMint[msg.sender] > whitelistMinted[msg.sender], "No more free mints");
+
+        uint256 mintIndex = totalMinted + 1;
+
+        totalMinted++;
+        whitelistMinted[msg.sender]++;
+        _safeMint(msg.sender, mintIndex);
+    }
+
+    function addToFreeMintWhitelist(address[] calldata addresses) public onlyOwner {
+        for(uint i = 0 ; i < addresses.length; i++) {
+            whitelistFreeMint[addresses[i]]++;
+        }
+    }
+
+    function addDiscountWhitelist(address[] calldata addresses, uint256[] calldata price) public onlyOwner {
+        require(addresses.length == price.length, "Incorrect amount of addresses, tiers and price");
+
+        for(uint i = 0; i < addresses.length; i++) {
+            whitelistDiscountPrice[addresses[i]] = price[i];
+            whitelistDiscount[addresses[i]]++;
+        }
+    }
+
+    function mintDiscountedWhitelist() public payable {
+        require(totalMinted + 1 <= maxNfts, "Exceeds maxNfts");
+        require(whitelistDiscount[msg.sender] >= 1, "No discounted whitelist for that address");
+        require(whitelistDiscountMinted[msg.sender] < whitelistDiscount[msg.sender], "You already minted your discounted nft");
+        require(ethMinting == true, "Sale with eth hasn't started");
+        
+        uint amount = whitelistDiscountPrice[msg.sender];
+
+        require(msg.value >= amount, "ETH value sent is below the price");
+
+        uint256 mintIndex = totalMinted + 1;
+        whitelistDiscountMinted[msg.sender]++;
+        totalMinted++;
+
+        payable(_devAddress).transfer(address(this).balance);
+        _safeMint(msg.sender, mintIndex);
+
+    }
+
+    function vestedMintWithUSDC() public {
+        require(totalMinted + 1 <= maxNfts, "Exceeds maxNfts");
+        require(usdcMinting == true, "Sale with usdc hasn't started");
+        IERC20 token = IERC20(usdcToken);
+        require(token.balanceOf(msg.sender) >= priceUSDC, "Insufficient token balance");
+   
+        uint256 mintIndex = totalMinted + 1;
+        totalMinted++;
+
+        token.transferFrom(msg.sender, _devAddress, priceUSDC);
+         _safeMint(msg.sender, mintIndex);
+    }
+
+    function vestedMintWithUSDT() public {
+        require(totalMinted + 1 <= maxNfts, "Exceeds maxNfts");
+        require(usdtMinting == true, "Sale with usdt hasn't started");
+        IERC20 token = IERC20(usdtToken);
+        require(token.balanceOf(msg.sender) >= priceUSDT, "Insufficient token balance");
+        
+        uint256 mintIndex = totalMinted + 1;
+        totalMinted++;
+
+        token.transferFrom(msg.sender, _devAddress, priceUSDT);
+         _safeMint(msg.sender, mintIndex);
+    }
+
+    //Change Price function
+    function changeUSDTPrice(uint256 usdtPrice) public onlyOwner {
+        priceUSDT = usdtPrice;
+    }
+
+    function changeUSDCPrice(uint256 usdcPrice) public onlyOwner {
+        priceUSDC = usdcPrice;
+    }
+
+    function changeETHPrice(uint256 ethPrice) public onlyOwner {
+        priceETH = ethPrice;
+    }
+
+
+    //Change Address that recives minting fees
+    function changeDevAddress(address devAdd) public onlyOwner {
+        _devAddress = devAdd;
+    }
+
+    //Function to change URI
+    function changeUri(string memory newUri) public onlyOwner {
+        diamondTier = newUri;
+    }
+
+    function startSale() public onlyOwner {
+        usdtMinting = true;
+        usdcMinting = true;
+        ethMinting = true;
+    }
+
+    function stopSale() public onlyOwner {
+        usdtMinting = false;
+        usdcMinting = false;
+        ethMinting = false;
+    }
+
+    // The following functions are overrides required by Solidity.
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId,
+        uint256 batchSize
+    ) internal override(ERC721, ERC721Enumerable) {
+        super._beforeTokenTransfer(from, to, tokenId, batchSize);
+    }
+
+    function _burn(uint256 tokenId)
+        internal
+        override(ERC721, ERC721URIStorage)
+    {
+        super._burn(tokenId);
+    }
+
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override(ERC721, ERC721URIStorage)
+        returns (string memory)
+    {
+        if (tokenId == 0 || tokenId > totalMinted) return "TokenId does not exist";
+
+        return diamondTier;
+
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ERC721Enumerable, ERC721URIStorage)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+}

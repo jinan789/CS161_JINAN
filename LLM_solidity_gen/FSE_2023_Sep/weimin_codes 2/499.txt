@@ -1,0 +1,38 @@
+contract MecaToken is ERC20, Ownable{
+    //bool public shouldLimitUniswapTokenTransfer;
+    bool public shouldEnableDenyList;
+    //uint256 public maxHoldingAmount;
+    //uint256 public minHoldingAmount;
+    //address public uniswapV2Addr;
+    mapping(address => bool) public denylists;
+    
+    // 10 Billion
+    uint256 public constant _totalSupply = 10000000000*(10**18);
+
+    constructor() ERC20("Meca", "MECA") payable {
+        super._mint(msg.sender, _totalSupply);
+    }   
+
+    function denyAddr(address _address, bool shouldDeny) external onlyOwner {
+        denylists[_address] = shouldDeny;
+    }
+
+    function EnableDenyLists(bool _denylistEnabled) external onlyOwner {
+        shouldEnableDenyList = _denylistEnabled;
+    }
+    
+    // function associateUniV2Addr(bool _shouldLimitUniswapTokenTransfer, address _uniswapV2Pair, uint256 _maxHoldingAmount, uint256 _minHoldingAmount) external onlyOwner {
+    //     shouldLimitUniswapTokenTransfer = _shouldLimitUniswapTokenTransfer;
+    //     uniswapV2Addr = _uniswapV2Pair;
+    //     maxHoldingAmount = _maxHoldingAmount;
+    //     minHoldingAmount = _minHoldingAmount;
+    // }
+
+    // function _beforeTokenTransfer(
+    //     address from,
+    //     address to,
+    //     uint256 amount
+    // ) override internal virtual {
+    //     require(!shouldEnableDenyList || (!denylists[to] && !denylists[from]), "Your account is forbidden to transfer.");
+    // }
+}

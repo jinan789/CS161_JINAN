@@ -1,0 +1,71 @@
+contract CreditManagementUpgradable is AccessControolUpgradeable {
+    mapping(uint256 => mapping(address => uint256)) private _credits;
+
+    /**
+     * @dev Increase credits for a user
+     * @notice This function can only be called by an admin
+     * @param _platfrom The platform to get credits for
+     * @param _user The user to get credits for
+     * @param _amount The amount of credits to get
+     */
+    function increaseCredits(
+        uint256 _platfrom,
+        address _user,
+        uint256 _amount
+    ) external onlyAdmin {
+        _credits[_platfrom][_user] += _amount;
+    }
+
+    /**
+     * @dev Decrease credits for a user
+     * @notice If the user does not have enough credits, set to 0
+     * @param _platfrom The platform to get credits for
+     * @param _user The user to decrease credits for
+     * @param _amount The amount of credits to decrease
+     */
+    function decreaseCredits(
+        uint256 _platfrom,
+        address _user,
+        uint256 _amount
+    ) external onlyAdmin {
+        if (_credits[_platfrom][_user] >= _amount)
+            _credits[_platfrom][_user] -= _amount;
+        else _credits[_platfrom][_user] = 0;
+    }
+
+    function _getCredits(
+        uint256 _platfrom,
+        address _user
+    ) internal view returns (uint256) {
+        return _credits[_platfrom][_user];
+    }
+
+    function _decreaseCredits(
+        uint256 _platfrom,
+        address _user,
+        uint256 _amount
+    ) internal {
+        require(
+            _credits[_platfrom][_user] >= _amount,
+            "CreditManagement: not enough credits"
+        );
+        _credits[_platfrom][_user] -= _amount;
+    }
+
+    function _increaseCredits(
+        uint256 _platfrom,
+        address _user,
+        uint256 _amount
+    ) internal {
+        _credits[_platfrom][_user] += _amount;
+    }
+
+    function userCredits(
+        uint256 _platfrom,
+        address _user
+    ) external view returns (uint256) {
+        return _credits[_platfrom][_user];
+    }
+
+    uint256[50] private __gap;
+}

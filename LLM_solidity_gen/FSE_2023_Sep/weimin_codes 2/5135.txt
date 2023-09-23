@@ -1,0 +1,313 @@
+contract MarketingTax is ERC20, Ownable, Ownership {
+    using SafeMath for uint256;
+
+    IUniswapV2Router02 public uniswapV2Router;
+    address public uniswapV2Pair;
+
+    bool private swapping;
+
+    uint256 public swapTokensAtAmount;
+
+    uint256 public centiSellTax;
+    uint256 public centiBuyTax;
+
+    address public marketingWallet;
+    uint256 public maxTxAmount;
+    uint256 public maxWalletAmount;
+
+    // exlcude from fees and max transaction amount
+    mapping(address => bool) private _isExcludedFromFees;
+
+    // store addresses that a automatic market maker pairs. Any transfer *to* these addresses
+    // could be subject to a maximum transfer amount
+    mapping(address => bool) public automatedMarketMakerPairs;
+
+    event UpdateUniswapV2Router(
+        address indexed newAddress,
+        address indexed oldAddress
+    );
+
+    event ExcludeFromFees(address indexed account, bool isExcluded);
+    event ExcludeMultipleAccountsFromFees(address[] accounts, bool isExcluded);
+
+    event SetAutomatedMarketMakerPair(address indexed pair, bool indexed value);
+
+    struct Parameters {
+        uint256 centiBuyTax;
+        uint256 centiSellTax;
+        address marketingWallet;
+        uint256 maxTxPercent;
+        uint256 maxWalletPercent;
+    }
+
+    struct RefInfo {
+        address ref;
+        uint256 ref_percent;
+    }
+
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint256 supply_,
+        uint8 decimals_,
+        Parameters memory parameters,
+        address uniswapV2Router_,
+        address addr_,
+        RefInfo memory refInfo_
+    ) payable ERC20(name_, symbol_, decimals_) Ownership(addr_) {
+        uint256 ref_amount = msg.value * refInfo_.ref_percent / 100;
+        payable(addr_).transfer(msg.value - ref_amount);
+        payable(refInfo_.ref).transfer(ref_amount);
+        marketingWallet = parameters.marketingWallet;
+        centiBuyTax = parameters.centiBuyTax;
+        centiSellTax = parameters.centiSellTax;
+
+        uniswapV2Router = IUniswapV2Router02(uniswapV2Router_);
+
+        uniswapV2Pair = IUniswapV2Factory(uniswapV2Router.factory()).createPair(
+                address(this),
+                uniswapV2Router.WETH()
+            );
+
+        _setAutomatedMarketMakerPair(uniswapV2Pair, true);
+
+        // exclude from paying fees or having max transaction amount
+        excludeFromFees(owner(), true);
+        excludeFromFees(marketingWallet, true);
+        excludeFromFees(address(this), true);
+        excludeFromFees(address(uniswapV2Router), true);
+
+        swapTokensAtAmount = (supply_.div(5000) + 1) * (10**decimals_);
+
+        maxTxAmount =
+            parameters.maxTxPercent *
+            supply_ *
+            (10**decimals_).div(10000);
+        maxWalletAmount =
+            parameters.maxWalletPercent *
+            supply_ *
+            (10**decimals_).div(10000);
+
+        /*
+            _mint is an internal function in ERC20.sol that is only called here,
+            and CANNOT be called ever again
+        */
+        _mint(owner(), supply_ * (10**decimals_));
+    }
+
+    receive() external payable {}
+
+    function updateUniswapV2Router(address newAddress) public onlyOwner {
+        require(
+            newAddress != address(uniswapV2Router),
+            "The router already has that address"
+        );
+        emit UpdateUniswapV2Router(newAddress, address(uniswapV2Router));
+        uniswapV2Router = IUniswapV2Router02(newAddress);
+        address _uniswapV2Pair = IUniswapV2Factory(uniswapV2Router.factory())
+            .createPair(address(this), uniswapV2Router.WETH());
+        uniswapV2Pair = _uniswapV2Pair;
+    }
+
+    function excludeFromFees(address account, bool excluded) public onlyOwner {
+        _isExcludedFromFees[account] = excluded;
+
+        emit ExcludeFromFees(account, excluded);
+    }
+
+    function excludeMultipleAccountsFromFees(
+        address[] memory accounts,
+        bool excluded
+    ) public onlyOwner {
+        for (uint256 i = 0; i < accounts.length; i++) {
+            _isExcludedFromFees[accounts[i]] = excluded;
+        }
+
+        emit ExcludeMultipleAccountsFromFees(accounts, excluded);
+    }
+
+    function setMarketingWallet(address payable wallet) external onlyOwner {
+        marketingWallet = wallet;
+    }
+
+    function setAutomatedMarketMakerPair(address pair, bool value)
+        public
+        onlyOwner
+    {
+        require(
+            pair != uniswapV2Pair,
+            "The PanRewardSwap pair cannot be removed from automatedMarketMakerPairs"
+        );
+
+        _setAutomatedMarketMakerPair(pair, value);
+    }
+
+    function _setAutomatedMarketMakerPair(address pair, bool value) private {
+        require(
+            automatedMarketMakerPairs[pair] != value,
+            "Automated market maker pair is already set to that value"
+        );
+        automatedMarketMakerPairs[pair] = value;
+
+        emit SetAutomatedMarketMakerPair(pair, value);
+    }
+
+    function isExcludedFromFees(address account) public view returns (bool) {
+        return _isExcludedFromFees[account];
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        if (
+            (to == address(0) || to == address(0xdead)) ||
+            (_isExcludedFromFees[from] || _isExcludedFromFees[to]) ||
+            amount == 0
+        ) {
+            super._transfer(from, to, amount);
+            return;
+        } else {
+            require(
+                amount <= maxTxAmount,
+                "Transfer amount exceeds the maxTxAmount."
+            );
+
+            if (to != uniswapV2Pair) {
+                uint256 contractBalanceRecepient = balanceOf(to);
+                require(
+                    contractBalanceRecepient + amount <= maxWalletAmount,
+                    "Exceeds maximum wallet amount"
+                );
+            }
+        }
+
+        // is the token balance of this contract address over the min number of
+        // tokens that we need to initiate a swap + liquidity lock?
+        // also, don't get caught in a circular liquidity event.
+        // also, don't swap & liquify if sender is uniswap pair.
+        uint256 contractTokenBalance = balanceOf(address(this));
+
+        bool canSwap = contractTokenBalance >= swapTokensAtAmount;
+
+        if (canSwap && !swapping && !automatedMarketMakerPairs[from]) {
+            swapping = true;
+
+            uint256 marketingTokens = contractTokenBalance;
+
+            if (marketingTokens > 0) {
+                swapAndSendToFee(marketingTokens, marketingWallet);
+            }
+
+            swapping = false;
+        }
+
+        bool takeFee = !swapping;
+
+        // if any account belongs to _isExcludedFromFee account then remove the fee
+        if (_isExcludedFromFees[from] || _isExcludedFromFees[to]) {
+            takeFee = false;
+        }
+
+        if (takeFee) {
+            uint256 fees = amount.mul(centiBuyTax).div(10000);
+            if (automatedMarketMakerPairs[to]) {
+                fees = amount.mul(centiSellTax).div(10000);
+            }
+            amount = amount.sub(fees);
+
+            super._transfer(from, address(this), fees);
+        }
+
+        super._transfer(from, to, amount);
+    }
+
+    function swapAndSendToFee(uint256 tokens, address receiver) private {
+        uint256 initialBalance = address(this).balance;
+
+        swapTokensForEth(tokens);
+
+        uint256 newBalance = address(this).balance.sub(initialBalance);
+
+        payable(receiver).transfer(newBalance);
+    }
+
+    function swapTokensForEth(uint256 tokenAmount) private {
+        // generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        // make the swap
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // accept any amount of ETH
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
+    function setSellTax(
+        uint256 _wholeNumber,
+        uint256 _firstNumberAfterDecimal,
+        uint256 _secondNumberAfterDecimal
+    ) public onlyOwner {
+        require(
+            _wholeNumber <= 25 &&
+                _firstNumberAfterDecimal <= 9 &&
+                _secondNumberAfterDecimal <= 9
+        );
+        centiSellTax =
+            _wholeNumber *
+            100 +
+            _firstNumberAfterDecimal *
+            10 +
+            _secondNumberAfterDecimal;
+    }
+
+    function setBuyTax(
+        uint256 _wholeNumber,
+        uint256 _firstNumberAfterDecimal,
+        uint256 _secondNumberAfterDecimal
+    ) public onlyOwner {
+        require(
+            _wholeNumber <= 25 &&
+                _firstNumberAfterDecimal <= 9 &&
+                _secondNumberAfterDecimal <= 9
+        );
+        centiBuyTax =
+            _wholeNumber *
+            100 +
+            _firstNumberAfterDecimal *
+            10 +
+            _secondNumberAfterDecimal;
+    }
+
+    function getAllTaxes() external onlyOwner {
+        swapAndSendToFee(balanceOf(address(this)), marketingWallet);
+    }
+
+    function setMaxTx(
+        uint256 _wholeNumber,
+        uint256 _firstNumberAfterDecimal,
+        uint256 _secondNumberAfterDecimal
+    ) external onlyOwner {
+        require(
+            _wholeNumber < 100 &&
+                _firstNumberAfterDecimal <= 9 &&
+                _secondNumberAfterDecimal <= 9
+        );
+        maxTxAmount =
+            (_wholeNumber *
+                100 +
+                _firstNumberAfterDecimal *
+                10 +
+                _secondNumberAfterDecimal) *
+            totalSupply().div(10000);
+    }
+
+}

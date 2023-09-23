@@ -1,0 +1,111 @@
+contract ReferralsUpgradable is OwnableUpgradeable {
+    mapping(uint256 => uint256) public referralCommissionRate;
+
+    mapping(uint256 => mapping(address => address)) private referrers;
+
+    event ReferrerSet(
+        uint256 indexed platform,
+        address indexed user,
+        address indexed referrer
+    );
+
+    event ReferralCommissionRateSet(
+        uint256 indexed platform,
+        uint256 indexed referralCommissionRate
+    );
+
+    function __Referrals_init(
+        uint256[] memory _comissionRate
+    ) internal initializer {
+        for (uint256 i = 0; i < _comissionRate.length; i++) {
+            referralCommissionRate[i] = _comissionRate[i];
+        }
+    }
+
+    function setReferralCommissionRate(
+        uint256 _platform,
+        uint256 _referralCommissionRate
+    ) external onlyOwner {
+        require(
+            _referralCommissionRate <= MAX_REF,
+            "ReferralManagement: > 50%"
+        );
+        referralCommissionRate[_platform] = _referralCommissionRate;
+        emit ReferralCommissionRateSet(_platform, _referralCommissionRate);
+    }
+
+    function _setAndGetReferrerIfPossible(
+        uint256 _platform,
+        address _user,
+        address _referrer
+    ) internal returns (address) {
+        _safelySetReferrer(_platform, _user, _referrer);
+        return _getReferrer(_platform, _user);
+    }
+
+    function _getReferrer(
+        uint256 _platform,
+        address _user
+    ) internal view returns (address) {
+        address referrer = referrers[_platform][_user];
+        return referrer;
+    }
+
+    function setReferrer(uint256 _platform, address _referrer) external {
+        _setReffererFor(_platform, msg.sender, _referrer);
+    }
+
+    function _safelySetReferrer(
+        uint256 _platform,
+        address _user,
+        address _referrer
+    ) internal {
+        // does not revert if referrer is already set or if referrer is the user or if referrer is 0x0
+        if (
+            referrers[_platform][_user] == address(0) &&
+            _referrer != _user &&
+            _referrer != address(0)
+        ) {
+            referrers[_platform][_user] = _referrer;
+            emit ReferrerSet(_platform, _user, _referrer);
+        }
+    }
+
+    function _setReffererFor(
+        uint256 _platform,
+        address _user,
+        address _referrer
+    ) internal {
+        require(
+            _referrer != address(0),
+            "ReferralManagement: invalid referrer address"
+        );
+        require(
+            _referrer != _user,
+            "ReferralManagement: referrer cannot be the user"
+        );
+        require(
+            referrers[_platform][_user] == address(0),
+            "ReferralManagement: referrer already set"
+        );
+        referrers[_platform][_user] = _referrer;
+        emit ReferrerSet(_platform, _user, _referrer);
+    }
+
+    function setReferrerFor(
+        uint256 _platform,
+        address _user,
+        address _referrer
+    ) external onlyOwner {
+        _setReffererFor(_platform, _user, _referrer);
+    }
+
+    function referrerOf(
+        uint256 _platform,
+        address account
+    ) external view returns (address) {
+        return referrers[_platform][account];
+    }
+
+    uint256[50] private __gap; // gap for upgrade safety
+}

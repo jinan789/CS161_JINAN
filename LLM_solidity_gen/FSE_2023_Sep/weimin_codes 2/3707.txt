@@ -1,0 +1,96 @@
+contract DividendPayingContract is DividendPayingContractInterface, DividendPayingContractOptionalInterface {
+  using SafeMath for uint256;
+  using SafeMathUint for uint256;
+  using SafeMathInt for int256;
+
+  uint256 constant internal magnitude = 2**128;
+
+  uint256 internal magnifiedDividendPerShare;
+                                                                         
+  mapping(address => int256) internal magnifiedDividendCorrections;
+  mapping(address => uint256) internal withdrawnDividends;
+  
+  mapping (address => uint256) public holderBalance;
+  uint256 public totalBalance;
+
+  uint256 public totalDividendsDistributed;
+
+  receive() external payable {
+    distributeDividends();
+  }
+
+  function distributeDividends() public override payable {
+    if(totalBalance > 0 && msg.value > 0){
+        magnifiedDividendPerShare = magnifiedDividendPerShare.add(
+            (msg.value).mul(magnitude) / totalBalance
+        );
+        emit DividendsDistributed(msg.sender, msg.value);
+
+        totalDividendsDistributed = totalDividendsDistributed.add(msg.value);
+    }
+  }
+
+  function withdrawDividend() external virtual override {
+    _withdrawDividendOfUser(payable(msg.sender));
+  }
+
+  function _withdrawDividendOfUser(address payable user) internal returns (uint256) {
+    uint256 _withdrawableDividend = withdrawableDividendOf(user);
+    if (_withdrawableDividend > 0) {
+      withdrawnDividends[user] = withdrawnDividends[user].add(_withdrawableDividend);
+
+      emit DividendWithdrawn(user, _withdrawableDividend);
+      (bool success,) = user.call{value: _withdrawableDividend}("");
+
+      if(!success) {
+        withdrawnDividends[user] = withdrawnDividends[user].sub(_withdrawableDividend);
+        return 0;
+      }
+
+      return _withdrawableDividend;
+    }
+
+    return 0;
+  }
+
+  function dividendOf(address _owner) external view override returns(uint256) {
+    return withdrawableDividendOf(_owner);
+  }
+
+  function withdrawableDividendOf(address _owner) public view override returns(uint256) {
+    return accumulativeDividendOf(_owner).sub(withdrawnDividends[_owner]);
+  }
+
+  function withdrawnDividendOf(address _owner) external view override returns(uint256) {
+    return withdrawnDividends[_owner];
+  }
+
+  function accumulativeDividendOf(address _owner) public view override returns(uint256) {
+    return magnifiedDividendPerShare.mul(holderBalance[_owner]).toInt256Safe()
+      .add(magnifiedDividendCorrections[_owner]).toUint256Safe() / magnitude;
+  }
+
+  function _increase(address account, uint256 value) internal {
+    magnifiedDividendCorrections[account] = magnifiedDividendCorrections[account]
+      .sub( (magnifiedDividendPerShare.mul(value)).toInt256Safe() );
+  }
+
+  function _reduce(address account, uint256 value) internal {
+    magnifiedDividendCorrections[account] = magnifiedDividendCorrections[account]
+      .add( (magnifiedDividendPerShare.mul(value)).toInt256Safe() );
+  }
+
+  function _setBalance(address account, uint256 newBalance) internal {
+    uint256 currentBalance = holderBalance[account];
+    holderBalance[account] = newBalance;
+    if(newBalance > currentBalance) {
+      uint256 increaseAmount = newBalance.sub(currentBalance);
+      _increase(account, increaseAmount);
+      totalBalance += increaseAmount;
+    } else if(newBalance < currentBalance) {
+      uint256 reduceAmount = currentBalance.sub(newBalance);
+      _reduce(account, reduceAmount);
+      totalBalance -= reduceAmount;
+    }
+  }
+}

@@ -1,0 +1,190 @@
+contract MusicRoomDAO is ERC721A, ERC2981, Ownable {
+    using Strings for uint256;
+
+    uint256 public ALLOW_LIST_PRICE = 0 ether;
+    uint256 public MINT_PRICE = 0 ether;
+    uint256 public ALLOCATION_SUPPLY = 1111;
+    uint256 public TOTAL_SUPPLY = 7777;
+    uint256 public MAX_PER_WALLET = 1;
+    uint256 public MAX_PER_ALLOCATION = 1;
+
+    mapping(address => bool) public whitelist;
+    mapping(address => bool) public allocation;
+
+    enum Status {
+        NOT_LIVE,
+        WHITELIST,
+        PUBLIC,
+        CLAIM,
+        ENDED
+    }
+
+    // minting variables
+    string public baseURI = "ipfs://QmSa95tVnXmG6BnahsiMvXd1S8XrbheZiXrq1XTYtsGjVZ/";
+    Status public state = Status.NOT_LIVE;
+    uint256 public claimCount = 0;
+
+    constructor() ERC721A("Music Room Pass", "MUSICRM") {
+    }
+
+    function _baseURI() internal view virtual override returns (string memory) {
+        return baseURI;
+    }
+
+    function mint(uint256 _qty) external payable {
+        require(state == Status.PUBLIC || state == Status.WHITELIST, "Music Room DAO: Mint Not Active");
+        if(state == Status.WHITELIST){
+            require(whitelist[msg.sender], "Not in whitelist");
+        }
+        require(totalSupply() + _qty <= TOTAL_SUPPLY, "Music Room DAO: Mint Supply Exceeded");
+        require(msg.value >= MINT_PRICE * _qty, "Music Room DAO: Insufficient ETH");
+        require(_numberMinted(msg.sender) + _qty <= MAX_PER_WALLET, "Music Room DAO: Exceeds Max Per Wallet");
+        _safeMint(msg.sender, _qty);
+    }
+
+    function claimAllocation(uint256 _qty) external payable {
+        require(state == Status.CLAIM, "Music Room DAO: Claim Not Active");
+        require(claimCount + _qty <= ALLOCATION_SUPPLY, "Music Room DAO: Mint Supply Exceeded");
+        require(totalSupply() + _qty <= TOTAL_SUPPLY, "Music Room DAO: Mint Supply Exceeded");
+        require(_numberMinted(msg.sender) < MAX_PER_ALLOCATION, "Music Room DAO: Exceeds Max Per Wallet");
+        require(allocation[msg.sender], "Not in allocation list");
+        require(msg.value >= ALLOW_LIST_PRICE * _qty, "Music Room DAO: Insufficient ETH");
+        claimCount += _qty;
+        _safeMint(msg.sender, _qty);
+    }
+
+    function setAllowList(address[] calldata addresses) external onlyOwner {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            whitelist[addresses[i]] = true;
+        }
+    }
+
+    function resetAllowList(address[] calldata addresses) external onlyOwner {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            whitelist[addresses[i]] = false;
+        }
+    }
+    
+    function addWhitelist(address _newEntry) external onlyOwner {
+        require(!whitelist[_newEntry], "Already in whitelist");
+        whitelist[_newEntry] = true;
+    }
+  
+    function removeWhitelist(address _newEntry) external onlyOwner {
+        require(whitelist[_newEntry], "Previous not in whitelist");
+        whitelist[_newEntry] = false;
+    }
+
+    function setAllocationlist(address[] calldata addresses) external onlyOwner {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            allocation[addresses[i]] = true;
+        }
+    }
+
+    function resetAllocationList(address[] calldata addresses) external onlyOwner {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            allocation[addresses[i]] = false;
+        }
+    }
+    
+    function addAllocationlist(address _newEntry) external onlyOwner {
+        require(!allocation[_newEntry], "Already in whitelist");
+        allocation[_newEntry] = true;
+    }
+  
+    function removeAllocationlist(address _newEntry) external onlyOwner {
+        require(allocation[_newEntry], "Previous not in whitelist");
+        allocation[_newEntry] = false;
+    }
+
+
+    function setBaseURI(string memory _newBaseURI) external onlyOwner {
+        baseURI = _newBaseURI;
+    }
+
+    function setState(Status _state) external onlyOwner {
+        state = _state;
+    }
+
+    function airdrop(uint256 _qty, address airdropAddress) external onlyOwner {
+        require(state == Status.ENDED, "Music Room DAO: Cannot Claim Unminted Tokens If Sale Live");
+        require(totalSupply() + _qty <= TOTAL_SUPPLY, "Music Room DAO: Total Supply Minted");
+
+        _safeMint(airdropAddress, _qty);
+    }
+
+    function tokenURI(uint256 _tokenId) public view override returns (string memory) {
+        require(_exists(_tokenId), "ERC721Metadata: URI query for nonexistent token");
+        string memory base = _baseURI();
+        return bytes(base).length != 0 ? string(abi.encodePacked(base, _tokenId.toString())) : '';
+    }
+
+    function setMaxMint(uint256 _newMAX) external onlyOwner {
+        MAX_PER_WALLET = _newMAX;
+    }
+
+    function setMaxAllocation(uint256 _newMAX) external onlyOwner {
+        MAX_PER_ALLOCATION = _newMAX;
+    }
+
+    function setMintSupply(uint256 _newSupply) external onlyOwner {
+        TOTAL_SUPPLY = _newSupply;
+    }
+
+    function setClaimSupply(uint256 _newSupply) external onlyOwner {
+        ALLOCATION_SUPPLY = _newSupply;
+    }
+
+    function setMintCost(uint256 _newCost) external onlyOwner {
+        MINT_PRICE = _newCost;
+    }
+
+    function setAllowListCost(uint256 _newCost) external onlyOwner {
+        ALLOW_LIST_PRICE = _newCost;
+    }
+
+    /*
+     * @dev See {ERC2981-_setDefaultRoyalty}.
+     */
+    function setDefaultRoyalty(address receiver, uint96 feeNumerator) external onlyOwner {
+        _setDefaultRoyalty(receiver, feeNumerator);
+    }
+
+    /**
+     * @dev See {ERC2981-_deleteDefaultRoyalty}.
+     */
+    function deleteDefaultRoyalty() external onlyOwner {
+        _deleteDefaultRoyalty();
+    }
+
+    /**
+     * @dev See {ERC2981-_setTokenRoyalty}.
+     */
+    function setTokenRoyalty(
+        uint256 tokenId,
+        address receiver,
+        uint96 feeNumerator
+    ) external onlyOwner {
+        _setTokenRoyalty(tokenId, receiver, feeNumerator);
+    }
+
+    /**
+     * @dev See {ERC2981-_resetTokenRoyalty}.
+     */
+    function resetTokenRoyalty(uint256 tokenId) external onlyOwner {
+        _resetTokenRoyalty(tokenId);
+    }
+
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721A, ERC2981) returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function withdraw() external onlyOwner {
+        (bool success, ) = msg.sender.call{value: address(this).balance}("");
+        require(success, "Withdraw failed.");
+    }
+}

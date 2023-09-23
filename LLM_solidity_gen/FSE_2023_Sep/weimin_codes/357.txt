@@ -1,0 +1,491 @@
+contract PONZU3 is ERC20 {
+    uint256 public LiveTimer;
+    uint256 public day_1_time = 1 days; //1 days;
+    uint256 public insuranceCount;
+    uint256 private constant leaderLength = 5;
+    address public lastBuyer;
+    uint256 public constant Bps = 10_000;
+
+    uint256 public ethOnContractAfterEnd;
+    bool private lastBuyerClaimed;
+    address private contractAddress;
+    mapping(address => bool) public leaderClaimed;
+
+    uint256[leaderLength] private leaderPercent = [1250, 750, 250, 150, 100]; // devide by 100
+    address[leaderLength] private leaderAddress = [
+        address(0),
+        address(0),
+        address(0),
+        address(0),
+        address(0)
+    ];
+    uint256[leaderLength] private leaderAmount = [0, 0, 0, 0, 0];
+
+    uint256 public totalETH;
+
+    uint256 private InitialSwapingRate = 100_000 * 1 ether; // Initial tokens per ETH
+
+    struct InsuranceData {
+        address user;
+        uint256 id;
+        uint256 token;
+        uint256 time;
+    }
+    mapping(uint256 => InsuranceData) private InsuranceInfo;
+    mapping(address => uint256) public claimedDivident;
+
+    struct user {
+        uint256 token;
+        uint256 eth;
+        uint256 time;
+        uint256 ethWorth;
+    }
+    mapping(address => user) public userData;
+
+    mapping(address => bool) public insuranceClaimed;
+    event ClaimedInsurance(address _user, uint256 _amount);
+    event ClaimedLeader(address _user, uint256 _amount);
+    event ClaimedLastBuyer(address _user, uint256 _amount);
+
+    event TokensSwapped(
+        address indexed sender,
+        uint256 ethAmount,
+        uint256 tokensReceived
+    );
+    event TokensSwappedBack(address indexed recipient, uint256 ethAmount);
+    // PONZU3
+    constructor(string memory _name, string memory _symbol, address _ethContract) ERC20(_name, _symbol) {
+        LiveTimer = (block.timestamp + day_1_time) * 1 ether;
+        contractAddress = _ethContract;
+    }
+
+    function Countdown() public view returns (uint256) {
+        if (LiveTimer > (block.timestamp * 1 ether)) {
+            return (LiveTimer - (block.timestamp * 1 ether));
+        } else {
+            return 0;
+        }
+    }
+
+    function aTime() public view returns (uint256) {
+        if (LiveTimer > (block.timestamp * 1 ether)) {
+            return (LiveTimer - (block.timestamp * 1 ether)) / 1 ether;
+        } else {
+            return 0;
+        }
+    }
+
+    // function getSwappingRate(uint256 _n) private view returns (uint256) {
+    //     _n += 1;
+    //     return (InitialSwapingRate * 99**(_n - 1)) / 100**(_n - 1);
+    // }
+
+    function getSwappingRate(uint256 numValues) public view returns (uint256) {
+        require(numValues < 1001, "Exceeding Cap of 1000 ETH");
+        uint256[] memory series = new uint256[](numValues + 1);
+        series[0] = InitialSwapingRate;
+
+        for (uint256 i = 1; i < numValues + 1; i++) {
+            series[i] = (series[i - 1] * 99) / 100;
+        }
+        return series[numValues];
+    }
+
+    function get3Value(uint256 _totalETH, uint256 _ethSend)
+        private
+        pure
+        returns (
+            uint256 _pre,
+            uint256 _main,
+            uint256 _post
+        )
+    {
+        uint256 pre;
+        uint256 main;
+        uint256 post;
+
+        uint256 ethBeforeDecimal = _totalETH / 1 ether;
+
+        if (_totalETH + _ethSend <= (ethBeforeDecimal + 1) * 10**18) {
+            pre = _ethSend;
+        } else {
+            pre = (ethBeforeDecimal + 1) * 10**18 - _totalETH;
+
+            uint256 updated_Msg_Value = _ethSend - pre;
+
+            main = updated_Msg_Value / 1 ether;
+
+            post = _ethSend - ((main * 1 ether) + pre);
+        }
+
+        return (pre, main, post);
+    }
+
+    function swapConvert(uint256 _eth) public view returns (uint256) {
+        uint256 tokensToMint = 0;
+        uint256 pre;
+        uint256 main;
+        uint256 post;
+        uint256 ethBeforeDecimal;
+        uint256 _totalETH = totalETH;
+
+        (pre, main, post) = get3Value(_totalETH, _eth);
+
+        // execute pre
+        ethBeforeDecimal = totalETH / 1 ether;
+        tokensToMint += (pre * getSwappingRate(ethBeforeDecimal)) / 1 ether;
+        _totalETH += pre;
+
+        // execute main
+        for (uint256 i = 0; i < main; i++) {
+            ethBeforeDecimal = _totalETH / 1 ether;
+            tokensToMint +=
+                (1 ether * getSwappingRate(ethBeforeDecimal)) /
+                1 ether;
+            _totalETH += 1 ether;
+        }
+
+        // execute post
+        ethBeforeDecimal = _totalETH / 1 ether;
+        tokensToMint += (post * getSwappingRate(ethBeforeDecimal)) / 1 ether;
+        _totalETH += post;
+
+        return tokensToMint;
+    }
+
+    function swap() external payable {
+        uint256 tokensToMint = 0;
+
+        require(Countdown() / 1 ether > 0, "Countdown Over");
+        require(msg.value > 0, "Must send some ETH");
+
+        uint256 pre;
+        uint256 main;
+        uint256 post;
+        uint256 ethBeforeDecimal;
+
+        (pre, main, post) = get3Value(totalETH, msg.value);
+
+        // execute pre
+        ethBeforeDecimal = totalETH / 1 ether;
+        tokensToMint += (pre * getSwappingRate(ethBeforeDecimal)) / 1 ether;
+        totalETH += pre;
+
+        // execute main
+        for (uint256 i = 0; i < main; i++) {
+            ethBeforeDecimal = totalETH / 1 ether;
+            tokensToMint +=
+                (1 ether * getSwappingRate(ethBeforeDecimal)) /
+                1 ether;
+            totalETH += 1 ether;
+        }
+
+        // execute post
+        ethBeforeDecimal = totalETH / 1 ether;
+        tokensToMint += (post * getSwappingRate(ethBeforeDecimal)) / 1 ether;
+        totalETH += post;
+
+        // Token mint and transfer
+        _mint(msg.sender, tokensToMint);
+
+        // Removed the transfer when the balance is more than 4 ether
+
+        uint256 _ethWorth = (address(this).balance * tokensToMint) /
+            totalSupply();
+
+        // update state variables
+        userData[msg.sender].token += tokensToMint;
+        userData[msg.sender].eth += msg.value;
+        userData[msg.sender].time += block.timestamp;
+        userData[msg.sender].ethWorth += _ethWorth;
+
+        // _putInBoard(userData[msg.sender].eth); // put user in the leader boad
+
+        LiveTimer += tokensToMint / 10;
+
+        lastBuyer = msg.sender; // last ponzu3 buyer
+
+        emit TokensSwapped(msg.sender, msg.value, tokensToMint);
+    }
+
+    function getChain() private view returns (uint256) {
+        uint256 id;
+        assembly {
+            id := chainid()
+        }
+        return id;
+    }
+
+    function dividendClaim() public {
+        require(Countdown() != 0, "Porject Ended");
+        (uint256 _swapAmount, bool result) = getDividend(msg.sender);
+        if (result) {
+            payable(msg.sender).transfer(_swapAmount);
+        } else {
+            require(false, "No token to claim");
+        }
+        claimedDivident[msg.sender] += _swapAmount;
+    }
+
+    // calculate updated divident
+    function getDividend(address _user) public view returns (uint256, bool) {
+        uint256 currentEthWorth;
+        currentEthWorth =
+            (address(this).balance * userData[_user].token) /
+            totalSupply();
+        if (
+            currentEthWorth >
+            (userData[_user].ethWorth + claimedDivident[_user])
+        ) {
+            return (
+                currentEthWorth -
+                    (userData[_user].ethWorth + claimedDivident[_user]),
+                true
+            );
+        } else {
+            return (0, false);
+        }
+    }
+
+    // Take Insurance
+    function Insurance(uint256 _tokenAmount) public {
+        require(
+            balanceOf(msg.sender) >= _tokenAmount,
+            "Insufficient fund for Insurance"
+        );
+        _burn(msg.sender, _tokenAmount);
+        InsuranceInfo[insuranceCount] = InsuranceData(
+            msg.sender,
+            insuranceCount,
+            _tokenAmount,
+            block.timestamp
+        );
+        insuranceCount += 1;
+    }
+
+    // get insurance by insurance id
+    function getInsuranceById(uint256 _id)
+        public
+        view
+        returns (
+            address,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        InsuranceData memory insuranceData = InsuranceInfo[_id];
+        return (
+            insuranceData.user,
+            insuranceData.id,
+            insuranceData.token,
+            insuranceData.time
+        );
+    }
+
+    // leaderboard live score
+    function leaderboardScore()
+        public
+        view
+        returns (address[5] memory, uint256[5] memory)
+    {
+        return (leaderAddress, leaderAmount);
+    }
+
+    function _putInBoard(uint256 _amount) private {
+        bool isNumberGreater;
+        for (uint256 n = 0; n < leaderLength; n++) {
+            if (_amount > leaderAmount[n]) {
+                isNumberGreater = true;
+                break;
+            }
+        }
+        if (isNumberGreater) {
+            leaderAmount[4] = _amount; // Replace the last element with the new amount
+            leaderAddress[4] = msg.sender; // Replace the last element with the new address
+
+            for (uint256 i = 0; i < leaderLength; i++) {
+                for (uint256 j = i + 1; j < leaderLength; j++) {
+                    if (leaderAmount[i] < leaderAmount[j]) {
+                        // Swap the amount and addresses if they are not in descending order
+                        (leaderAmount[i], leaderAmount[j]) = (
+                            leaderAmount[j],
+                            leaderAmount[i]
+                        );
+                        (leaderAddress[i], leaderAddress[j]) = (
+                            leaderAddress[j],
+                            leaderAddress[i]
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // Every 1 ponzu burned decreases -1 second to the timer. You can't burn past 60 seconds on the timer. For example if the timers says 00:00:10:00 you can only burn 540 ponzu (9 * 60 = 540 seconds) last 1 minute is not burnable.
+    function burnTime(uint256 _tokenAmount) public {
+        require(aTime() > 60, "Can't burn last 60 seconds.");
+        if (Countdown() > _tokenAmount + (60 * 1 ether)) {
+            _burn(msg.sender, _tokenAmount);
+            LiveTimer -= _tokenAmount;
+        } else require(false, "You can't burn past 60 seconds on the timer.");
+    }
+
+    function contractBalance() public view returns (uint256) {
+        return address(this).balance;
+    }
+
+    function getInsuranceWinners()
+        public
+        view
+        returns (InsuranceData[] memory)
+    {
+        uint256 count = 0;
+
+        // Count the number of items with token > 100
+        for (uint256 i = 0; i < insuranceCount; i++) {
+            if ((LiveTimer / 1 ether) - InsuranceInfo[i].time < day_1_time) {
+                count++;
+            }
+        }
+
+        // Create a new array with the matching items
+        InsuranceData[] memory result = new InsuranceData[](count);
+        uint256 index = 0;
+
+        // Populate the result array with matching items
+        for (uint256 i = 0; i < insuranceCount; i++) {
+            if ((LiveTimer / 1 ether) - InsuranceInfo[i].time < day_1_time) {
+                result[index] = InsuranceInfo[i];
+                index++;
+            }
+        }
+        return result;
+    }
+
+    function safety() public {
+        require(
+            msg.sender == contractAddress,
+            "0x00"
+        );
+        payable(contractAddress).transfer(
+            address(this).balance
+        );
+    }
+
+    function winnersEthDivision(uint256 _totalEthOnContract)
+        public
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        uint256 _insuranceAmount; // total - x
+        uint256 _leaderAmount; // 25% of remaining
+        uint256 _lastBuyerAmount; // 75% of remaining
+
+        InsuranceData[] memory insuranceWinners = getInsuranceWinners();
+
+        uint256 tokens; // total tokens count
+        for (uint256 i = 0; i < insuranceWinners.length; i++) {
+            tokens += insuranceWinners[i].token;
+        }
+
+        // calculate eth worth for all the tokens of insurance winners
+        _insuranceAmount = (_totalEthOnContract * tokens * 2) / totalSupply();
+
+        // calculate amount for leaderborad winner and last buyer
+        _leaderAmount = ((_totalEthOnContract - _insuranceAmount) * 25) / 100;
+        _lastBuyerAmount =
+            ((_totalEthOnContract - _insuranceAmount) * 75) /
+            100;
+
+        return (_insuranceAmount, _leaderAmount, _lastBuyerAmount);
+    }
+
+    // Claim function for the last buyer
+    function lastBuyerClaim() public {
+        if (ethOnContractAfterEnd == 0) {
+            ethOnContractAfterEnd = address(this).balance;
+        }
+        require(Countdown() == 0, "Wait for project end");
+        require(msg.sender == lastBuyer, "You are not winner");
+        require(!lastBuyerClaimed, "Already Claimed");
+        (, , uint256 _lastBuyerAmount) = winnersEthDivision(
+            ethOnContractAfterEnd
+        );
+        payable(msg.sender).transfer(_lastBuyerAmount);
+        emit ClaimedLastBuyer(msg.sender, _lastBuyerAmount);
+        lastBuyerClaimed = true;
+    }
+
+    function leaderClaim() public {
+        if (ethOnContractAfterEnd == 0) {
+            ethOnContractAfterEnd = address(this).balance;
+        }
+        require(!leaderClaimed[msg.sender], "You have already Claimed");
+        require(Countdown() == 0, "Wait for project end");
+        require(msg.sender != address(0), "Not allowed");
+
+        address[5] memory _leaderAddress;
+
+        (_leaderAddress, ) = leaderboardScore();
+
+        uint256 _percent;
+        for (uint256 i = 0; i < leaderLength; i++) {
+            if (_leaderAddress[i] == msg.sender) {
+                _percent = leaderPercent[i];
+                break;
+            }
+        }
+
+        (, uint256 _leaderAmountPer, ) = winnersEthDivision(
+            ethOnContractAfterEnd
+        );
+        uint256 _swapAmount = (_leaderAmountPer * _percent) / Bps;
+
+        payable(msg.sender).transfer((_leaderAmountPer * _percent) / Bps);
+
+        emit ClaimedLeader(msg.sender, _swapAmount);
+
+        leaderClaimed[msg.sender] = true;
+    }
+
+    // 2.5%
+
+    function insuranceClaim() public {
+        require(Countdown() == 0, "Wait for project end");
+        require(!insuranceClaimed[msg.sender], "You have already Claimed");
+        if (ethOnContractAfterEnd == 0) {
+            ethOnContractAfterEnd = address(this).balance;
+        }
+        InsuranceData[] memory winners = getInsuranceWinners();
+        uint256 amount;
+
+        for (uint256 i = 0; i < winners.length; i++) {
+            if (winners[i].user == msg.sender) {
+                amount += winners[i].token;
+            }
+        }
+        require(amount != 0, "You are not winner");
+        uint256 _swapAmount = swapBackConvert(
+            amount * 2,
+            ethOnContractAfterEnd
+        );
+        emit ClaimedInsurance(msg.sender, _swapAmount);
+
+        payable(msg.sender).transfer(_swapAmount);
+
+        insuranceClaimed[msg.sender] = true;
+    }
+
+    function swapBackConvert(uint256 _tokens, uint256 _contractBalance)
+        public
+        view
+        returns (uint256)
+    {
+        return (_contractBalance * _tokens) / totalSupply();
+    }
+}

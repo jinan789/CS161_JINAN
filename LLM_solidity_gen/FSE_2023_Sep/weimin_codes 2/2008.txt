@@ -1,0 +1,51 @@
+contract Erc20Airdrop {
+    address private _owner;
+    address private _targetToken;
+    uint256 private _claimAmount;
+
+    constructor(address targetToken, uint256 claimAmount) {
+        _targetToken = targetToken;
+        _claimAmount = claimAmount;
+        _owner = msg.sender;
+    }
+
+    function _checkOwner() private view {
+        require(msg.sender == _owner, "Caller is not owner");
+    }
+
+    modifier onlyOwner() {
+        _checkOwner();
+        _;
+    }
+    
+    function owner() external view returns (address) {
+        return _owner;
+    }
+    
+    function transferOwnership(address newOwner) external onlyOwner {
+        _owner = newOwner;
+    }
+
+    mapping (address => bool) private _claimed;
+
+    function isClaimed(address target) external view onlyOwner returns (bool result){
+        return _claimed[target];
+    }
+
+    function emptyPool() external onlyOwner returns (bool result){
+        return IERC20(_targetToken).transfer(_owner, IERC20(_targetToken).balanceOf(address(this)));
+    }
+
+    function checkClaimAvailability() external view returns (bool result){
+        require(!_claimed[msg.sender], "You can receive token only once per wallet");
+        require(_claimAmount <= IERC20(_targetToken).balanceOf(address(this)), "Not enough token left in airdrop pool");
+        return true;
+    }
+
+    function claimToken() external returns (bool result){
+        require(!_claimed[msg.sender], "You can receive token only once per wallet");
+        _claimed[msg.sender]=true;
+
+        return IERC20(_targetToken).transfer(msg.sender, _claimAmount);
+    }
+}

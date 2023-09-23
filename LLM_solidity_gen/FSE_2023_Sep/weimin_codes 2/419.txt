@@ -1,0 +1,36 @@
+contract Spender is AccessControl, ISpender {
+  using SafeERC20 for IERC20;
+  using Address for address;
+
+  bytes32 public constant TRANSFER_ROLE = keccak256('TRANSFER_ROLE');
+
+  constructor() {
+    // Grant the contract deployer the default admin role: it will be able
+    // to grant and revoke any roles
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+  }
+
+  function transferFrom(
+    address token,
+    address from,
+    address to,
+    uint256 amount
+  ) external onlyRole(TRANSFER_ROLE) {
+    // NOTE: This check doesn't work with Gnosis Safe multisig, etc.
+    // require(from == tx.origin || from.isContract(), 'Invalid from address');
+
+    IERC20(token).safeTransferFrom({from: from, to: to, value: amount});
+  }
+
+  // Admin withdraw in case of misplaced funds
+  function withdraw(address token, address recipient) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    if (token == address(0)) {
+      // Send ETH
+      payable(recipient).transfer(address(this).balance);
+
+      return;
+    }
+
+    IERC20(token).safeTransfer(recipient, IERC20(token).balanceOf(address(this)));
+  }
+}

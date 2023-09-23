@@ -1,0 +1,143 @@
+contract Airdrop is Ownable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
+    bytes32 private constant DOMAIN_NAME = keccak256(bytes('Airdrop'));
+
+    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+
+    bytes32 public constant CLAIM_TYPEHASH = keccak256("Claim(address to,uint256 value,uint256 rewardId,uint256 rewardType)");
+
+    bytes32 public immutable DOMAIN_SEPARATOR;
+
+    IERC20 public DEXBOT;
+    uint256 public holdingBalance;
+
+    address[] public signers;
+    mapping (address => bool) public authorized;
+    mapping (address => uint256) public indexes;
+
+    mapping (bytes32 => bool) public isClaimed;
+
+    event SignerAdded(address indexed sender, address indexed account);
+    event SignerRemoved(address indexed sender, address indexed account);
+    event Claimed(address indexed to, uint256 indexed value, uint256 rewardId, uint256 rewardType);
+
+    constructor(address _token, address[] memory _signers) {
+        DEXBOT = IERC20(_token);
+
+        holdingBalance = 10000 * 10 ** 18;
+
+        for (uint256 i = 0; i < _signers.length; i++) {
+            address _addr = _signers[i];
+            require(!authorized[_addr], "duplicate existence");
+            signers.push(_addr);
+            authorized[_addr] = true;
+            indexes[_addr] = i;
+        }
+
+        uint256 chainId;
+        assembly {
+            chainId := chainid()
+        }
+        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, DOMAIN_NAME, keccak256(bytes('1')), chainId, address(this)));
+    }
+
+    receive() external payable {}
+
+    function claim(
+        address to,
+        uint256 value,
+        uint256 rewardId,
+        uint256 rewardType,
+        uint8[] calldata v,
+        bytes32[] calldata r,
+        bytes32[] calldata s
+    ) external nonReentrant {
+        require(
+            signers.length > 0 &&
+            signers.length == v.length &&
+            signers.length == r.length &&
+            signers.length == s.length,
+            "invalid signatures"
+        );
+        require(DEXBOT.balanceOf(to) >= holdingBalance, "invalid holding balance");
+        require(address(this).balance >= value, "insufficient balance");
+
+        bytes32 digest = buildSeparator(to, value, rewardId, rewardType);
+        require(!isClaimed[digest], "reuse");
+        isClaimed[digest] = true;
+
+        address[] memory signatures = new address[](signers.length);
+        for (uint256 i = 0; i < signers.length; i++) {
+            address signer = ecrecover(digest, v[i], r[i], s[i]);
+            require(authorized[signer], "invalid signer");
+            for (uint256 j = 0; j < i; j++) {
+                require(signatures[j] != signer, "duplicated");
+            }
+            signatures[i] = signer;
+        }
+
+        (bool success, ) = to.call{value: value}(new bytes(0));
+        require(success, "eth transfer failed");
+
+        emit Claimed(to, value, rewardId, rewardType);
+    }
+
+    function buildSeparator(
+        address to,
+        uint256 value,
+        uint256 rewardId,
+        uint256 rewardType
+    ) view public returns (bytes32) {
+        return keccak256(abi.encodePacked(
+            '\x19\x01',
+            DOMAIN_SEPARATOR,
+            keccak256(abi.encode(CLAIM_TYPEHASH, to, value, rewardId, rewardType))
+        ));
+    }
+
+    function setHoldingBalance(uint256 balance) external onlyOwner {
+        holdingBalance = balance;
+    }
+
+    function addSigner(address account) external onlyOwner {
+        require(!authorized[account], "already exists");
+
+        indexes[account] = signers.length;
+        authorized[account] = true;
+        signers.push(account);
+
+        emit SignerAdded(msg.sender, account);
+    }
+
+    function removeSigner(address account) external onlyOwner {
+        require(signers.length > 1, "illogical");
+        require(authorized[account], "non-existent");
+
+        uint256 index = indexes[account];
+        uint256 lastIndex = signers.length - 1;
+
+        if (index != lastIndex) {
+            address lastAddr = signers[lastIndex];
+            signers[index] = lastAddr;
+            indexes[lastAddr] = index;
+        }
+
+        delete authorized[account];
+        delete indexes[account];
+        signers.pop();
+
+        emit SignerRemoved(msg.sender, account);
+    }
+
+    function withdrawToken(address token, address to) external onlyOwner {
+        require(token != address(0), "token address cannot be zero address");
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        IERC20(token).safeTransfer(to, balance);
+    }
+
+    function withdrawEth(address to) external onlyOwner {
+        (bool success, ) = to.call{value: address(this).balance}(new bytes(0));
+        require(success, "eth transfer failed");
+    }
+}

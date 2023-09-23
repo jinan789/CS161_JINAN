@@ -1,0 +1,127 @@
+contract PunkPacks is DefaultOperatorFilterer, ERC2981, ERC1155Burnable, Ownable {
+  using ECDSA for bytes32;
+
+  mapping (uint256 => Pack) public packs;
+  uint256 public constant MAX_PER_TRANSACTION = 5;
+  address public approvedBurningContract;
+  mapping (uint256 => mapping(uint256 => bool)) public packClaims;
+  address public authorizedSigner;
+
+  constructor() ERC1155("https://punks2023.com/api/metadata/packs/") { }
+
+  /* ADMIN FUNCTIONS */
+  function addPack(
+    uint256 _tokenId,
+    string memory _name,
+    uint256 _amountAvailable,
+    uint256 _onSaleAt,
+    uint256 _saleEndsAt,
+    bool _isClaimable,
+    uint256 _price,
+    uint8 _traitsPerPack,
+    string memory _uri
+  ) external onlyOwner {
+    packs[_tokenId] = Pack({tokenId: _tokenId, name: _name, amountAvailable: _amountAvailable, onSaleAt: _onSaleAt, saleEndsAt: _saleEndsAt, isClaimable: _isClaimable, price: _price, traitsPerPack: _traitsPerPack, uri: _uri});
+  }
+
+  function setBurningContract(address _contract) external onlyOwner {
+    approvedBurningContract = _contract;
+  }
+
+  function adminMint(address _wallet, uint256 _count, uint256 _tokenId) external onlyOwner {
+    Pack storage pack = packs[_tokenId];
+
+    if (pack.amountAvailable < _count) revert PackSoldOut();
+    pack.amountAvailable -= _count;
+    _mint(_wallet, _tokenId, _count, "");
+  }
+
+  function withdraw() external onlyOwner {
+    uint256 balance = address(this).balance;
+    if (balance == 0) revert ZeroBalance();
+    address owner = payable(msg.sender);
+
+    (bool ownerSuccess, ) = owner.call{value: address(this).balance}("");
+    require(ownerSuccess, "Failed to send to Owner.");
+  }
+
+  function setAuthorizedSigner(address signer) external onlyOwner {
+    authorizedSigner = signer;
+  }
+  /* END ADMIN FUNCTIONS */
+
+  function mint(uint256 count, uint256 tokenId) payable external {
+    Pack storage pack = packs[tokenId];
+    if (count > MAX_PER_TRANSACTION) revert MaxPerTransactionExceeded();
+    if (msg.value != (count * pack.price)) revert IncorrectAmountSent();
+    if (pack.amountAvailable < count) revert PackSoldOut();
+    if (block.timestamp < pack.onSaleAt || block.timestamp > pack.saleEndsAt) revert SaleNotActive();
+
+    pack.amountAvailable -= count;
+    _mint(msg.sender, tokenId, count, "");
+  }
+
+  function claim(uint256 _packId, bytes calldata callData, bytes memory signature) external {
+    Pack storage pack = packs[_packId];
+    if (block.timestamp < pack.onSaleAt) revert SaleNotActive();
+    if (!pack.isClaimable) revert PackNotClaimable();
+    (uint256[] memory token_ids, address wallet) = _signedTokenIds(callData, signature);
+    if (wallet != msg.sender) revert NotValidOwner();
+
+    for (uint8 i; i < token_ids.length; i++) {
+      if (packClaims[_packId][token_ids[i]]) revert AlreadyClaimed();
+      packClaims[_packId][token_ids[i]] = true;
+    }
+
+    _mint(msg.sender, _packId, token_ids.length, "");
+  }
+
+  function uri(uint256 _tokenId) public view override returns (string memory) {
+    Pack memory pack = packs[_tokenId];
+    return pack.uri;
+  }
+
+  function isApprovedForAll(address _owner, address operator) public view override returns (bool) {
+    if (operator == approvedBurningContract) return true;
+    return super.isApprovedForAll(_owner, operator);
+  }
+
+  function _signedTokenIds(bytes calldata callData, bytes memory signature) internal view returns (uint256[] memory, address) {
+    address signer = keccak256(callData).toEthSignedMessageHash().recover(signature);
+    if (signer == address(0)) revert InvalidSignature();
+    if (signer != authorizedSigner) revert UnauthorizedSigner();
+    (uint256[] memory token_ids, address wallet) = abi.decode(callData, (uint256[], address));
+
+    return (token_ids, wallet);
+  }
+
+  function traitsPerPack(uint256 packId) public view returns (uint8) {
+    return packs[packId].traitsPerPack;
+  }
+
+  function setApprovalForAll(address operator, bool approved) public override onlyAllowedOperatorApproval(operator) {
+    super.setApprovalForAll(operator, approved);
+  }
+
+  function safeTransferFrom(address from, address to, uint256 tokenId, uint256 amount, bytes memory data)
+    public
+    override
+    onlyAllowedOperator(from)
+  {
+    super.safeTransferFrom(from, to, tokenId, amount, data);
+  }
+
+  function safeBatchTransferFrom(
+    address from,
+    address to,
+    uint256[] memory ids,
+    uint256[] memory amounts,
+    bytes memory data
+  ) public virtual override onlyAllowedOperator(from) {
+    super.safeBatchTransferFrom(from, to, ids, amounts, data);
+  }
+
+  function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155, ERC2981) returns (bool) {
+    return ERC1155.supportsInterface(interfaceId) || ERC2981.supportsInterface(interfaceId);
+  }
+}

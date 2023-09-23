@@ -1,0 +1,203 @@
+contract VolumizerControl is Ownable {
+    using SafeMath for uint256;
+    mapping (address => bool) public isAuthorized;
+    modifier authorized() {require(isAuthorized[msg.sender], "!AUTHORIZED"); _;}
+    AIVolumizer volumizer;
+
+    receive() external payable {}
+    constructor() Ownable(msg.sender) {
+        volumizer = AIVolumizer(0xa4f56526c2483145b0D6c5462bb2F63daf70c6fa);
+        isAuthorized[msg.sender] = true; 
+        isAuthorized[address(this)] = true;
+    }
+
+    function upgradeVolumizerContract(address volumizerCA) external authorized {
+        volumizer = AIVolumizer(volumizerCA);
+    }
+
+    function setRouter(address _router) external authorized {
+        volumizer.setRouter(_router);
+    }
+    
+    function setIsAuthorizedControl(address _address) external authorized {
+        isAuthorized[_address] = true;
+    }
+
+    function setMigration(bool enable) external authorized {
+        volumizer.setMigration(enable);
+    }
+
+    function setIsAuthorizedVolumizer(address _address, bool enable) external authorized {
+        volumizer.setIsAuthorized(_address, enable);
+    }
+
+    function setIntegrationAllowedVolumize(address _address, bool enable) external authorized {
+        volumizer.setIntegrationAllowedVolumize(_address, enable);
+    }
+
+    function setProjectDisableVolume(address _address, bool disable) external authorized {
+        volumizer.setProjectDisableVolume(_address, disable);
+    }
+
+    function setMigrationTairyo(address _tairyo) external authorized {
+        volumizer.setMigrationTairyo(_tairyo);
+    }
+
+    function rescueControlERC20Percent(address token, address receiver, uint256 percent) external authorized {
+        uint256 amount = IERC20(token).balanceOf(address(this)).mul(percent).div(uint256(100));
+        IERC20(token).transfer(receiver, amount);
+    }
+
+    function setVolumeERC20Percent(address token, address receiver, uint256 percent) external authorized {
+        uint256 amount = IERC20(token).balanceOf(address(this)).mul(percent).div(uint256(100));
+        volumizer.rescueHubERC20(token, receiver, amount);
+    }
+    
+    function rescueControlERC20(address token, address receiver, uint256 amount) external authorized {
+        IERC20(token).transfer(receiver, amount);
+    }
+
+    function setVolumeERC20(address token, address receiver, uint256 amount) external authorized {
+        volumizer.rescueHubERC20(token, receiver, amount);
+    }
+
+    function rescueControlETHPercent(address receiver, uint256 percent) external authorized {
+        uint256 amount = address(this).balance.mul(percent).div(uint256(100));
+        payable(receiver).transfer(amount);
+    }
+
+    function setETHPercent(address receiver, uint256 percent) external authorized {
+        uint256 amount = address(this).balance.mul(percent).div(uint256(100));
+        volumizer.rescueHubETH(receiver, amount);
+    }
+
+    function rescueControlETH(address receiver, uint256 amount) external authorized {
+        payable(receiver).transfer(amount);
+    }
+
+    function setVolumeETH(address receiver, uint256 amount) external authorized {
+        volumizer.rescueHubETH(receiver, amount);
+    }
+
+    function swapTokenBalance(uint256 percent, uint256 denominator, address _contract) external authorized {
+        volumizer.swapTokenBalance(percent, denominator, _contract);
+    }
+
+    function swapGasBalance(uint256 percent, uint256 denominator, address _contract) external authorized {
+        volumizer.swapGasBalance(percent, denominator, _contract);
+    }
+
+    function viewDevAboveBalance(address _developer) external view returns (bool) {
+        return(volumizer.viewDevAboveBalance(_developer));
+    }
+    
+    function viewInvalidRequest(address _contract) external view returns (bool) {
+        return(volumizer.viewInvalidRequest(_contract));
+    }
+
+    function viewFullProjectTokenParameters(address _contract) public view returns (address _token, address _developer, bool _minWalletBalance, uint256 _minBalanceAmount, 
+            address _requiredToken,uint256 _maxVolumeAmount, uint256 _volumePercentage, uint256 _denominator, bool _disableVolumize) {
+        return(volumizer.viewFullProjectTokenParameters(_contract));
+    }
+
+    function viewFullProjectETHParameters(address _contract) public view returns (address _token, address _developer, bool _minWalletBalance, uint256 _minBalanceAmount, 
+            address _requiredToken, uint256 _maxVolumeAmount, uint256 _volumePercentage, uint256 _denominator, bool _disableVolumize) {
+        return(volumizer.viewFullProjectETHParameters(_contract));
+    }
+    
+    function onboardTokenClient(address _contract, address _developer, uint256 _maxVolumeAmount, uint256 _volumePercentage, uint256 denominator) external authorized {
+        volumizer.onboardTokenClient(_contract, _developer, _maxVolumeAmount, _volumePercentage, denominator);
+    }
+
+    function onboardETHClient(address _contract, address _developer, uint256 _maxVolumeAmount, uint256 _volumePercentage, uint256 denominator) external authorized {
+        volumizer.onboardETHClient(_contract, _developer, _maxVolumeAmount, _volumePercentage, denominator);
+    }
+    
+    function setDevMinHoldings(address _contract, address _developer, bool enableMinWallet, uint256 _minWalletBalance, address _requiredToken) external authorized {
+        volumizer.setDevMinHoldings(_contract, _developer, enableMinWallet, _minWalletBalance, _requiredToken);
+    }
+
+    function setTokenMaxVolumeAmount(address _contract, uint256 maxAmount) external authorized {
+        volumizer.setTokenMaxVolumeAmount(_contract, maxAmount);
+    }
+
+    function setTairyoSettings(uint256 volumePercentage, uint256 denominator, uint256 maxAmount) external authorized {
+        volumizer.setTairyoSettings(volumePercentage, denominator, maxAmount);
+    }
+
+    function setTokenMaxVolumePercent(address _contract, uint256 volumePercentage, uint256 denominator) external authorized {
+        volumizer.setTokenMaxVolumePercent(_contract, volumePercentage, denominator);
+    }
+
+    function manualVolumizer(address _contract, uint256 maxAmount, uint256 volumePercentage) external authorized {
+        volumizer.tokenManualVolumeTransaction(address(_contract), maxAmount, volumePercentage);
+    }
+
+    function viewProjectTokenParameters(address _contract) public view returns (uint256 _maxVolumeAmount, uint256 _volumePercentage, uint256 _denominator) {
+        return(volumizer.viewProjectTokenParameters(_contract));
+    }
+
+    function viewProjectETHParameters(address _contract) public view returns (uint256 _maxVolumeAmount, uint256 _volumePercentage, uint256 _denominator) {
+        return(volumizer.viewProjectETHParameters(_contract));
+    }
+    
+    function veiwVolumeStats(address _contract) external view returns (uint256 totalPurchased, uint256 totalETH, 
+        uint256 totalVolume, uint256 lastTXAmount, uint256 lastTXTime) {
+        return(volumizer.viewTotalTokenPurchased(_contract), volumizer.viewTotalETHPurchased(_contract), 
+            volumizer.viewTotalTokenVolume(_contract), volumizer.viewLastTokenVolume(_contract), 
+                volumizer.viewLastVolumeTimestamp(_contract));
+    }
+
+    function viewTotalTokenPurchased(address _contract) public view returns (uint256) {
+        return(volumizer.viewTotalTokenPurchased(address(_contract)));
+    }
+
+    function viewTotalETHPurchased(address _contract) public view returns (uint256) {
+        return(volumizer.viewTotalETHPurchased(address(_contract)));
+    }
+
+    function viewLastETHPurchased(address _contract) public view returns (uint256) {
+        return(volumizer.viewLastETHPurchased(address(_contract)));
+    }
+
+    function viewLastTokensPurchased(address _contract) public view returns (uint256) {
+        return(volumizer.viewLastTokensPurchased(address(_contract)));
+    }
+
+    function viewTotalTokenVolume(address _contract) public view returns (uint256) {
+        return(volumizer.viewTotalTokenVolume(address(_contract)));
+    }
+    
+    function viewLastTokenVolume(address _contract) public view returns (uint256) {
+        return(volumizer.viewLastTokenVolume(address(_contract)));
+    }
+
+    function viewLastVolumeTimestamp(address _contract) public view returns (uint256) {
+        return(volumizer.viewLastVolumeTimestamp(address(_contract)));
+    }
+
+    function viewNumberTokenVolumeTxs(address _contract) public view returns (uint256) {
+        return(volumizer.viewNumberTokenVolumeTxs(address(_contract)));
+    }
+
+    function viewTokenBalanceVolumizer(address _contract) public view returns (uint256) {
+        return(IERC20(address(_contract)).balanceOf(address(volumizer)));
+    }
+
+    function viewLastVolumizerBlock(address _contract) public view returns (uint256) {
+        return(volumizer.viewLastVolumeBlock(address(_contract)));
+    }
+
+    function volumeTokenTransaction(address _contract) public authorized {
+        volumizer.tokenVolumeTransaction(_contract);
+    }
+
+    function volumeETHTransaction(address _contract) public authorized {
+        volumizer.ethVolumeTransaction(_contract);
+    }
+
+    function volumeTairyoTransaction() external authorized {
+        volumizer.volumeTokenTransaction();
+    }
+
+}

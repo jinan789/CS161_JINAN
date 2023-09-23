@@ -1,0 +1,95 @@
+contract EvoxCapital is Ownable, ERC721Enumerable, ReentrancyGuard {
+    using Strings for uint256;
+
+    uint256 public maxNFT = 10000;
+
+    string private _baseTokenURI = 'ipfs://QmTLP9BAZEL91XTGY4J4yuhLTSB7uTSLoM4Xy7Ep4GgDKd/new.json';
+    constructor() ERC721("Evox Capital", "Evox Capital") {
+        transferOwnership(tx.origin);
+    }
+
+    receive() external payable {
+        /* thx */
+    }
+
+    function getNFTzBelongingToOwner(address _owner)
+    external
+    view
+    returns(uint256[] memory) {
+        uint256 numNFT = balanceOf(_owner);
+        if (numNFT == 0) {
+            return new uint256[](0);
+        } else {
+            uint256[] memory result = new uint256[](numNFT);
+            for (uint256 i = 0; i < numNFT; i++) {
+                result[i] = tokenOfOwnerByIndex(_owner, i);
+            }
+            return result;
+        }
+    }
+
+    function _baseURI() internal view virtual override returns(string memory) {
+        return _baseTokenURI;
+    }
+
+    function tokenURI(uint256 _tokenId)
+    public
+    view
+    override
+    returns(string memory) {
+        string memory base = _baseTokenURI;
+        string memory _tokenURI = Strings.toString(_tokenId);
+        //string memory ending = ".json";
+        // If there is no base URI, return the token URI.
+        if (bytes(base).length == 0) {
+            return _tokenURI;
+        }
+        return string(abi.encodePacked(base));
+    }
+
+    function setBaseURI(string memory baseURI) external onlyOwner{
+        _baseTokenURI = baseURI;
+    }
+
+    function withdraw() external onlyOwner {
+        (bool sent, ) = payable(owner()).call {
+            value: address(this).balance
+        }("");
+        require(sent);
+    }
+
+    function adminTransfer(address to , uint256 tokenID) external onlyOwner{
+        _transfer(ownerOf(tokenID) , to , tokenID);
+    } 
+
+    function bridgeMint(address recipient, uint[] memory tokenIds) external onlyOwner {
+        for (uint256 index; index < tokenIds.length; index++) {
+            require(tokenIds[index] <= maxNFT);
+            require(tokenIds[index] >= 0);
+            _safeMint(recipient, tokenIds[index]);
+        }
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal virtual override(ERC721Enumerable) {
+        super._beforeTokenTransfer(from, to, tokenId);
+    }
+
+    function batchTransfer(address recipient, uint[] memory tokenIds) public {
+        for (uint256 index; index < tokenIds.length; index++) {
+            transferFrom(msg.sender, recipient, tokenIds[index]);
+        }
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+    public
+    view
+    virtual
+    override(ERC721Enumerable)
+    returns(bool) {
+        return super.supportsInterface(interfaceId);
+    }
+}

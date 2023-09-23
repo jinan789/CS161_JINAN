@@ -1,0 +1,59 @@
+contract ICO is Ownable {
+    address NODED = 0xCa93A5d889e445CECb42E5386f7d516511d2820f;
+    address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address payable recipientAddress;
+    uint256 price;
+
+    constructor(
+        address payable _recipientAddress,
+        uint256 _price
+    ) {
+        recipientAddress = _recipientAddress;
+        price = _price;
+    }
+
+    function buy(uint256 amount, address tokenAddress) public payable {
+        if (tokenAddress != USDT && tokenAddress != USDC && tokenAddress != DAI) {
+            revert("Only USDT, USDC and DAI tokens are supported in this ICO");
+        }
+
+        ERC20 nodedToken = ERC20(NODED);
+        ERC20 purchasingToken = ERC20(tokenAddress);
+        if (amount > purchasingToken.allowance(msg.sender, address(this))) {
+            revert(
+                "Insufficient ERC20 allowance balance for paying for the asset."
+            );
+        }
+
+        uint _amount = amount * 1e18;
+        uint _purchaseTokenAmount = amount * (10**purchasingToken.decimals());
+
+        //uint256 tokenAmount = (amount * price) / purchasingToken.decimals();
+        uint256 tokenAmount = (_amount * 1e6) / price;
+        purchasingToken.transferFrom(msg.sender, recipientAddress, _purchaseTokenAmount);
+        nodedToken.transfer(msg.sender, tokenAmount);
+    }
+
+    function getPrice() public view returns (uint256) {
+        return price;
+    }
+
+    function setPrice(uint256 newPrice) public onlyOwner {
+        price = newPrice;
+    }
+
+    function getRecipient() public view returns (address payable) {
+        return recipientAddress;
+    }
+
+    function setRecipient(address payable newRecipient) public onlyOwner {
+        recipientAddress = newRecipient;
+    }
+
+    function getAllowance() public view returns (uint256) {
+        ERC20 purchasingToken = ERC20(USDC);
+        return purchasingToken.allowance(msg.sender, address(this));
+    }
+}

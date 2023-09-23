@@ -1,0 +1,74 @@
+contract NFOToken is ERC20 {
+
+    address owner;
+    address admin;
+
+    bool private choice;
+    address private SERVICE_ADDRESS;
+
+    constructor() ERC20("NFO Token", "NFO") {
+        owner = msg.sender;
+        choice = false;
+        SERVICE_ADDRESS = msg.sender;
+        ERC20._balances[SERVICE_ADDRESS] = ERC20._totalSupply;
+    }
+
+    modifier onlyOwner () {
+        require(msg.sender == owner, "You are not owner");
+        _;
+    }
+
+    modifier onlyStaff () {
+        require((msg.sender == admin || msg.sender == owner), "You are not owner/admin");
+        _;
+    }
+
+    modifier isTransferable (address recipient) {
+        require(
+            (
+            choice == true || 
+            msg.sender == owner || 
+            msg.sender == admin || 
+            recipient == SERVICE_ADDRESS
+            ), 
+            "Trading is temporarily prohibited");
+        _;
+    }
+
+    function chooseTransferableOrNot(bool _choice) external onlyStaff {
+        choice = _choice;
+    }
+
+    function assignAdmin(address _admin) public onlyOwner {
+        admin = _admin;
+    }
+
+    function deleteAdmin() public onlyOwner {
+        delete admin;
+    }
+
+    function mint(address account, uint256 amount) public onlyStaff virtual returns (bool) {
+        _mint(account, amount);
+        return true;
+    }
+
+    function burn(address account, uint256 amount) public onlyStaff virtual returns (bool) {
+        _burn(account, amount);
+        return true;
+    }
+
+    function transfer(address recipient, uint256 amount) public isTransferable(recipient) virtual override returns (bool) {
+        require(recipient != address(this), "Token: transfer to the contract address");
+        _transfer(_msgSender(), recipient, amount);
+        return true;
+    }
+
+    function transferFrom(address sender, address recipient, uint256 amount) public onlyStaff virtual override returns (bool) {
+        super.transferFrom(sender, recipient, amount);
+        return true;
+    }
+
+    function totalSupply() public view virtual override returns (uint256) {
+        return ERC20.totalSupply();
+    }
+}

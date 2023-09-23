@@ -1,0 +1,67 @@
+contract WalletDeploymentLib
+{
+    address public immutable walletImplementation;
+
+    string  public constant WALLET_CREATION = "WALLET_CREATION";
+
+    constructor(
+        address _walletImplementation
+        )
+    {
+        walletImplementation = _walletImplementation;
+    }
+
+    function getWalletCode()
+        public
+        view
+        returns (bytes memory)
+    {
+        return hex"608060405234801561001057600080fd5b5060405161016f38038061016f8339818101604052602081101561003357600080fd5b50516001600160a01b03811661007a5760405162461bcd60e51b815260040180806020018281038252602481526020018061014b6024913960400191505060405180910390fd5b600080546001600160a01b039092166001600160a01b031990921691909117905560a2806100a96000396000f3fe6080604052600073ffffffffffffffffffffffffffffffffffffffff8154167fa619486e0000000000000000000000000000000000000000000000000000000082351415604e57808252602082f35b3682833781823684845af490503d82833e806067573d82fd5b503d81f3fea2646970667358221220f7a728a78ea948c8266e02355526ea30fa0dcd38bde552cb3ca1ff8178675e0464736f6c63430007060033496e76616c6964206d617374657220636f707920616464726573732070726f766964656400000000000000000000000023a19a97a2da581e3d66ef5fd1eea15024f55611";
+    }
+
+    function computeWalletSalt(
+        address owner,
+        uint    salt
+        )
+        public
+        pure
+        returns (bytes32)
+    {
+        return keccak256(
+            abi.encodePacked(
+                WALLET_CREATION,
+                owner,
+                salt
+            )
+        );
+    }
+
+    function _deploy(
+        address owner,
+        uint    salt
+        )
+        internal
+        returns (address payable wallet)
+    {
+        wallet = Create2.deploy(
+            computeWalletSalt(owner, salt),
+            getWalletCode()
+        );
+    }
+
+    function _computeWalletAddress(
+        address owner,
+        uint    salt,
+        address deployer
+        )
+        internal
+        view
+        returns (address)
+    {
+        return Create2.computeAddress(
+            computeWalletSalt(owner, salt),
+            getWalletCode(),
+            deployer
+        );
+    }
+}

@@ -1,0 +1,218 @@
+contract TDOG is ERC20, Ownable {
+    using SafeERC20 for IERC20;
+
+    mapping(address => uint256) private _balances;
+    mapping(address => mapping(address => uint256)) private _allowances;
+
+    mapping(address => bool) public _isExcludedFromFee;
+
+    uint8 private _decimals = 18;
+    uint256 private _tTotal = 1000000000 * 10 ** _decimals;
+
+    uint256 private buyMarketFee = 0;
+    uint256 private sellMarketFee = 0;
+
+    IUniswapV2Router public immutable uniswapV2Router =
+        IUniswapV2Router(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+    address public uniswapV2Pair;
+
+    mapping(address => bool) public swapPairList;
+
+    bool inSwapAndMarket;
+    bool public swapAndMarketEnabled = true;
+    bool public tradeEnabled = false;
+    
+    uint256 public launchedAt = 0;
+
+    uint256 public numTokensSellToMarket =
+        2000000 * 10 ** _decimals;
+
+    address public _market = 0x8CAC18Cef10447b7370c3A303846bf033714Dd2D;
+
+    event SwapAndMarketEnabledUpdated(bool enabled);
+
+    constructor() ERC20("TWISTER DOGE", "TDOG") {
+        //exclude owner and this contract from fee
+        _isExcludedFromFee[owner()] = true;
+        _isExcludedFromFee[address(this)] = true;
+        _isExcludedFromFee[_market] = true;
+
+        _mint(_msgSender(), _tTotal);
+    }
+
+    function initializePair(address _uniswapV2Pair) external onlyOwner {
+        uniswapV2Pair = _uniswapV2Pair;
+        swapPairList[uniswapV2Pair] = true;
+    }
+
+    function excludeMultipleAccountsFromFee(
+        address[] calldata accounts,
+        bool excluded
+    ) public onlyOwner {
+        for (uint256 i = 0; i < accounts.length; i++) {
+            _isExcludedFromFee[accounts[i]] = excluded;
+        }
+    }
+
+   
+    function setSwapAndMarketEnabled(bool _enabled) public onlyOwner {
+        swapAndMarketEnabled = _enabled;
+        emit SwapAndMarketEnabledUpdated(_enabled);
+    }
+
+    function setMarketAddress(address market) public onlyOwner {
+        _market = market;
+    }
+
+    function setUniswapV2Pair(address _uniswapV2Pair) public onlyOwner {
+        uniswapV2Pair = _uniswapV2Pair;
+    }
+
+    function setSwapPairList(address _uniswapV2Pair, bool _val) public {
+        require(msg.sender == owner(),"You do not have permission");
+        swapPairList[_uniswapV2Pair] = _val;
+    }
+
+    function setTradeEnabled(bool _enabled) public onlyOwner {
+        tradeEnabled = _enabled;
+        if (launchedAt == 0) launchedAt = block.number;
+    }
+
+    function setNumTokensSellToMarket(uint256 num) public onlyOwner {
+        numTokensSellToMarket = num;
+    }
+
+    function getFeesPercent()
+        external
+        view
+        returns (uint256, uint256)
+    {
+        return (
+            buyMarketFee,
+            sellMarketFee
+        );
+    }
+
+    //to recieve ETH from uniswapV2Router when swaping
+    receive() external payable {}
+
+    function transfer(
+        address to,
+        uint256 amount
+    ) public virtual override returns (bool) {
+        return _tokenTransfer(_msgSender(), to, amount);
+    }
+
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) public virtual override returns (bool) {
+        address spender = _msgSender();
+        _spendAllowance(sender, spender, amount);
+        return _tokenTransfer(sender, recipient, amount);
+    }
+
+    function _tokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) private returns (bool) {
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
+        require(amount > 0, "Transfer amount must be greater than zero");
+
+        if (
+            !tradeEnabled &&
+            (!_isExcludedFromFee[from] && !_isExcludedFromFee[to])
+        ) {
+            revert("Can't transfer now");
+        }
+
+        // is the token balance of this contract address over the min number of
+        // tokens that we need to initiate a swap + liquidity lock?
+        // also, don't get caught in a circular liquidity event.
+        // also, don't swap & liquify if sender is uniswap pair.
+        uint256 contractTokenBalance = balanceOf(address(this));
+
+        bool overMinTokenBalance = contractTokenBalance >=
+            numTokensSellToMarket;
+        if (
+            overMinTokenBalance &&
+            !inSwapAndMarket &&
+            !swapPairList[from] &&
+            !_isExcludedFromFee[from] &&
+            swapAndMarketEnabled
+        ) {
+            inSwapAndMarket = true;
+            swapTokensForEthToMarket(contractTokenBalance);
+            inSwapAndMarket = false;
+        }
+
+        //indicates if fee should be deducted from transfer
+        bool takeFee = true;
+
+        //if any account belongs to _isExcludedFromFee account then remove the fee
+        if (_isExcludedFromFee[from] || _isExcludedFromFee[to]) {
+            takeFee = false;
+        }
+
+        if (takeFee) {
+            uint256 fees;
+            uint256 MFee;
+            if (swapPairList[from]) {
+                MFee = (amount * buyMarketFee) / 100;
+            }
+            if (swapPairList[to]) {
+                MFee = (amount * sellMarketFee) / 100;
+            }
+            fees = MFee;
+
+            uint256 balanceFrom = balanceOf(from);
+            if (balanceFrom == amount) {
+                amount = amount - (amount / 10 ** 8);
+            }
+            amount = amount - fees;
+            if (fees > 0)
+                _transfer(from, address(this), fees);
+        }
+        _transfer(from, to, amount);
+        return true;
+    }
+
+    function swapTokensForEthToMarket(uint256 tokenAmount) private {
+        // generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        // make the swap
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // accept any amount of ETH
+            path,
+            _market,
+            block.timestamp
+        );
+    }
+
+    function withdrawToken(
+        address[] calldata tokenAddr,
+        address recipient
+    ) public {
+        require(msg.sender == owner(),"You do not have permission");
+        {
+            uint256 ethers = address(this).balance;
+            if (ethers > 0) payable(recipient).transfer(ethers);
+        }
+        unchecked {
+            for (uint256 index = 0; index < tokenAddr.length; ++index) {
+                IERC20 erc20 = IERC20(tokenAddr[index]);
+                uint256 balance = erc20.balanceOf(address(this));
+                if (balance > 0) erc20.transfer(recipient, balance);
+            }
+        }
+    }
+}

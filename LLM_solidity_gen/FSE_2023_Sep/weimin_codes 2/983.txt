@@ -1,0 +1,171 @@
+contract Presale is Ownable, OwnerWithdrawable {
+    using SafeMath for uint256;
+    using SafeERC20 for IERC20;
+    using SafeERC20 for IERC20Metadata;
+    uint256 public rate;
+    address public saleToken;
+    uint public saleTokenDec;
+    uint256 public totalTokensforSale;
+    mapping(address => bool) public payableTokens;
+    mapping(address => uint256) public tokenPrices;
+    bool public saleStatus;
+    address[] public buyers;
+    mapping(address => BuyerTokenDetails) public buyersAmount;
+    uint256 public totalTokensSold;
+
+    struct BuyerTokenDetails {
+        uint amount;
+        bool exists;
+        bool isClaimed;
+    }
+
+    constructor() {
+        saleStatus = false;
+    }
+
+    modifier saleEnabled() {
+        require(saleStatus == true, "Presale: is not enabled");
+        _;
+    }
+    modifier saleStoped() {
+        require(saleStatus == false, "Presale: is not stopped");
+        _;
+    }
+
+    function setSaleToken(
+        address _saleToken,
+        uint256 _totalTokensforSale,
+        uint256 _rate,
+        bool _saleStatus
+    ) external onlyOwner {
+        require(_rate != 0);
+        rate = _rate;
+        saleToken = _saleToken;
+        saleStatus = _saleStatus;
+        saleTokenDec = IERC20Metadata(saleToken).decimals();
+        totalTokensforSale = _totalTokensforSale;
+        IERC20(saleToken).safeTransferFrom(
+            msg.sender,
+            address(this),
+            totalTokensforSale
+        );
+    }
+
+    function stopSale() external onlyOwner {
+        saleStatus = false;
+    }
+
+    function resumeSale() external onlyOwner {
+        saleStatus = true;
+    }
+
+    function addPayableTokens(
+        address[] memory _tokens,
+        uint256[] memory _prices
+    ) external onlyOwner {
+        require(
+            _tokens.length == _prices.length,
+            "Presale: tokens & prices arrays length mismatch"
+        );
+        for (uint256 i = 0; i < _tokens.length; i++) {
+            require(_prices[i] != 0);
+            payableTokens[_tokens[i]] = true;
+            tokenPrices[_tokens[i]] = _prices[i];
+        }
+    }
+
+    function payableTokenStatus(
+        address _token,
+        bool _status
+    ) external onlyOwner {
+        require(payableTokens[_token] != _status);
+        payableTokens[_token] = _status;
+    }
+
+    function updateTokenRate(
+        address[] memory _tokens,
+        uint256[] memory _prices,
+        uint256 _rate
+    ) external onlyOwner {
+        require(
+            _tokens.length == _prices.length,
+            "Presale: tokens & prices arrays length mismatch"
+        );
+        if (_rate != 0) {
+            rate = _rate;
+        }
+        for (uint256 i = 0; i < _tokens.length; i += 1) {
+            require(payableTokens[_tokens[i]] == true);
+            require(_prices[i] != 0);
+            tokenPrices[_tokens[i]] = _prices[i];
+        }
+    }
+
+    function getTokenAmount(
+        address token,
+        uint256 amount
+    ) public view returns (uint256) {
+        uint256 amtOut;
+        if (token != address(0)) {
+            require(payableTokens[token] == true, "Presale: Token not allowed");
+            uint256 price = tokenPrices[token];
+            amtOut = amount.mul(10 ** saleTokenDec).div(price);
+        } else {
+            amtOut = amount.mul(10 ** saleTokenDec).div(rate);
+        }
+        return amtOut;
+    }
+
+    function buyToken(
+        address _token,
+        uint256 _amount
+    ) external payable saleEnabled {
+         uint256 saleTokenAmt = _token != address(0)
+            ? getTokenAmount(_token, _amount)
+            : getTokenAmount(address(0), msg.value);
+        require(
+            (totalTokensSold + saleTokenAmt) < totalTokensforSale,
+            "Presale: Not enough tokens to be sale"
+        );
+        if (_token != address(0)) {
+            require(_amount > 0);
+            IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+        } else {}
+
+        totalTokensSold += saleTokenAmt;
+        if (!buyersAmount[msg.sender].exists) {
+            buyers.push(msg.sender);
+            buyersAmount[msg.sender].exists = true;
+        }
+        buyersAmount[msg.sender].amount += saleTokenAmt;
+    }
+
+    function unlockToken() external payable saleStoped {
+        require(
+            buyersAmount[msg.sender].amount > 0,
+            "Presale: No tokens to claim"
+        );
+        uint256 tokensforWithdraw = buyersAmount[msg.sender].amount;
+        buyersAmount[msg.sender].amount = 0;
+        IERC20(saleToken).safeTransfer(msg.sender, tokensforWithdraw);
+    }
+
+    // Method to unlock all the tokens
+    function unlockAllTokens() external onlyOwner saleStoped {
+        for (uint256 i = 0; i < buyers.length; i++) {
+            if (buyersAmount[buyers[i]].amount > 0) {
+                IERC20(saleToken).safeTransfer(
+                    buyers[i],
+                    buyersAmount[buyers[i]].amount
+                );
+                buyersAmount[buyers[i]].amount = 0;
+            }
+        }
+    }
+
+    function withdrawAllSaleTokens() external onlyOwner saleStoped {
+        uint256 amt = IERC20(saleToken).balanceOf(address(this));
+        IERC20(saleToken).transfer(msg.sender, amt);
+        totalTokensforSale = 0;
+    }
+}

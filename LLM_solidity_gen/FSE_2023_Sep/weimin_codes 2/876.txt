@@ -1,0 +1,188 @@
+contract Unik_Management is Ownable, ReentrancyGuard {
+
+    constructor() {
+        whitelist[owner()] = true; // add the owner of the contract to the whitelist
+        whitelist[address(this)] = true; // add this contract to the whitelist
+    }
+    
+    // Keep whitelisted addresses as manager used in onlyAuthorized modifier
+    mapping(address => bool) private whitelist;
+    
+    /**
+     * @dev Modifier that allows only authorized addresses to call a function.
+     */
+    modifier onlyAuthorized() {
+        require(msg.sender == owner() || whitelist[msg.sender], "Unauthorized access");
+        _;
+    }
+
+    /**
+     * @dev Updates the whitelist status for multiple addresses.
+     * @param addresses The addresses to update.
+     * @param status The whitelist status to set.
+     */
+    function updateManagerWhitelist(address[] calldata addresses, bool status) public onlyOwner nonReentrant {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            if (status) {// Si status = true
+                // Add the address to the whitelist if it is not already whitelisted
+                if (!whitelist[addresses[i]]) {
+                    whitelist[addresses[i]] = true;
+                }
+            } else {
+                // Remove the address from the whitelist
+                delete whitelist[addresses[i]];
+            }
+        }
+    }
+
+    /**
+     * @dev Checks if an address is whitelisted.
+     * @param _address The address to check.
+     * @return A boolean indicating whether the address is whitelisted.
+     */
+    function isAddressWhitelisted(address _address) public view onlyAuthorized returns (bool) {
+        return whitelist[_address];
+    }
+    
+    // -----------------------------------------
+    // Interfaces initiate | The addresses of all contracts
+    // -----------------------------------------
+    address public  management; 
+    address public main; 
+    address public referral;
+    address public claim;
+
+    IMainContract internal mainContract;
+    IReferralContract internal referralContract;
+    IClaimContract internal claimContract;
+
+    // ----------------------------------------
+    // ############## Management ###########
+    // ----------------------------------------
+
+    /**
+     * @dev Sets the address of the management contract.
+     * @param newAddress The new address of the management contract.
+     */
+    function set_management_address (address newAddress) public onlyOwner{
+        uint32 size;
+        assembly {
+            size := extcodesize(newAddress)
+        }
+        require(size > 0, "newAddress is not a contract");
+        
+        management = newAddress;
+
+        mainContract.UPDATEManagementContractAddress(management);
+        claimContract.UPDATEManagementContractAddress(management);
+        referralContract.UPDATEManagementContractAddress(management);
+    }
+
+    // ----------------------------------------
+    // ############## Main Contract ###########
+    // ----------------------------------------
+
+    /**
+     * @dev Sets the address of the main contract.
+     * @param newAddress The new address of the main contract.
+     */
+    function set_main_address (address newAddress) public onlyAuthorized{
+        uint32 size;
+        assembly {
+            size := extcodesize(newAddress)
+        }
+        require(size > 0, "newAddress is not a contract");
+
+        main = newAddress;
+        mainContract = IMainContract(main); // Connection with main contract
+        whitelist[main] = true; // Add the contract address to the whitelist so that the "onlyAuthorized" function can be called from it.
+    }
+
+    /**
+     * @dev Updates the contract addresses inside the main contract.
+     */
+    function update_Main_Contract () public onlyAuthorized {
+        referralContract.UPDATEMainContractAddress(main);
+        claimContract.UPDATEMainContractAddress(main);
+    }
+
+    // ----------------------------------------
+    // ############## UnikReferrals ###########
+    // ----------------------------------------
+
+    /**
+     * @dev Sets the address of the referral contract.
+     * @param newAddress The new address of the referral contract.
+     */
+    function set_referral_address (address newAddress) public onlyAuthorized{
+        uint32 size;
+        assembly {
+            size := extcodesize(newAddress)
+        }
+        require(size > 0, "newAddress is not a contract");
+
+        referral = newAddress;
+        referralContract = IReferralContract(referral); // Connection with refferal contract
+        whitelist[referral] = true; // Add the contract address to the whitelist so that the "onlyAuthorized" function can be called from it.
+    }
+
+    /**
+     * @dev Updates the contract addresses inside the referral contract.
+     */
+    function update_Refferal_Contract () public onlyAuthorized {
+        mainContract.UPDATERefferalContractAddress(referral);
+    }
+
+    // ----------------------------------------
+    // ############## Claim System ###########
+    // ----------------------------------------
+
+    /**
+     * @dev Sets the address of the claim contract.
+     * @param newAddress The new address of the claim contract.
+     */
+    function set_claim_address (address newAddress) public onlyAuthorized{
+        uint32 size;
+        assembly {
+            size := extcodesize(newAddress)
+        }
+        require(size > 0, "newAddress is not a contract");
+
+        claim = newAddress;
+        claimContract = IClaimContract(claim); // Connection with claim contract
+        whitelist[claim] = true; // Add the contract address to the whitelist so that the "onlyAuthorized" function can be called from it.
+    }
+
+    /**
+     * @dev Updates the contract addresses inside the claim contract.
+     */ 
+    function update_Claim_Contract () public onlyAuthorized {
+        mainContract.UPDATEClaimContractAddress(claim);
+    }
+
+    // ---------------------------------------------
+    // ########### Renounce Owner Ship #############
+    // ---------------------------------------------
+
+    // Enhance the security of the renounce process by implementing a confirmation system.
+    bool renounceOwnerShipState = false;
+    /**
+    * @dev Set the state of renouncing ownership.
+    * @param state The new state of renouncing ownership.
+    * @notice Only the owner of the contract can call this function.
+    */
+    function renounceOwnerShipSet(bool state) public onlyOwner{
+        renounceOwnerShipState = state;
+    }
+    
+    /**
+    * @dev Override of the renounceOwnership function from Ownable contract to support custom renounce ownership behavior.
+    * @notice Only the owner of the contract can call this function.
+    */
+    function renounceOwnership() public virtual override onlyOwner{
+        if (renounceOwnerShipState == true) {
+            _transferOwnership(address(0));
+        }
+    }
+
+}

